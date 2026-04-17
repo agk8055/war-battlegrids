@@ -37,10 +37,13 @@ class KingdomGame extends FlameGame with ScaleDetector {
     // Center the properly scaled board loosely
     boardComponent.position = Vector2(
       (size.x - (boardComponent.size.x * fitScale)) / 2,
-      (size.y - (boardComponent.size.y * fitScale)) / 2 + 50,
+      (size.y - (boardComponent.size.y * fitScale)) / 2,
     );
 
     add(boardComponent);
+    
+    // Ensure it's clamped immediately
+    _clampPosition();
   }
 
   void _handleCellTapped(int x, int y) {
@@ -97,15 +100,41 @@ class KingdomGame extends FlameGame with ScaleDetector {
 
   @override
   void onScaleUpdate(ScaleUpdateInfo info) {
-    // Panning
+    // 1. Panning
     boardComponent.position += info.delta.global;
 
-    // Zooming (pinch)
+    // 2. Zooming (pinch)
     if (info.pointerCount > 1) {
       // Calculate the new scale, clamped to reasonable bounds
       double newScale = _startScale * info.scale.global.x;
-      newScale = newScale.clamp(0.3, 3.0);
+      newScale = newScale.clamp(0.5, 4.0); // Slightly more zoom freedom
       boardComponent.scale = Vector2.all(newScale);
+    }
+
+    // 3. Clamping - Ensure board doesn't fly off screen
+    _clampPosition();
+  }
+
+  void _clampPosition() {
+    final scaledWidth = boardComponent.width * boardComponent.scale.x;
+    final scaledHeight = boardComponent.height * boardComponent.scale.y;
+
+    // X-Axis Clamping
+    if (scaledWidth > size.x) {
+      // Board is wider than screen: clamp between (size.x - scaledWidth) and 0
+      boardComponent.x = boardComponent.x.clamp(size.x - scaledWidth, 0);
+    } else {
+      // Board is narrower: keep it centered or at least within view
+      boardComponent.x = boardComponent.x.clamp(0, size.x - scaledWidth);
+    }
+
+    // Y-Axis Clamping
+    if (scaledHeight > size.y) {
+      // Board is taller than screen
+      boardComponent.y = boardComponent.y.clamp(size.y - scaledHeight, 0);
+    } else {
+      // Board is shorter
+      boardComponent.y = boardComponent.y.clamp(0, size.y - scaledHeight);
     }
   }
 }

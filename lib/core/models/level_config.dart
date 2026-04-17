@@ -16,8 +16,8 @@ class LevelConfig {
 
   factory LevelConfig.standard() {
     return const LevelConfig(
-      boardWidth: kBoardWidth,
-      boardHeight: kBoardHeight,
+      boardWidth: kDefaultBoardWidth,
+      boardHeight: kDefaultBoardHeight,
       playerKingdomAttackThreshold: kPlayerKingdomAttackThreshold,
       aiKingdomAttackThreshold: kAIKingdomAttackThreshold,
     );

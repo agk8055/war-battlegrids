@@ -53,58 +53,79 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     });
 
     return Scaffold(
+      backgroundColor: Colors.black, // Dark background for game feel
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // Top HUD
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              color: Colors.black87,
+            // 1. The Game Layer
+            Positioned.fill(
+              child: GameWidget(game: _game!),
+            ),
+
+            // 2. Fixed Overlays (Top HUD)
+            Positioned(
+              top: 10,
+              left: 10,
+              right: 10,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ScorePanel(
-                    title: "PLAYER (BLUE)",
-                    points: simulationState.playerScore,
-                    color: Colors.blue,
-                    kingdomAttackUnlocked:
-                        simulationState.playerKingdomAttackUnlocked,
-                  ),
-                  TurnIndicator(currentTurn: simulationState.currentTurn),
-                  ScorePanel(
-                    title: "AI (RED)",
-                    points: simulationState.aiScore,
-                    color: Colors.red,
-                    kingdomAttackUnlocked:
-                        simulationState.aiKingdomAttackUnlocked,
-                    alignment: CrossAxisAlignment.end,
-                  ),
-                ],
-              ),
-            ),
-
-            // Flame Game Widget
-            Expanded(
-              child: Stack(
-                children: [
-                  GameWidget(game: _game!),
-
-                  if (aiState == AIState.thinking) const AiThinkingOverlay(),
-
-                  if (simulationState.currentPhase == GamePhase.gameOver)
-                    GameOverOverlay(
-                      winner: simulationState.currentTurn,
-                      onReturnToMap: () {
-                        // For now just pop back
-                        Navigator.of(context).pop();
-                      },
+                  // Player Score Panel (Top Left)
+                  _buildOverlayContainer(
+                    child: ScorePanel(
+                      title: "PLAYER",
+                      points: simulationState.playerScore,
+                      color: Colors.blue,
+                      kingdomAttackUnlocked:
+                          simulationState.playerKingdomAttackUnlocked,
                     ),
+                  ),
+
+                  // Turn Indicator (Top Center) - Has its own background
+                  TurnIndicator(currentTurn: simulationState.currentTurn),
+
+                  // AI Score Panel (Top Right)
+                  _buildOverlayContainer(
+                    child: ScorePanel(
+                      title: "AI",
+                      points: simulationState.aiScore,
+                      color: Colors.red,
+                      kingdomAttackUnlocked:
+                          simulationState.aiKingdomAttackUnlocked,
+                      alignment: CrossAxisAlignment.end,
+                    ),
+                  ),
                 ],
               ),
             ),
+
+            // 3. Other Overlays (Thinking, Game Over)
+            if (aiState == AIState.thinking) const AiThinkingOverlay(),
+
+            if (simulationState.currentPhase == GamePhase.gameOver)
+              GameOverOverlay(
+                winner: simulationState.currentTurn,
+                onReturnToMap: () {
+                  Navigator.of(context).pop();
+                },
+              ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Helper to wrap HUD components in a consistent, readable background container.
+  Widget _buildOverlayContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.7), // Semi-transparent black
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white24, width: 1),
+      ),
+      child: child,
     );
   }
 }

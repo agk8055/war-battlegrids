@@ -35,25 +35,30 @@ class CellComponent extends PositionComponent with TapCallbacks {
     // Draw base tile
     switch (_currentState) {
       case CellState.empty:
-        paint.color = Colors.grey.shade800;
+        // Make empty tiles transparent so we can see the Tiled map
+        paint.color = Colors.transparent;
         break;
       case CellState.playerZone:
-        paint.color = Colors.blue.shade900.withValues(alpha: 0.5);
+        paint.color = Colors.blue.withValues(alpha: 0.2);
         break;
       case CellState.aiZone:
-        paint.color = Colors.red.shade900.withValues(alpha: 0.5);
+        paint.color = Colors.red.withValues(alpha: 0.2);
         break;
       case CellState.player:
-        paint.color = Colors.blue; 
+        paint.color = Colors.blue.withValues(alpha: 0.7); 
         break;
       case CellState.ai:
-        paint.color = Colors.red;
+        paint.color = Colors.red.withValues(alpha: 0.7);
         break;
       case CellState.capturedGrid:
-        paint.color = Colors.black87; // Dark burned/used tile
+        paint.color = Colors.black.withValues(alpha: 0.5);
+        break;
+      case CellState.obstacle:
+        // Obstacles are handled by Tiled map visuals, but we can highlight them if needed
+        paint.color = Colors.orange.withValues(alpha: 0.1);
         break;
       default:
-        paint.color = Colors.grey.shade800;
+        paint.color = Colors.transparent;
         break;
     }
 
@@ -73,7 +78,7 @@ class CellComponent extends PositionComponent with TapCallbacks {
   }
 
   @override
-  void onTapDown(TapDownEvent event) {
+  void onTapUp(TapUpEvent event) {
     onTapCell(gridX, gridY);
   }
 }

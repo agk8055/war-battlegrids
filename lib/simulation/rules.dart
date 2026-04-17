@@ -13,14 +13,20 @@ class GameRules {
     Turn turn,
     bool kingdomAttackUnlocked,
   ) {
+    // Must be within the designated playable area
+    if (!board.isWithinPlayableArea(x, y)) {
+      return false;
+    }
+
     final cell = board.getCell(x, y);
 
-    // Can only place on an empty cell or a zone cell. Cannot place on an existing unit or captured grid.
+    // Can only place on an empty cell or a zone cell. Cannot place on an existing unit, captured grid, or obstacle.
     if (cell == CellState.player ||
         cell == CellState.ai ||
         cell == CellState.playerSigil ||
         cell == CellState.aiSigil ||
-        cell == CellState.capturedGrid) {
+        cell == CellState.capturedGrid ||
+        cell == CellState.obstacle) {
       return false;
     }
 
@@ -86,28 +92,28 @@ class GameRules {
         : CellState.ai;
     final isTargetingAI = currentTurn == Turn.player;
 
-    final leftX = isTargetingAI ? kAIPalaceStartX : kPlayerPalaceStartX;
-    final rightX = isTargetingAI ? kAIPalaceEndX : kPlayerPalaceEndX;
+    final leftX = isTargetingAI ? board.aiPalaceStartX : board.playerPalaceStartX;
+    final rightX = isTargetingAI ? board.aiPalaceEndX : board.playerPalaceEndX;
 
     bool isLeftAnchor((int, int) coord) {
-      if (coord.$1 == 0) return true; // Touches absolute left edge
+      if (coord.$1 == board.playableMinX) return true; // Touches playable left edge
       if (isTargetingAI) {
-        return coord.$2 == kAIPalaceStartY &&
+        return coord.$2 == board.playableMinY &&
             coord.$1 < leftX; // Touches Top Edge to the left
       } else {
-        return coord.$2 == kPlayerPalaceEndY &&
+        return coord.$2 == board.playableMaxY &&
             coord.$1 < leftX; // Touches Bottom Edge to the left
       }
     }
 
     bool isRightAnchor((int, int) coord) {
-      if (coord.$1 == board.width - 1)
-        return true; // Touches absolute right edge
+      if (coord.$1 == board.playableMaxX)
+        return true; // Touches playable right edge
       if (isTargetingAI) {
-        return coord.$2 == kAIPalaceStartY &&
+        return coord.$2 == board.playableMinY &&
             coord.$1 > rightX; // Touches Top Edge to the right
       } else {
-        return coord.$2 == kPlayerPalaceEndY &&
+        return coord.$2 == board.playableMaxY &&
             coord.$1 > rightX; // Touches Bottom Edge to the right
       }
     }
@@ -149,10 +155,10 @@ class GameRules {
             ];
 
             for (final dir in dirs) {
-              if (dir.$1 >= 0 &&
-                  dir.$1 < board.width &&
-                  dir.$2 >= 0 &&
-                  dir.$2 < board.height) {
+              if (dir.$1 >= board.playableMinX &&
+                  dir.$1 <= board.playableMaxX &&
+                  dir.$2 >= board.playableMinY &&
+                  dir.$2 <= board.playableMaxY) {
                 final neighborState = board.getCell(dir.$1, dir.$2);
                 if ((neighborState == attackerState ||
                         neighborState == CellState.capturedGrid) &&

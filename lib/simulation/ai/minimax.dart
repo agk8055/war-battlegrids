@@ -106,12 +106,9 @@ class MinimaxAI {
   /// Deep clones a simulation instance so we can branch without destroying real state.
   static GameSimulation _cloneSimulation(GameSimulation original) {
     final clone = GameSimulation(config: original.config);
-    // Copy Board
-    for (int y = 0; y < original.board.height; y++) {
-      for (int x = 0; x < original.board.width; x++) {
-        clone.board.setCell(x, y, original.board.getCell(x, y));
-      }
-    }
+    // Copy Board using its own clone method which preserves palace bounds
+    clone.board = original.board.clone();
+    
     // Copy Game State
     clone.currentPhase = original.currentPhase;
     clone.currentTurn = original.currentTurn;

@@ -40,11 +40,11 @@ class HeuristicEvaluator {
         
         if (cell == CellState.ai) {
           // Defense: Is AI anchoring itself to its own palace?
-          if (_isAdjacentToPalace(x, y, kAIPalaceStartX, kAIPalaceEndX, kAIPalaceStartY, kAIPalaceEndY)) {
+          if (_isAdjacentToPalace(x, y, simulation.board.aiPalaceStartX, simulation.board.aiPalaceEndX, simulation.board.aiPalaceStartY, simulation.board.aiPalaceEndY)) {
             score += palaceDefendWeight;
           }
           // Offense: Is AI building a blockade around Player palace?
-          if (_isAdjacentToPalace(x, y, kPlayerPalaceStartX, kPlayerPalaceEndX, kPlayerPalaceStartY, kPlayerPalaceEndY)) {
+          if (_isAdjacentToPalace(x, y, simulation.board.playerPalaceStartX, simulation.board.playerPalaceEndX, simulation.board.playerPalaceStartY, simulation.board.playerPalaceEndY)) {
              score += palaceAttackWeight;
           }
 
@@ -57,10 +57,10 @@ class HeuristicEvaluator {
         } 
         else if (cell == CellState.player) {
           // Inverse for player
-          if (_isAdjacentToPalace(x, y, kPlayerPalaceStartX, kPlayerPalaceEndX, kPlayerPalaceStartY, kPlayerPalaceEndY)) {
+          if (_isAdjacentToPalace(x, y, simulation.board.playerPalaceStartX, simulation.board.playerPalaceEndX, simulation.board.playerPalaceStartY, simulation.board.playerPalaceEndY)) {
             score -= palaceDefendWeight;
           }
-          if (_isAdjacentToPalace(x, y, kAIPalaceStartX, kAIPalaceEndX, kAIPalaceStartY, kAIPalaceEndY)) {
+          if (_isAdjacentToPalace(x, y, simulation.board.aiPalaceStartX, simulation.board.aiPalaceEndX, simulation.board.aiPalaceStartY, simulation.board.aiPalaceEndY)) {
              score -= palaceAttackWeight;
           }
 

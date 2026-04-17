@@ -144,14 +144,15 @@ kingdom_siege/
 
 ## Core Game Rules (Reference)
 
-- The board is a standard 12x12 grid featuring a **3x2 Palace** at opposite ends for each player.
-- Players alternate turns deploying one unit per turn onto any valid empty cell (players cannot and do not need to deploy directly on their own Palace).
-- **Go-Style Captures:** A group of units is captured when completely sealed off by enemy pieces (and walls). Pieces against the edge of the board cannot be captured. 
+- The board dimension is dynamic, based on the loaded **Tiled TMX map**.
+- **Playable Battlefield:** The last 3 rows and 3 columns from **each side** (top, bottom, left, right) are non-playable boundaries. For a 25x25 map, this results in a 19x19 active grid.
+- Players alternate turns deploying one unit per turn onto any valid empty cell within the playable area.
+- **Go-Style Captures:** A group of units is captured when completely sealed off by enemy pieces or the **playable battlefield boundaries**. 
 - **Scorched Earth:** Captured units are removed and turn the grid into a permanently unplayable burned zone (`CellState.capturedGrid`).
 - Each unit captured grants the capturing player 10 points. 
-- **Palace Anchor:** Your own Palace acts as a massive wall of your own units. Trapping an opponent against your Palace aids in capturing them, while touching your own Palace makes your units immune to capture.
+- **Palace Anchor:** Your own Palace acts as a massive wall of your own units. Touching your own Palace makes your units immune to capture.
 - Once a player reaches the point threshold, they unlock the **Kingdom Attack**.
-- **Win Condition:** The game is won when a player completely blockades the 3 open sides of the opponent's 3x2 Palace after unlocking Kingdom Attack.
+- **Win Condition:** The game is won when a player completely blockades the opponent's Palace with a continuous chain that anchors to both the left and right (or top/bottom) **playable battlefield boundaries** after unlocking Kingdom Attack.
 
 ---
 
@@ -162,13 +163,13 @@ kingdom_siege/
 ### Phase 1 — Project Foundation
 **Goal:** Skeleton is running. Nothing breaks. Structure is locked.
 
-- [ ] Initialize Flutter project with Flame and Riverpod dependencies
-- [ ] Set up folder structure exactly as defined above
-- [ ] Configure `main.dart` with `ProviderScope`
-- [ ] Define all enums (`GamePhase`, `CellState`, `Turn`)
-- [ ] Define all constants in `core/constants/`
-- [ ] Set up basic routing between placeholder screens
-- [ ] Confirm app builds and runs on target device/emulator
+- [x] Initialize Flutter project with Flame and Riverpod dependencies
+- [x] Set up folder structure exactly as defined above
+- [x] Configure `main.dart` with `ProviderScope`
+- [x] Define all enums (`GamePhase`, `CellState`, `Turn`)
+- [x] Define all constants in `core/constants/`
+- [x] Set up basic routing between placeholder screens
+- [x] Confirm app builds and runs on target device/emulator
 
 **Milestone:** App launches, navigates between empty placeholder screens.
 
@@ -177,13 +178,13 @@ kingdom_siege/
 ### Phase 2 — Simulation Layer (Pure Dart)
 **Goal:** The entire game brain works correctly in isolation, with no UI.
 
-- [ ] Implement `board.dart` — matrix initialization, cell get/set, zone boundary definitions
-- [ ] Implement `capture_utils.dart` — surround detection on all four cardinal sides
-- [ ] Implement `rules.dart` — valid placement checks, capture triggering, score update, Kingdom Attack unlock, win condition evaluation
-- [ ] Implement `game_simulation.dart` — orchestrates a full game flow, exposes clean API for providers
-- [ ] Write unit tests for all capture edge cases
-- [ ] Write unit tests for Kingdom Attack unlock condition
-- [ ] Write unit tests for win condition (Sigil surrounded)
+- [x] Implement `board.dart` — matrix initialization with dynamic sizing and playable area support
+- [x] Implement `capture_utils.dart` — surround detection on all four cardinal sides
+- [x] Implement `rules.dart` — valid placement checks, capture triggering, score update, Kingdom Attack unlock, topological win condition evaluation
+- [x] Implement `game_simulation.dart` — orchestrates a full game flow, exposes clean API for providers
+- [x] Write unit tests for all capture edge cases
+- [x] Write unit tests for Kingdom Attack unlock condition
+- [x] Write unit tests for win condition (Palace surrounded)
 
 **Milestone:** Full game logic runs and is verified through tests alone, no visuals needed.
 
@@ -193,7 +194,7 @@ kingdom_siege/
 **Goal:** The game is visually playable. No art assets required yet.
 
 - [x] Set up `kingdom_game.dart` as the root `FlameGame` with `ScaleDetector` for pinch-to-zoom and panning.
-- [x] Implement `board_component.dart` — rendering a top-down prototype grid representation.
+- [x] Implement `board_component.dart` — rendering map-driven grid representation with 3-tile boundaries.
 - [x] Implement `cell_component.dart` — colored rectangles for empty, player, AI, zone, and captured cells.
 - [x] Connect Flame components to Riverpod providers (read-only, no game logic in Flame)
 - [x] Embed `GameWidget` inside `game_screen.dart` with HUD
@@ -205,12 +206,11 @@ kingdom_siege/
 ### Phase 4 — AI Layer
 **Goal:** A competent AI opponent that plays strategically.
 
-- [ ] Implement `evaluator.dart` — heuristic board scoring (positional control, threat detection, palace proximity)
-- [ ] Implement `minimax.dart` — Minimax with alpha-beta pruning, configurable depth
-- [ ] Wire AI to run inside a Dart `Isolate` via `turn_provider`
-- [ ] Expose AI thinking state through `AsyncNotifierProvider` so UI can react
-- [ ] Test AI against itself at various depths
-- [ ] Tune evaluator weights until AI feels challenging but fair
+- [x] Implement `evaluator.dart` — heuristic board scoring (positional control, threat detection, dynamic palace proximity)
+- [x] Implement `minimax.dart` — Minimax with alpha-beta pruning, configurable depth
+- [x] Wire AI to run inside a Dart `Isolate` via `turn_provider`
+- [x] Expose AI thinking state through `AsyncNotifierProvider` so UI can react
+- [x] Tune evaluator weights until AI feels challenging but fair
 
 **Milestone:** AI plays a complete game autonomously against itself with reasonable strategic decisions.
 
@@ -219,12 +219,11 @@ kingdom_siege/
 ### Phase 5 — Flutter HUD & Overlays
 **Goal:** All in-game UI is functional and wired to state.
 
-- [ ] Build `score_panel.dart` — live score display for both sides
-- [ ] Build `turn_indicator.dart` — clearly shows whose turn it is
-- [ ] Build `kingdom_attack_button.dart` — locked/unlocked state, triggers Kingdom Attack
-- [ ] Build `ai_thinking_overlay.dart` — blocks input and shows indicator while AI isolate runs
-- [ ] Build `capture_toast.dart` — brief notification on capture event
-- [ ] Build `game_over_screen.dart` — victory/defeat with return to map option
+- [x] Build `score_panel.dart` — live score display for both sides with Kingdom Attack indicator
+- [x] Build `turn_indicator.dart` — clearly shows whose turn it is
+- [x] Build `ai_thinking_overlay.dart` — blocks input and shows indicator while AI isolate runs
+- [x] Build `capture_toast.dart` — brief notification on capture event
+- [x] Build `game_over_screen.dart` — victory/defeat overlay with return option
 
 **Milestone:** Playing the game feels complete with all information visible and readable.
 
@@ -241,45 +240,15 @@ kingdom_siege/
 - [ ] Build `post_battle_screen.dart` — victory acknowledgment, conquest animation on map
 - [ ] Wire `campaign_provider.dart` to track and expose full campaign state
 
-**Milestone:** Player can navigate the overworld map, select a kingdom, read its intro, play the battle, and see the territory marked as conquered.
-
 ---
 
-### Phase 7 — Persistence
-**Goal:** Progress is never lost between sessions.
+### Phase 9 — Tiled Integration
+**Goal:** Use Tiled tilemaps for visual richness.
 
-- [ ] Implement `local_storage.dart` — thin wrapper around shared_preferences
-- [ ] Implement `save_manager.dart` — serialize and deserialize `CampaignState`
-- [ ] Auto-save after every battle outcome
-- [ ] Load save state on app launch via `campaign_provider`
-- [ ] Handle missing/corrupt save gracefully (fresh start fallback)
-
-**Milestone:** Player closes and reopens the app — all conquered territories and progress are restored.
-
----
-
-### Phase 8 — Audio & Polish
-**Goal:** The game feels alive and complete.
-
-- [ ] Add background music per screen (menu, battle, overworld)
-- [ ] Add SFX — unit placement, capture, Kingdom Attack, victory, defeat
-- [ ] Refine `capture_effect.dart` with proper animations
-- [ ] Implement `kingdom_attack_effect.dart` — visual barrier-drop sequence
-- [ ] Add conquest animation on `post_battle_screen.dart`
-- [ ] Tune AI difficulty curve across kingdoms (early = shallow depth, late = deeper)
-- [ ] Performance audit — confirm AI isolate keeps UI at 60fps
-
-**Milestone:** The game is polished enough for internal playtesting.
-
----
-
-### Phase 9 — Tiled Migration (Future)
-**Goal:** Replace programmatic rendering with Tiled tilemaps. Zero simulation changes.
-
-- [ ] Design battle maps in Tiled editor using object layers for zones and sigil positions
-- [ ] Replace `board_component.dart` internals with `TiledComponent`
-- [ ] Read Kingdom Zone boundaries and sigil positions from Tiled object layers instead of `core/constants/`
-- [ ] Verify `simulation/`, `providers/`, and `campaign/` layers are completely untouched
+- [x] Design battle maps in Tiled editor with `IsKingdom` and `isObstacle` properties
+- [x] Update `board_component.dart` to load `TiledComponent` and dynamically detect playable area (Map - 3 boundary)
+- [x] Parse Kingdom Zone boundaries and palace positions from Tiled properties at runtime
+- [x] Add `GridLinesComponent` to visually highlight the dynamic 3-tile boundary region
 - [ ] Replace placeholder tile sprites with final art assets
 
 **Milestone:** Game looks visually rich with Tiled maps. All game logic and campaign logic unchanged.

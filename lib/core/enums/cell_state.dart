@@ -23,4 +23,7 @@ enum CellState {
 
   /// A tile where a unit was captured, rendering it permanently unplayable.
   capturedGrid,
+
+  /// An obstacle tile (tree, stone, etc.) that is not deployable.
+  obstacle,
 }
