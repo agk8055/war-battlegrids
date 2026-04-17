@@ -47,6 +47,13 @@ class HeuristicEvaluator {
           if (_isAdjacentToPalace(x, y, kPlayerPalaceStartX, kPlayerPalaceEndX, kPlayerPalaceStartY, kPlayerPalaceEndY)) {
              score += palaceAttackWeight;
           }
+
+          // Anti-Blockage Defense: Actively block player pieces during kingdom attack
+          if (simulation.playerKingdomAttackUnlocked) {
+             if (y <= simulation.board.height ~/ 2 && _isAdjacentToState8Way(simulation, x, y, CellState.player)) {
+                 score += 60;
+             }
+          }
         } 
         else if (cell == CellState.player) {
           // Inverse for player
@@ -55,6 +62,16 @@ class HeuristicEvaluator {
           }
           if (_isAdjacentToPalace(x, y, kAIPalaceStartX, kAIPalaceEndX, kAIPalaceStartY, kAIPalaceEndY)) {
              score -= palaceAttackWeight;
+          }
+
+          // Penalize AI if player is encroaching and building walls during kingdom attack
+          if (simulation.playerKingdomAttackUnlocked) {
+             if (y <= simulation.board.height ~/ 2) {
+                 score -= 10;
+                 if (_isAdjacentToState8Way(simulation, x, y, CellState.player)) {
+                     score -= 15;
+                 }
+             }
           }
         }
       }
@@ -74,6 +91,21 @@ class HeuristicEvaluator {
     // Bottom side
     if (y == palEndY + 1 && x >= palStartX && x <= palEndX) return true;
 
+    return false;
+  }
+
+  static bool _isAdjacentToState8Way(GameSimulation simulation, int x, int y, CellState state) {
+    final dirs = [
+      (x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y),
+      (x - 1, y - 1), (x + 1, y - 1), (x - 1, y + 1), (x + 1, y + 1),
+    ];
+    for (var dir in dirs) {
+      if (dir.$1 >= 0 && dir.$1 < simulation.board.width && dir.$2 >= 0 && dir.$2 < simulation.board.height) {
+        if (simulation.board.getCell(dir.$1, dir.$2) == state) {
+          return true;
+        }
+      }
+    }
     return false;
   }
 }

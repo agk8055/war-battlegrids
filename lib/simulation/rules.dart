@@ -6,12 +6,20 @@ import 'board.dart';
 
 class GameRules {
   /// Checks if an attempted placement is structurally valid on the board.
-  static bool isValidPlacement(Board board, int x, int y, Turn turn, bool kingdomAttackUnlocked) {
+  static bool isValidPlacement(
+    Board board,
+    int x,
+    int y,
+    Turn turn,
+    bool kingdomAttackUnlocked,
+  ) {
     final cell = board.getCell(x, y);
 
     // Can only place on an empty cell or a zone cell. Cannot place on an existing unit or captured grid.
-    if (cell == CellState.player || cell == CellState.ai || 
-        cell == CellState.playerSigil || cell == CellState.aiSigil ||
+    if (cell == CellState.player ||
+        cell == CellState.ai ||
+        cell == CellState.playerSigil ||
+        cell == CellState.aiSigil ||
         cell == CellState.capturedGrid) {
       return false;
     }
@@ -32,6 +40,24 @@ class GameRules {
       if (turn == Turn.ai && cell == CellState.playerZone) {
         return false;
       }
+
+      // We also cannot place a piece that would COMPLETE a blockage around the opponent's kingdom!
+      final originalState = board.getCell(x, y);
+      board.setCell(
+        x,
+        y,
+        turn == Turn.player ? CellState.player : CellState.ai,
+      );
+      final wouldCompleteBlockage = checkWinCondition(
+        board,
+        turn,
+        kingdomAttackUnlocked: true,
+      );
+      board.setCell(x, y, originalState);
+
+      if (wouldCompleteBlockage) {
+        return false;
+      }
     }
 
     return true;
@@ -44,14 +70,20 @@ class GameRules {
 
   /// Checks if the win condition has been met.
   /// Checks if the win condition has been met by entirely surrounding the opponent's palace.
-  static bool checkWinCondition(Board board, Turn currentTurn, {required bool kingdomAttackUnlocked}) {
+  static bool checkWinCondition(
+    Board board,
+    Turn currentTurn, {
+    required bool kingdomAttackUnlocked,
+  }) {
     if (!kingdomAttackUnlocked) return false;
 
     // Use Topological Blockade Logic
-    // Winning condition: The attacking player forms a continuous horizontal wall 
+    // Winning condition: The attacking player forms a continuous horizontal wall
     // separating the target Palace's top/bottom from its escape route.
-    
-    final attackerState = currentTurn == Turn.player ? CellState.player : CellState.ai;
+
+    final attackerState = currentTurn == Turn.player
+        ? CellState.player
+        : CellState.ai;
     final isTargetingAI = currentTurn == Turn.player;
 
     final leftX = isTargetingAI ? kAIPalaceStartX : kPlayerPalaceStartX;
@@ -60,18 +92,23 @@ class GameRules {
     bool isLeftAnchor((int, int) coord) {
       if (coord.$1 == 0) return true; // Touches absolute left edge
       if (isTargetingAI) {
-        return coord.$2 == kAIPalaceStartY && coord.$1 < leftX; // Touches Top Edge to the left
+        return coord.$2 == kAIPalaceStartY &&
+            coord.$1 < leftX; // Touches Top Edge to the left
       } else {
-        return coord.$2 == kPlayerPalaceEndY && coord.$1 < leftX; // Touches Bottom Edge to the left
+        return coord.$2 == kPlayerPalaceEndY &&
+            coord.$1 < leftX; // Touches Bottom Edge to the left
       }
     }
 
     bool isRightAnchor((int, int) coord) {
-      if (coord.$1 == board.width - 1) return true; // Touches absolute right edge
+      if (coord.$1 == board.width - 1)
+        return true; // Touches absolute right edge
       if (isTargetingAI) {
-        return coord.$2 == kAIPalaceStartY && coord.$1 > rightX; // Touches Top Edge to the right
+        return coord.$2 == kAIPalaceStartY &&
+            coord.$1 > rightX; // Touches Top Edge to the right
       } else {
-        return coord.$2 == kPlayerPalaceEndY && coord.$1 > rightX; // Touches Bottom Edge to the right
+        return coord.$2 == kPlayerPalaceEndY &&
+            coord.$1 > rightX; // Touches Bottom Edge to the right
       }
     }
 
@@ -81,7 +118,8 @@ class GameRules {
       for (int x = 0; x < board.width; x++) {
         // Any piece owned by the attacker, or any grid they have captured (scorched earth acts as a wall for them too!)
         final state = board.getCell(x, y);
-        if ((state == attackerState || state == CellState.capturedGrid) && !visited.contains((x, y))) {
+        if ((state == attackerState || state == CellState.capturedGrid) &&
+            !visited.contains((x, y))) {
           final queue = <(int, int)>[(x, y)];
           visited.add((x, y));
 
@@ -111,9 +149,14 @@ class GameRules {
             ];
 
             for (final dir in dirs) {
-              if (dir.$1 >= 0 && dir.$1 < board.width && dir.$2 >= 0 && dir.$2 < board.height) {
+              if (dir.$1 >= 0 &&
+                  dir.$1 < board.width &&
+                  dir.$2 >= 0 &&
+                  dir.$2 < board.height) {
                 final neighborState = board.getCell(dir.$1, dir.$2);
-                if ((neighborState == attackerState || neighborState == CellState.capturedGrid) && !visited.contains(dir)) {
+                if ((neighborState == attackerState ||
+                        neighborState == CellState.capturedGrid) &&
+                    !visited.contains(dir)) {
                   visited.add(dir);
                   queue.add(dir);
                 }

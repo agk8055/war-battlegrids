@@ -54,9 +54,11 @@ kingdom_siege/
 │   ├── app.dart                           # MaterialApp + routing
 │   │
 │   ├── core/
+│   │   ├── models/
+│   │   │   └── level_config.dart          # dynamic battle configurations (board size, thresholds)
 │   │   ├── constants/
-│   │   │   ├── board_constants.dart       # grid size, zone boundaries, sigil positions
-│   │   │   ├── game_constants.dart        # point thresholds, capture rules
+│   │   │   ├── board_constants.dart       # standard grid size, zone boundaries, sigil positions
+│   │   │   ├── game_constants.dart        # default point thresholds, capture rules
 │   │   │   └── ui_constants.dart          # colors, typography, sizing
 │   │   ├── enums/
 │   │   │   ├── game_phase.dart            # placement, kingdom_attack, game_over

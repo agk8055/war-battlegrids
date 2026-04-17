@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../simulation/game_simulation.dart';
 
 /// Provider for the full game simulation instance.
-final simulationProvider = NotifierProvider<SimulationNotifier, GameSimulation>(() {
-  return SimulationNotifier();
-});
+final simulationProvider = NotifierProvider<SimulationNotifier, GameSimulation>(
+  () {
+    return SimulationNotifier();
+  },
+);
 
 class SimulationNotifier extends Notifier<GameSimulation> {
   @override
@@ -17,7 +19,7 @@ class SimulationNotifier extends Notifier<GameSimulation> {
     bool success = state.placeUnit(x, y);
     if (success) {
       // Force riverpod to trigger a rebuild by assigning a genuinely new instance
-      state = state.clone(); 
+      state = state.clone();
     }
     return success;
   }

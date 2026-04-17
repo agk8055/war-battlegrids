@@ -38,9 +38,17 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     ref.listen(simulationProvider, (previous, next) {
       if (previous == null) return;
       if (next.playerScore > previous.playerScore) {
-        CaptureToast.show(context, "PLAYER CAPTURE! +${next.playerScore - previous.playerScore}", Colors.blue);
+        CaptureToast.show(
+          context,
+          "PLAYER CAPTURE! +${next.playerScore - previous.playerScore}",
+          Colors.blue,
+        );
       } else if (next.aiScore > previous.aiScore) {
-        CaptureToast.show(context, "AI CAPTURE! +${next.aiScore - previous.aiScore}", Colors.red);
+        CaptureToast.show(
+          context,
+          "AI CAPTURE! +${next.aiScore - previous.aiScore}",
+          Colors.red,
+        );
       }
     });
 
@@ -59,31 +67,30 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     title: "PLAYER (BLUE)",
                     points: simulationState.playerScore,
                     color: Colors.blue,
-                    kingdomAttackUnlocked: simulationState.playerKingdomAttackUnlocked,
+                    kingdomAttackUnlocked:
+                        simulationState.playerKingdomAttackUnlocked,
                   ),
                   TurnIndicator(currentTurn: simulationState.currentTurn),
                   ScorePanel(
                     title: "AI (RED)",
                     points: simulationState.aiScore,
                     color: Colors.red,
-                    kingdomAttackUnlocked: simulationState.aiKingdomAttackUnlocked,
+                    kingdomAttackUnlocked:
+                        simulationState.aiKingdomAttackUnlocked,
                     alignment: CrossAxisAlignment.end,
                   ),
                 ],
               ),
             ),
-            
+
             // Flame Game Widget
             Expanded(
               child: Stack(
                 children: [
-                  GameWidget(
-                    game: _game!,
-                  ),
-                  
-                  if (aiState == AIState.thinking)
-                    const AiThinkingOverlay(),
-                    
+                  GameWidget(game: _game!),
+
+                  if (aiState == AIState.thinking) const AiThinkingOverlay(),
+
                   if (simulationState.currentPhase == GamePhase.gameOver)
                     GameOverOverlay(
                       winner: simulationState.currentTurn,

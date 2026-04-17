@@ -30,7 +30,7 @@ class KingdomGame extends FlameGame with ScaleDetector {
 
     // Default 1.0 scale to maintain tappable tile sizes. (Rely on panning)
     final fitScale = 1.0;
-    
+
     boardComponent.scale = Vector2.all(fitScale);
     _startScale = fitScale;
 

@@ -12,7 +12,7 @@ class MinimaxAI {
     (int, int)? bestMove;
 
     final availableMoves = sim.board.getAvailableCells(allowZones: true);
-    
+
     // 20% chance to make a completely random mistake to make it beatable
     if (availableMoves.isNotEmpty && Random().nextDouble() < 0.20) {
       final randMove = availableMoves[Random().nextInt(availableMoves.length)];
@@ -28,38 +28,45 @@ class MinimaxAI {
     for (final move in availableMoves) {
       // Clone game simulation state completely for branching
       final GameSimulation simClone = _cloneSimulation(sim);
-      
+
       // Attempt the move
       bool valid = simClone.placeUnit(move.$1, move.$2);
-      if (!valid) continue; // Move was illegal (e.g. into enemy palace without unlock)
+      if (!valid)
+        continue; // Move was illegal (e.g. into enemy palace without unlock)
 
       // Recursively evaluate the new board state as the Opposing player (Player)
       int score = _minimax(simClone, maxDepth - 1, alpha, beta, false);
-      
+
       if (score > bestScore) {
         bestScore = score;
         bestMove = move;
       }
-      
+
       alpha = max(alpha, bestScore);
       if (beta <= alpha) break; // Prune
     }
 
-    // Fallback pseudo-random move if all branches are completely neutral (score 0), 
+    // Fallback pseudo-random move if all branches are completely neutral (score 0),
     // to give it variety, though MiniMax usually finds a "best" edge move early.
     if (bestMove == null && availableMoves.isNotEmpty) {
-       for (final m in availableMoves) {
-          final testClone = _cloneSimulation(sim);
-          if (testClone.placeUnit(m.$1, m.$2)) {
-             return m;
-          }
-       }
+      for (final m in availableMoves) {
+        final testClone = _cloneSimulation(sim);
+        if (testClone.placeUnit(m.$1, m.$2)) {
+          return m;
+        }
+      }
     }
 
     return bestMove;
   }
 
-  static int _minimax(GameSimulation sim, int depth, int alpha, int beta, bool isMaximizingPlayer) {
+  static int _minimax(
+    GameSimulation sim,
+    int depth,
+    int alpha,
+    int beta,
+    bool isMaximizingPlayer,
+  ) {
     if (depth == 0 || sim.currentPhase == GamePhase.gameOver) {
       return HeuristicEvaluator.evaluate(sim);
     }
@@ -78,7 +85,7 @@ class MinimaxAI {
         if (beta <= alpha) break;
       }
       // If no valid moves were found, return static evaluation
-      if (maxEval == -9999999) return HeuristicEvaluator.evaluate(sim); 
+      if (maxEval == -9999999) return HeuristicEvaluator.evaluate(sim);
       return maxEval;
     } else {
       int minEval = 9999999;
@@ -98,10 +105,7 @@ class MinimaxAI {
 
   /// Deep clones a simulation instance so we can branch without destroying real state.
   static GameSimulation _cloneSimulation(GameSimulation original) {
-    final clone = GameSimulation(
-      width: original.board.width, 
-      height: original.board.height
-    );
+    final clone = GameSimulation(config: original.config);
     // Copy Board
     for (int y = 0; y < original.board.height; y++) {
       for (int x = 0; x < original.board.width; x++) {
