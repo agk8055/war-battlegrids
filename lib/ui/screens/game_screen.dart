@@ -6,6 +6,8 @@ import '../../providers/simulation_provider.dart';
 import '../../providers/turn_provider.dart';
 
 import '../../core/enums/game_phase.dart';
+import '../../core/enums/turn.dart';
+import '../../campaign/campaign_manager.dart';
 
 import '../widgets/hud/score_panel.dart';
 import '../widgets/hud/turn_indicator.dart';
@@ -107,7 +109,18 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               GameOverOverlay(
                 winner: simulationState.currentTurn,
                 onReturnToMap: () {
-                  Navigator.of(context).pop();
+                  if (simulationState.currentTurn == Turn.player) {
+                    final campaignState = ref.read(campaignProvider);
+                    if (campaignState.selectedKingdomId != null) {
+                      ref.read(campaignProvider.notifier).conquerKingdom(
+                            campaignState.selectedKingdomId!,
+                          );
+                    }
+                  }
+                  Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/overworld');
+                  // Since I don't have named routes set up yet, I'll just pop twice if I came from PreBattleScreen.
+                  // Actually, popping twice is safer for now.
+                  Navigator.of(context).pop(); 
                 },
               ),
           ],

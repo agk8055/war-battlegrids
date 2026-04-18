@@ -1,8 +1,11 @@
 import 'package:flame/game.dart';
 import 'package:flame/events.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/simulation_provider.dart';
-import '../providers/turn_provider.dart';
+import '../../campaign/campaign_manager.dart';
+import '../../campaign/data/battle_configs.dart';
+import '../../providers/turn_provider.dart';
+import '../../providers/simulation_provider.dart';
+
 import '../core/enums/turn.dart';
 import '../core/enums/game_phase.dart';
 import 'board/board_component.dart';
@@ -70,8 +73,15 @@ class KingdomGame extends FlameGame with ScaleDetector {
       // Set UI to thinking state
       ref.read(aiStateProvider.notifier).setThinking();
 
-      // Offload AI calculation to Background Isolate (Depth 2 for faster, slightly more beatable play)
-      final bestMove = await AIManager.calculateNextMove(simulationState, 2);
+      // Get AI depth from battle config
+      final campaignState = ref.read(campaignProvider);
+      final kingdomId = campaignState.selectedKingdomId;
+      final aiDepth = (kingdomId != null) 
+          ? (kBattleConfigs[kingdomId]?.aiDepth ?? 2) 
+          : 2;
+
+      // Offload AI calculation to Background Isolate
+      final bestMove = await AIManager.calculateNextMove(simulationState, aiDepth);
 
       // Add a slight artificial delay so the AI doesn't feel instantaneous, giving the player a moment to process the board.
       await Future.delayed(const Duration(milliseconds: 600));

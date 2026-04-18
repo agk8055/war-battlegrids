@@ -42,7 +42,8 @@ class GameHomeScreen extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const StoryModeScreen(),
+                              settings: const RouteSettings(name: '/overworld'),
+                              builder: (context) => const OverworldMapScreen(),
                             ),
                           );
                         },
