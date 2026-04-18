@@ -49,6 +49,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -68,7 +70,22 @@ flutter:
     - assets/tiles/
     - assets/tiles/images/
 
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  color: "#000000"
+  image_path: "assets/images/war_app_icon.png"
+  min_sdk_android: 21
 
+flutter_native_splash:
+  color: "#000000"
+  image: assets/images/war_splash_screen.png
+  android_gravity: center
+  ios_content_mode: center
+  android_12:
+    image: assets/images/war_splash_screen.png
+    color: "#000000"
+    
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
