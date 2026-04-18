@@ -65,8 +65,8 @@ flutter:
   assets:
     - assets/
     - assets/images/
-    - assets/images/Texture/
     - assets/tiles/
+    - assets/tiles/images/
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

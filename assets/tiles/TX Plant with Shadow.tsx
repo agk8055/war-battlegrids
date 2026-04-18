@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.12.1" name="TX Plant with Shadow" tilewidth="64" tileheight="64" tilecount="64" columns="8">
- <image source="Texture/TX Plant with Shadow.png" width="512" height="512"/>
+ <image source="images/TX Plant with Shadow.png" width="512" height="512"/>
  <tile id="0">
   <properties>
    <property name="isObstacle" type="bool" value="true"/>

@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame_tiled/flame_tiled.dart';
 import '../../simulation/board.dart';
@@ -30,9 +31,12 @@ class BoardComponent extends PositionComponent {
     // 1. Load the Tiled Map
     // Setting destTileSize to cellSize (40.0) automatically handles scaling
     // from the native 64x64 to our 40x40 grid.
+    // Custom Images instance with assets/tiles/ prefix allows loading images 
+    // from assets/tiles/images/ as referenced in the .tsx files.
     tiledComponent = await TiledComponent.load(
       '25x25_map.tmx',
       Vector2.all(cellSize),
+      images: Images(prefix: 'assets/tiles/'),
     );
 
     add(tiledComponent);
