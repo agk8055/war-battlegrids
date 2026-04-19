@@ -8,6 +8,7 @@ import '../../core/enums/cell_state.dart';
 import '../../core/utils/capture_utils.dart';
 import 'evaluator.dart';
 import 'zobrist_hash.dart';
+import 'ai_strategy.dart';
 
 class TranspositionEntry {
   final int score;
@@ -30,18 +31,23 @@ class MinimaxAI {
 
   /// Calculates the best legally available move for the AI using Minimax with Alpha-Beta pruning,
   /// PVS (Principal Variation Search), Killer Heuristic, and Threat-Space Search (TSS).
-  static (int, int)? getBestMove(GameSimulation sim, int maxDepth) {
+  static (int, int)? getBestMove(GameSimulation sim, AIStrategy strategy) {
     ZobristHash.initialize(sim.board.width, sim.board.height);
     _transpositionTable.clear();
     _killerMoves.clear();
 
+    final int maxDepth = strategy.searchDepth;
     int bestScore = -9999999;
     (int, int)? bestMove;
 
-    final availableMoves = _generateCandidateMoves(sim, maxDepth);
+    final availableMoves = _generateCandidateMoves(sim, maxDepth, strategy);
 
-    // 10% chance to make a mistake
-    if (availableMoves.isNotEmpty && Random().nextDouble() < 0.10) {
+    // 10% chance to make a mistake (reduced for higher levels)
+    double mistakeChance = 0.10;
+    if (strategy.type == AIStrategyType.master) mistakeChance = 0.02;
+    if (strategy.type == AIStrategyType.forkExpert) mistakeChance = 0.05;
+
+    if (availableMoves.isNotEmpty && Random().nextDouble() < mistakeChance) {
       final randMove = availableMoves[Random().nextInt(availableMoves.length)];
       final simClone = _cloneSimulation(sim);
       if (simClone.placeUnit(randMove.$1, randMove.$2)) {
@@ -52,22 +58,11 @@ class MinimaxAI {
     int alpha = -9999999;
     int beta = 9999999;
 
-    bool firstMove = true;
     for (final move in availableMoves) {
       final GameSimulation simClone = _cloneSimulation(sim);
       if (!simClone.placeUnit(move.$1, move.$2)) continue;
 
-      int score;
-      if (firstMove) {
-        score = _minimax(simClone, maxDepth - 1, alpha, beta, false);
-        firstMove = false;
-      } else {
-        // Null window search
-        score = _minimax(simClone, maxDepth - 1, alpha, alpha + 1, false);
-        if (score > alpha && score < beta) {
-          score = _minimax(simClone, maxDepth - 1, alpha, beta, false);
-        }
-      }
+      int score = _minimax(simClone, maxDepth - 1, alpha, beta, false, strategy);
 
       if (score > bestScore) {
         bestScore = score;
@@ -87,6 +82,7 @@ class MinimaxAI {
     int alpha,
     int beta,
     bool isMaximizingPlayer,
+    AIStrategy strategy,
   ) {
     int hash = ZobristHash.computeHash(sim.board, isMaximizingPlayer);
     final entry = _transpositionTable[hash];
@@ -101,11 +97,11 @@ class MinimaxAI {
       if (alpha >= beta) return entry.score;
     }
 
-    if (depth == 0 || sim.currentPhase == GamePhase.gameOver) {
-      return HeuristicEvaluator.evaluate(sim);
+    if (depth <= 0 || sim.currentPhase == GamePhase.gameOver) {
+      return HeuristicEvaluator.evaluate(sim, strategy);
     }
 
-    final availableMoves = _generateCandidateMoves(sim, depth);
+    final availableMoves = _generateCandidateMoves(sim, depth, strategy);
 
     int originalAlpha = alpha;
     bool firstMove = true;
@@ -118,12 +114,12 @@ class MinimaxAI {
 
         int eval;
         if (firstMove) {
-          eval = _minimax(simClone, depth - 1, alpha, beta, false);
+          eval = _minimax(simClone, depth - 1, alpha, beta, false, strategy);
           firstMove = false;
         } else {
-          eval = _minimax(simClone, depth - 1, alpha, alpha + 1, false);
+          eval = _minimax(simClone, depth - 1, alpha, alpha + 1, false, strategy);
           if (eval > alpha && eval < beta) {
-            eval = _minimax(simClone, depth - 1, alpha, beta, false);
+            eval = _minimax(simClone, depth - 1, alpha, beta, false, strategy);
           }
         }
 
@@ -136,7 +132,7 @@ class MinimaxAI {
       }
       
       _storeEntry(hash, maxEval, depth, originalAlpha, beta);
-      return maxEval == -9999999 ? HeuristicEvaluator.evaluate(sim) : maxEval;
+      return maxEval == -9999999 ? HeuristicEvaluator.evaluate(sim, strategy) : maxEval;
     } else {
       int minEval = 9999999;
       for (final move in availableMoves) {
@@ -145,12 +141,12 @@ class MinimaxAI {
 
         int eval;
         if (firstMove) {
-          eval = _minimax(simClone, depth - 1, alpha, beta, true);
+          eval = _minimax(simClone, depth - 1, alpha, beta, true, strategy);
           firstMove = false;
         } else {
-          eval = _minimax(simClone, depth - 1, beta - 1, beta, true);
+          eval = _minimax(simClone, depth - 1, beta - 1, beta, true, strategy);
           if (eval < beta && eval > alpha) {
-            eval = _minimax(simClone, depth - 1, alpha, beta, true);
+            eval = _minimax(simClone, depth - 1, alpha, beta, true, strategy);
           }
         }
 
@@ -163,12 +159,12 @@ class MinimaxAI {
       }
 
       _storeEntry(hash, minEval, depth, originalAlpha, beta);
-      return minEval == 9999999 ? HeuristicEvaluator.evaluate(sim) : minEval;
+      return minEval == 9999999 ? HeuristicEvaluator.evaluate(sim, strategy) : minEval;
     }
   }
 
   /// Threat-Space Search (TSS) move generation with fallback.
-  static List<(int, int)> _generateCandidateMoves(GameSimulation sim, int depth) {
+  static List<(int, int)> _generateCandidateMoves(GameSimulation sim, int depth, AIStrategy strategy) {
     final rawMoves = sim.board.getRestrictedAvailableCells(radius: 2, allowZones: false);
     final List<ThreatMove> threats = [];
 
@@ -193,7 +189,30 @@ class MinimaxAI {
         final captures = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
         if (captures.isNotEmpty) {
           severity += 100 + (captures.length * 10);
+          
+          // Double Threat Logic (Immediate)
+          if (strategy.prioritizeDoubleThreats && captures.length >= 2) {
+            severity += 150;
+          }
         }
+
+        // Fork Logic: A move is a fork if it is adjacent to multiple separate enemy groups
+        // that are now vulnerable. Local check is faster than board-wide search.
+        if (strategy.focusOnForks) {
+           int adjacentEnemyGroups = _countAdjacentEnemyGroups(sim.board, move.$1, move.$2, defenderState);
+           if (adjacentEnemyGroups >= 2) {
+             severity += 120;
+           }
+        }
+
+        // Defensive Logic: Check if opponent could capture here next turn
+        // Instead of heavy BFS, check if opponent has neighbors here
+        if (strategy.avoidHangingPieces) {
+           if (_isAdjacentToState8Way(sim.board, move.$1, move.$2, defenderState)) {
+             severity -= 50; // Discourage placing adjacent to enemies unless it captures
+           }
+        }
+
       } finally {
         sim.board.setCell(move.$1, move.$2, CellState.empty); // Reset
       }
@@ -211,11 +230,11 @@ class MinimaxAI {
 
       // 3. Sigil/Win Threat (Kingdom Attack)
       if (_isSigilThreat(sim, move, currentTurn)) {
-        severity += 150;
+        severity += strategy.sigilWeight;
       }
       
       if (_isSigilThreat(sim, move, opponentTurn)) {
-        severity += 200;
+        severity += (strategy.sigilWeight * 1.3).toInt();
       }
 
       if (severity > 0) {
@@ -351,8 +370,60 @@ class MinimaxAI {
     });
   }
 
+  static int _countAdjacentEnemyGroups(Board board, int x, int y, CellState enemyState) {
+    int count = 0;
+    final Set<(int, int)> visited = {};
+    final neighbors = [
+      (x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y),
+    ];
+    
+    for (final neighbor in neighbors) {
+      if (neighbor.$1 >= 0 && neighbor.$1 < board.width && neighbor.$2 >= 0 && neighbor.$2 < board.height) {
+        if (board.getCell(neighbor.$1, neighbor.$2) == enemyState && !visited.contains(neighbor)) {
+          count++;
+          // Basic flood fill to mark this group as "seen" locally
+          _markGroup(board, neighbor, enemyState, visited);
+        }
+      }
+    }
+    return count;
+  }
+
+  static void _markGroup(Board board, (int, int) start, CellState state, Set<(int, int)> visited) {
+    final List<(int, int)> stack = [start];
+    while (stack.isNotEmpty) {
+      final curr = stack.removeLast();
+      if (visited.contains(curr)) continue;
+      visited.add(curr);
+      
+      final neighbors = [
+        (curr.$1, curr.$2 - 1), (curr.$1, curr.$2 + 1), (curr.$1 - 1, curr.$2), (curr.$1 + 1, curr.$2),
+      ];
+      for (final n in neighbors) {
+        if (n.$1 >= 0 && n.$1 < board.width && n.$2 >= 0 && n.$2 < board.height) {
+          if (board.getCell(n.$1, n.$2) == state) stack.add(n);
+        }
+      }
+    }
+  }
+
   /// Deep clones a simulation instance so we can branch without destroying real state.
   static GameSimulation _cloneSimulation(GameSimulation original) {
     return original.clone();
+  }
+
+  static bool _isAdjacentToState8Way(Board board, int x, int y, CellState state) {
+    final dirs = [
+      (x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y),
+      (x - 1, y - 1), (x + 1, y - 1), (x - 1, y + 1), (x + 1, y + 1),
+    ];
+    for (var dir in dirs) {
+      if (dir.$1 >= 0 && dir.$1 < board.width && dir.$2 >= 0 && dir.$2 < board.height) {
+        if (board.getCell(dir.$1, dir.$2) == state) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

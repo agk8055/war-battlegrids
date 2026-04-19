@@ -59,6 +59,7 @@ class GameSimulation {
       kingdomAttackUnlocked: attackUnlocked,
     )) {
       currentPhase = GamePhase.gameOver;
+      // Do NOT switch turns if game is over
       return true;
     }
 

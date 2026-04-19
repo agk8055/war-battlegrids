@@ -65,7 +65,7 @@ class PreBattleScreen extends ConsumerWidget {
                   const SizedBox(height: 32),
                   _buildStatRow("Difficulty", "⭐" * kingdom.difficulty),
                   _buildStatRow("Board Size", "${battleConfig?.levelConfig.boardWidth}x${battleConfig?.levelConfig.boardHeight}"),
-                  _buildStatRow("AI Intellect", "Level ${battleConfig?.aiDepth}"),
+                  _buildStatRow("AI Intellect", battleConfig?.aiStrategy.displayName ?? "Novice"),
                   const SizedBox(height: 48),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

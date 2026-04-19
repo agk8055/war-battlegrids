@@ -4,16 +4,17 @@ import '../../core/enums/game_phase.dart';
 import '../../core/constants/board_constants.dart';
 
 import '../game_simulation.dart';
+import '../board.dart';
+import 'ai_strategy.dart';
+
+import '../../core/utils/capture_utils.dart';
+import '../../core/utils/board_utils.dart';
 
 class HeuristicEvaluator {
   static const int winScore = 1000000;
-  static const int captureWeight = 100;
-  static const int palaceDefendWeight = 10; // Reduced from 20 to prevent "inner layer" hugging
-  static const int palaceAttackWeight = 50; // Increased from 30
-  static const int blockadeProximityWeight = 40; // New: Encourage connecting pieces
 
   /// Evaluates the current game state from the perspective of the AI.
-  static int evaluate(GameSimulation simulation) {
+  static int evaluate(GameSimulation simulation, AIStrategy strategy) {
     int score = 0;
 
     if (simulation.currentPhase == GamePhase.gameOver) {
@@ -21,7 +22,7 @@ class HeuristicEvaluator {
       return simulation.currentTurn == Turn.player ? winScore : -winScore;
     }
 
-    score += (simulation.aiScore - simulation.playerScore) * captureWeight;
+    score += (simulation.aiScore - simulation.playerScore) * strategy.captureWeight;
 
     final board = simulation.board;
     final isAIAttackUnlocked = simulation.aiKingdomAttackUnlocked;
@@ -35,37 +36,77 @@ class HeuristicEvaluator {
         if (cell == CellState.ai) {
           // OFFENSE: Attacking Player Palace
           if (_isAdjacentToPalace(x, y, board.playerPalaceStartX, board.playerPalaceEndX, board.playerPalaceStartY, board.playerPalaceEndY)) {
-            score += palaceAttackWeight;
+            score += strategy.palaceAttackWeight;
           }
 
           // DEFENSE: Blocking Player progress towards AI Palace
           if (isPlayerAttackUnlocked) {
-            // If player is attacking AI palace (at the top), AI should block cells BELOW its palace
             if (y > board.aiPalaceEndY && y < board.height / 2) {
                if (_isAdjacentToState8Way(simulation, x, y, CellState.player)) {
-                 score += 80; // High priority to block player pieces
+                 score += strategy.palaceDefendWeight * 8;
                }
             }
           }
 
-          // CONNECTIVITY: Encourage forming a continuous wall (U-shape)
+          // CONNECTIVITY & BLOCKADE (Align with GameRules anchors)
           if (isAIAttackUnlocked) {
             if (_isAdjacentToState8Way(simulation, x, y, CellState.ai) || 
                 _isAdjacentToState8Way(simulation, x, y, CellState.capturedGrid)) {
-              score += blockadeProximityWeight;
+              score += strategy.connectivityWeight;
+            }
+            
+            // BRIDGING: Reward being near other AI pieces even if not touching (close gaps)
+            if (strategy.connectivityWeight > 0) {
+              if (_hasBridgePotential(board, x, y, CellState.ai)) {
+                score += (strategy.connectivityWeight * 0.5).toInt();
+              }
+            }
+
+            // AI Anchor Proximity (Winning path)
+            if (x == board.playableMinX || (y == board.playableMaxY && x < board.playerPalaceStartX)) {
+              score += strategy.connectivityWeight * 2;
+            }
+            if (x == board.playableMaxX || (y == board.playableMaxY && x > board.playerPalaceEndX)) {
+              score += strategy.connectivityWeight * 2;
+            }
+
+            // EDGE/CORNER BONUS: Reward placing near boundaries as they act as natural walls for captures
+            if (x == board.playableMinX || x == board.playableMaxX || 
+                y == board.playableMinY || y == board.playableMaxY) {
+              score += 20; // Small bonus for boundary usage
+            }
+          }
+
+          // ZONE DOMINANCE
+          if (strategy.zoneControlWeight > 0) {
+            if (y > board.height / 2) {
+              score += strategy.zoneControlWeight;
             }
           }
 
         } else if (cell == CellState.player) {
           // Penalize player proximity to AI Palace
           if (_isAdjacentToPalace(x, y, board.aiPalaceStartX, board.aiPalaceEndX, board.aiPalaceStartY, board.aiPalaceEndY)) {
-            score -= (palaceAttackWeight * 1.5).toInt();
+            score -= (strategy.palaceAttackWeight * 1.5).toInt();
           }
 
-          // Penalize player blockade connections
+          // Penalize player blockade anchors
           if (isPlayerAttackUnlocked) {
-            if (_isAdjacentToState8Way(simulation, x, y, CellState.player)) {
-               score -= blockadeProximityWeight;
+            if (x == board.playableMinX || (y == board.playableMinY && x < board.aiPalaceStartX)) {
+              score -= strategy.connectivityWeight;
+            }
+            if (x == board.playableMaxX || (y == board.playableMinY && x > board.aiPalaceEndX)) {
+              score -= strategy.connectivityWeight;
+            }
+          }
+        } else if (cell == CellState.empty) {
+          // TERRITORY: Reward AI for controlling empty space that is hard for the player to reach
+          // or near the player palace.
+          if (strategy.zoneControlWeight > 0) {
+            bool nearAI = _isAdjacentToState8Way(simulation, x, y, CellState.ai);
+            bool nearPlayer = _isAdjacentToState8Way(simulation, x, y, CellState.player);
+            if (nearAI && !nearPlayer) {
+              score += 5; // Small bonus for controlled empty space
             }
           }
         }
@@ -73,6 +114,21 @@ class HeuristicEvaluator {
     }
 
     return score;
+  }
+
+  static bool _hasBridgePotential(Board board, int x, int y, CellState state) {
+    // Check radius 2 for other pieces of the same state to bridge gaps
+    for (int dy = -2; dy <= 2; dy++) {
+      for (int dx = -2; dx <= 2; dx++) {
+        if (dx == 0 && dy == 0) continue;
+        final nx = x + dx;
+        final ny = y + dy;
+        if (nx >= 0 && nx < board.width && ny >= 0 && ny < board.height) {
+          if (board.getCell(nx, ny) == state) return true;
+        }
+      }
+    }
+    return false;
   }
 
   static bool _isAdjacentToPalace(int x, int y, int palStartX, int palEndX, int palStartY, int palEndY) {

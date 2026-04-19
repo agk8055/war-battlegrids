@@ -5,6 +5,7 @@ import '../../campaign/campaign_manager.dart';
 import '../../campaign/data/battle_configs.dart';
 import '../../providers/turn_provider.dart';
 import '../../providers/simulation_provider.dart';
+import '../../simulation/ai/ai_strategy.dart';
 
 import '../core/enums/turn.dart';
 import '../core/enums/game_phase.dart';
@@ -73,15 +74,15 @@ class KingdomGame extends FlameGame with ScaleDetector {
       // Set UI to thinking state
       ref.read(aiStateProvider.notifier).setThinking();
 
-      // Get AI depth from battle config
+      // Get AI strategy from battle config
       final campaignState = ref.read(campaignProvider);
       final kingdomId = campaignState.selectedKingdomId;
-      final aiDepth = (kingdomId != null) 
-          ? (kBattleConfigs[kingdomId]?.aiDepth ?? 2) 
-          : 2;
+      final strategy = (kingdomId != null) 
+          ? (kBattleConfigs[kingdomId]?.aiStrategy ?? AIStrategy.fromType(AIStrategyType.basic)) 
+          : AIStrategy.fromType(AIStrategyType.basic);
 
       // Offload AI calculation to Background Isolate
-      final bestMove = await AIManager.calculateNextMove(simulationState, aiDepth);
+      final bestMove = await AIManager.calculateNextMove(simulationState, strategy);
 
       // Add a slight artificial delay so the AI doesn't feel instantaneous, giving the player a moment to process the board.
       await Future.delayed(const Duration(milliseconds: 600));

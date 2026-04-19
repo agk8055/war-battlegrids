@@ -15,14 +15,16 @@ class CaptureUtils {
     final List<(int, int)> captured = [];
 
     // Check adjacent cells
-    final neighbors = BoardUtils.getAdjacentCoordinates(
-      placedCoord.$1, 
-      placedCoord.$2, 
-      board.width, 
-      board.height
-    );
+    final allNeighbors = [
+      (placedCoord.$1, placedCoord.$2 - 1),
+      (placedCoord.$1, placedCoord.$2 + 1),
+      (placedCoord.$1 - 1, placedCoord.$2),
+      (placedCoord.$1 + 1, placedCoord.$2),
+    ];
 
-    for (final neighbor in neighbors) {
+    for (final neighbor in allNeighbors) {
+      if (!board.isWithinPlayableArea(neighbor.$1, neighbor.$2)) continue;
+
       final cell = board.getCell(neighbor.$1, neighbor.$2);
       
       // If the neighbor is NOT the attacker's color and NOT the attacker's zone, 

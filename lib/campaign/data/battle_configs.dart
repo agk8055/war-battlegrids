@@ -1,85 +1,86 @@
 import '../../core/models/level_config.dart';
 import '../models/battle_config.dart';
+import '../../simulation/ai/ai_strategy.dart';
 
 final Map<String, BattleConfig> kBattleConfigs = {
-  'snowy_village': const BattleConfig(
+  'snowy_village': BattleConfig(
     kingdomId: 'snowy_village',
-    levelConfig: LevelConfig(
+    levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,
       playerKingdomAttackThreshold: 30,
       aiKingdomAttackThreshold: 30,
     ),
-    aiDepth: 3,
+    aiStrategy: AIStrategy.fromType(AIStrategyType.basic),
   ),
-  'blue_dome_town': const BattleConfig(
+  'blue_dome_town': BattleConfig(
     kingdomId: 'blue_dome_town',
-    levelConfig: LevelConfig(
+    levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,
       playerKingdomAttackThreshold: 50,
       aiKingdomAttackThreshold: 50,
     ),
-    aiDepth: 2,
+    aiStrategy: AIStrategy.fromType(AIStrategyType.doubleThreat),
   ),
-  'coastal_castle': const BattleConfig(
+  'coastal_castle': BattleConfig(
     kingdomId: 'coastal_castle',
-    levelConfig: LevelConfig(
+    levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,
       playerKingdomAttackThreshold: 60,
       aiKingdomAttackThreshold: 60,
     ),
-    aiDepth: 3,
+    aiStrategy: AIStrategy.fromType(AIStrategyType.defensive),
   ),
-  'pyramid_area': const BattleConfig(
+  'pyramid_area': BattleConfig(
     kingdomId: 'pyramid_area',
-    levelConfig: LevelConfig(
+    levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,
       playerKingdomAttackThreshold: 60,
       aiKingdomAttackThreshold: 60,
     ),
-    aiDepth: 3,
+    aiStrategy: AIStrategy.fromType(AIStrategyType.aggressive),
   ),
-  'desert_settlement': const BattleConfig(
+  'desert_settlement': BattleConfig(
     kingdomId: 'desert_settlement',
-    levelConfig: LevelConfig(
+    levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,
       playerKingdomAttackThreshold: 70,
       aiKingdomAttackThreshold: 70,
     ),
-    aiDepth: 3,
+    aiStrategy: AIStrategy.fromType(AIStrategyType.forkExpert),
   ),
-  'large_fort': const BattleConfig(
+  'large_fort': BattleConfig(
     kingdomId: 'large_fort',
-    levelConfig: LevelConfig(
+    levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,
       playerKingdomAttackThreshold: 70,
       aiKingdomAttackThreshold: 70,
     ),
-    aiDepth: 4,
+    aiStrategy: AIStrategy.fromType(AIStrategyType.master),
   ),
-  'oriental_pagoda': const BattleConfig(
+  'oriental_pagoda': BattleConfig(
     kingdomId: 'oriental_pagoda',
-    levelConfig: LevelConfig(
+    levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,
       playerKingdomAttackThreshold: 80,
       aiKingdomAttackThreshold: 80,
     ),
-    aiDepth: 4,
+    aiStrategy: AIStrategy.fromType(AIStrategyType.master),
   ),
-  'southern_city': const BattleConfig(
+  'southern_city': BattleConfig(
     kingdomId: 'southern_city',
-    levelConfig: LevelConfig(
+    levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,
       playerKingdomAttackThreshold: 100,
       aiKingdomAttackThreshold: 100,
     ),
-    aiDepth: 5,
+    aiStrategy: AIStrategy.fromType(AIStrategyType.master),
   ),
 };
