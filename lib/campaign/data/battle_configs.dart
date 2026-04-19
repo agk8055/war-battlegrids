@@ -10,7 +10,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
       playerKingdomAttackThreshold: 30,
       aiKingdomAttackThreshold: 30,
     ),
-    aiDepth: 2,
+    aiDepth: 3,
   ),
   'blue_dome_town': const BattleConfig(
     kingdomId: 'blue_dome_town',
@@ -25,8 +25,8 @@ final Map<String, BattleConfig> kBattleConfigs = {
   'coastal_castle': const BattleConfig(
     kingdomId: 'coastal_castle',
     levelConfig: LevelConfig(
-      boardWidth: 17,
-      boardHeight: 17,
+      boardWidth: 25,
+      boardHeight: 25,
       playerKingdomAttackThreshold: 60,
       aiKingdomAttackThreshold: 60,
     ),
@@ -35,8 +35,8 @@ final Map<String, BattleConfig> kBattleConfigs = {
   'pyramid_area': const BattleConfig(
     kingdomId: 'pyramid_area',
     levelConfig: LevelConfig(
-      boardWidth: 17,
-      boardHeight: 17,
+      boardWidth: 25,
+      boardHeight: 25,
       playerKingdomAttackThreshold: 60,
       aiKingdomAttackThreshold: 60,
     ),
@@ -45,8 +45,8 @@ final Map<String, BattleConfig> kBattleConfigs = {
   'desert_settlement': const BattleConfig(
     kingdomId: 'desert_settlement',
     levelConfig: LevelConfig(
-      boardWidth: 19,
-      boardHeight: 19,
+      boardWidth: 25,
+      boardHeight: 25,
       playerKingdomAttackThreshold: 70,
       aiKingdomAttackThreshold: 70,
     ),
@@ -55,8 +55,8 @@ final Map<String, BattleConfig> kBattleConfigs = {
   'large_fort': const BattleConfig(
     kingdomId: 'large_fort',
     levelConfig: LevelConfig(
-      boardWidth: 19,
-      boardHeight: 19,
+      boardWidth: 25,
+      boardHeight: 25,
       playerKingdomAttackThreshold: 70,
       aiKingdomAttackThreshold: 70,
     ),
@@ -65,8 +65,8 @@ final Map<String, BattleConfig> kBattleConfigs = {
   'oriental_pagoda': const BattleConfig(
     kingdomId: 'oriental_pagoda',
     levelConfig: LevelConfig(
-      boardWidth: 21,
-      boardHeight: 21,
+      boardWidth: 25,
+      boardHeight: 25,
       playerKingdomAttackThreshold: 80,
       aiKingdomAttackThreshold: 80,
     ),

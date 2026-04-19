@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../constants.dart';
 import 'overworld_map_screen.dart';
 
@@ -12,9 +13,9 @@ class GameHomeScreen extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'WAR : BATTLEGRIDS',
-              style: TextStyle(
+              style: GoogleFonts.sairaStencilOne(
                 color: kMainThemeColor,
                 fontSize: 28,
                 fontWeight: FontWeight.w900,

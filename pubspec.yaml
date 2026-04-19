@@ -38,6 +38,7 @@ dependencies:
   flutter_riverpod: ^3.3.1
   uuid: ^4.5.3
   flame_tiled: ^3.0.11
+  google_fonts: ^8.0.2
 
 dev_dependencies:
   flutter_test:
@@ -79,11 +80,11 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#000000"
-  image: assets/images/war_splash_screen.png
+  image: assets/images/plain_black.png
   android_gravity: center
   ios_content_mode: center
   android_12:
-    image: assets/images/war_splash_screen.png
+    image: assets/images/plain_black.png
     color: "#000000"
     
   # An image asset can refer to one or more resolution-specific "variants", see
