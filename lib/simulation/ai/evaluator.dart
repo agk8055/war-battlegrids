@@ -6,72 +6,67 @@ import '../../core/constants/board_constants.dart';
 import '../game_simulation.dart';
 
 class HeuristicEvaluator {
-  static const int winScore = 100000;
+  static const int winScore = 1000000;
   static const int captureWeight = 100;
-  static const int palaceDefendWeight = 20;
-  static const int palaceAttackWeight = 30;
+  static const int palaceDefendWeight = 10; // Reduced from 20 to prevent "inner layer" hugging
+  static const int palaceAttackWeight = 50; // Increased from 30
+  static const int blockadeProximityWeight = 40; // New: Encourage connecting pieces
 
   /// Evaluates the current game state from the perspective of the AI.
-  /// Positive scores favor the AI, negative scores favor the Player.
   static int evaluate(GameSimulation simulation) {
     int score = 0;
 
-    // 1. Check Win Conditions (Hard overrides)
     if (simulation.currentPhase == GamePhase.gameOver) {
-      if (simulation.currentTurn == Turn.player) {
-         // It was the AI's turn that ended the game (since currentTurn switches after a move)
-         // Wait, currentTurn tells us whose turn it is NOW. So the PREVIOUS player moved.
-         // Effectively, if Game Over, and it's player's turn, AI just moved and WON.
-         return winScore;
-      } else {
-         return -winScore;
-      }
+      // If Game Over and it's player's turn, AI just moved and WON.
+      return simulation.currentTurn == Turn.player ? winScore : -winScore;
     }
 
-    // 2. Base Resource Advantage (Scores)
-    score += simulation.aiScore * captureWeight;
-    score -= simulation.playerScore * captureWeight;
+    score += (simulation.aiScore - simulation.playerScore) * captureWeight;
 
-    // 3. Positional Advantage
-    // Scan board for strategic piece placements
-    for (int y = 0; y < simulation.board.height; y++) {
-      for (int x = 0; x < simulation.board.width; x++) {
-        final cell = simulation.board.getCell(x, y);
-        
+    final board = simulation.board;
+    final isAIAttackUnlocked = simulation.aiKingdomAttackUnlocked;
+    final isPlayerAttackUnlocked = simulation.playerKingdomAttackUnlocked;
+
+    for (int y = board.playableMinY; y <= board.playableMaxY; y++) {
+      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
+        final cell = board.getCell(x, y);
+        if (cell == CellState.empty || cell == CellState.capturedGrid || cell == CellState.obstacle) continue;
+
         if (cell == CellState.ai) {
-          // Defense: Is AI anchoring itself to its own palace?
-          if (_isAdjacentToPalace(x, y, simulation.board.aiPalaceStartX, simulation.board.aiPalaceEndX, simulation.board.aiPalaceStartY, simulation.board.aiPalaceEndY)) {
-            score += palaceDefendWeight;
-          }
-          // Offense: Is AI building a blockade around Player palace?
-          if (_isAdjacentToPalace(x, y, simulation.board.playerPalaceStartX, simulation.board.playerPalaceEndX, simulation.board.playerPalaceStartY, simulation.board.playerPalaceEndY)) {
-             score += palaceAttackWeight;
+          // OFFENSE: Attacking Player Palace
+          if (_isAdjacentToPalace(x, y, board.playerPalaceStartX, board.playerPalaceEndX, board.playerPalaceStartY, board.playerPalaceEndY)) {
+            score += palaceAttackWeight;
           }
 
-          // Anti-Blockage Defense: Actively block player pieces during kingdom attack
-          if (simulation.playerKingdomAttackUnlocked) {
-             if (y <= simulation.board.height ~/ 2 && _isAdjacentToState8Way(simulation, x, y, CellState.player)) {
-                 score += 60;
-             }
-          }
-        } 
-        else if (cell == CellState.player) {
-          // Inverse for player
-          if (_isAdjacentToPalace(x, y, simulation.board.playerPalaceStartX, simulation.board.playerPalaceEndX, simulation.board.playerPalaceStartY, simulation.board.playerPalaceEndY)) {
-            score -= palaceDefendWeight;
-          }
-          if (_isAdjacentToPalace(x, y, simulation.board.aiPalaceStartX, simulation.board.aiPalaceEndX, simulation.board.aiPalaceStartY, simulation.board.aiPalaceEndY)) {
-             score -= palaceAttackWeight;
+          // DEFENSE: Blocking Player progress towards AI Palace
+          if (isPlayerAttackUnlocked) {
+            // If player is attacking AI palace (at the top), AI should block cells BELOW its palace
+            if (y > board.aiPalaceEndY && y < board.height / 2) {
+               if (_isAdjacentToState8Way(simulation, x, y, CellState.player)) {
+                 score += 80; // High priority to block player pieces
+               }
+            }
           }
 
-          // Penalize AI if player is encroaching and building walls during kingdom attack
-          if (simulation.playerKingdomAttackUnlocked) {
-             if (y <= simulation.board.height ~/ 2) {
-                 score -= 10;
-                 if (_isAdjacentToState8Way(simulation, x, y, CellState.player)) {
-                     score -= 15;
-                 }
-             }
+          // CONNECTIVITY: Encourage forming a continuous wall (U-shape)
+          if (isAIAttackUnlocked) {
+            if (_isAdjacentToState8Way(simulation, x, y, CellState.ai) || 
+                _isAdjacentToState8Way(simulation, x, y, CellState.capturedGrid)) {
+              score += blockadeProximityWeight;
+            }
+          }
+
+        } else if (cell == CellState.player) {
+          // Penalize player proximity to AI Palace
+          if (_isAdjacentToPalace(x, y, board.aiPalaceStartX, board.aiPalaceEndX, board.aiPalaceStartY, board.aiPalaceEndY)) {
+            score -= (palaceAttackWeight * 1.5).toInt();
+          }
+
+          // Penalize player blockade connections
+          if (isPlayerAttackUnlocked) {
+            if (_isAdjacentToState8Way(simulation, x, y, CellState.player)) {
+               score -= blockadeProximityWeight;
+            }
           }
         }
       }

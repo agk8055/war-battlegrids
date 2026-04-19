@@ -263,18 +263,18 @@ class MinimaxAI {
     final isPlayer = turn == Turn.player;
     final attackUnlocked = isPlayer ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
     
-    // Even if attack is not unlocked, proximity to palace is a long-term threat
     final board = sim.board;
     final palStartX = isPlayer ? board.aiPalaceStartX : board.playerPalaceStartX;
     final palEndX = isPlayer ? board.aiPalaceEndX : board.playerPalaceEndX;
     final palStartY = isPlayer ? board.aiPalaceStartY : board.playerPalaceStartY;
     final palEndY = isPlayer ? board.aiPalaceEndY : board.playerPalaceEndY;
 
+    // 1. Proximity to Target Palace (Offensive)
     if (_isAdjacentToPalace(move.$1, move.$2, palStartX, palEndX, palStartY, palEndY)) {
       return true;
     }
 
-    // If attack is unlocked, check if this move would actually win
+    // 2. Immediate Win Check (Critical Offensive)
     if (attackUnlocked) {
       final state = turn == Turn.player ? CellState.player : CellState.ai;
       final original = board.getCell(move.$1, move.$2);
@@ -282,6 +282,15 @@ class MinimaxAI {
       final wins = GameRules.checkWinCondition(board, turn, kingdomAttackUnlocked: true);
       board.setCell(move.$1, move.$2, original);
       if (wins) return true;
+    }
+
+    // 3. Defensive Blocking (Anti-Blockade)
+    // If we are evaluating the opponent's turn, check if this move would block their win-path
+    if (!isPlayer && sim.playerKingdomAttackUnlocked) {
+       // If player is attacking AI, and this cell is below AI Palace, it's a defensive sigil
+       if (move.$2 > board.aiPalaceEndY && move.$2 < board.height / 2) {
+          return true;
+       }
     }
 
     return false;
