@@ -5,9 +5,11 @@ import '../../campaign/campaign_manager.dart';
 import '../../campaign/data/battle_configs.dart';
 import '../../providers/turn_provider.dart';
 import '../../providers/simulation_provider.dart';
+import '../../providers/game_settings_provider.dart';
 import '../../simulation/ai/ai_strategy.dart';
 
 import '../core/enums/turn.dart';
+import '../core/enums/game_mode.dart';
 import '../core/enums/game_phase.dart';
 import 'board/board_component.dart';
 
@@ -24,11 +26,13 @@ class KingdomGame extends FlameGame with ScaleDetector {
     super.onLoad();
 
     final simulation = ref.read(simulationProvider);
+    final settings = ref.read(gameSettingsProvider);
 
     // Create the board visualization
     boardComponent = BoardComponent(
       simulationBoard: simulation.board,
       cellSize: 40.0,
+      mapPath: settings.selectedMapPath,
       onCellTapped: _handleCellTapped,
     );
 
@@ -53,16 +57,24 @@ class KingdomGame extends FlameGame with ScaleDetector {
   void _handleCellTapped(int x, int y) {
     final notifier = ref.read(simulationProvider.notifier);
     final simulationState = ref.read(simulationProvider);
+    final settings = ref.read(gameSettingsProvider);
 
     // Prevent tap if game is over or AI is thinking
     if (simulationState.currentPhase == GamePhase.gameOver) return;
-    if (simulationState.currentTurn == Turn.ai) return;
+    
+    // In story mode, prevent tap if it's AI turn
+    if (settings.mode == GameMode.story && simulationState.currentTurn == Turn.ai) {
+      return;
+    }
 
     final success = notifier.placeUnit(x, y);
 
     if (success) {
       boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
-      _checkAITurn();
+      
+      if (settings.mode == GameMode.story) {
+        _checkAITurn();
+      }
     }
   }
 

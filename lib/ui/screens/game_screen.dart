@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../game/kingdom_game.dart';
 import '../../providers/simulation_provider.dart';
 import '../../providers/turn_provider.dart';
+import '../../providers/game_settings_provider.dart';
+import '../../core/enums/game_mode.dart';
 
 import '../../core/enums/game_phase.dart';
 import '../../core/enums/turn.dart';
@@ -36,19 +38,22 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     final simulationState = ref.watch(simulationProvider);
     final aiState = ref.watch(aiStateProvider);
 
+    final settings = ref.watch(gameSettingsProvider);
+    final isMultiplayer = settings.mode == GameMode.multiplayer;
+
     // Listen for score increases to show Capture toasts
     ref.listen(simulationProvider, (previous, next) {
       if (previous == null) return;
       if (next.playerScore > previous.playerScore) {
         CaptureToast.show(
           context,
-          "PLAYER CAPTURE! +${next.playerScore - previous.playerScore}",
+          "${isMultiplayer ? settings.player1Name : 'PLAYER'} CAPTURE! +${next.playerScore - previous.playerScore}",
           Colors.blue,
         );
       } else if (next.aiScore > previous.aiScore) {
         CaptureToast.show(
           context,
-          "AI CAPTURE! +${next.aiScore - previous.aiScore}",
+          "${isMultiplayer ? settings.player2Name : 'AI'} CAPTURE! +${next.aiScore - previous.aiScore}",
           Colors.red,
         );
       }
@@ -76,7 +81,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   // Player Score Panel (Top Left)
                   _buildOverlayContainer(
                     child: ScorePanel(
-                      title: "PLAYER",
+                      title: isMultiplayer ? settings.player1Name : "PLAYER",
                       points: simulationState.playerScore,
                       color: Colors.blue,
                       kingdomAttackUnlocked:
@@ -85,12 +90,12 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   ),
 
                   // Turn Indicator (Top Center) - Has its own background
-                  TurnIndicator(currentTurn: simulationState.currentTurn),
+                  TurnIndicator(currentTurn: simulationState.currentTurn, mode: settings.mode),
 
                   // AI Score Panel (Top Right)
                   _buildOverlayContainer(
                     child: ScorePanel(
-                      title: "AI",
+                      title: isMultiplayer ? settings.player2Name : "AI",
                       points: simulationState.aiScore,
                       color: Colors.red,
                       kingdomAttackUnlocked:
@@ -108,19 +113,22 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             if (simulationState.currentPhase == GamePhase.gameOver)
               GameOverOverlay(
                 winner: simulationState.currentTurn,
+                mode: settings.mode,
                 onReturnToMap: () {
-                  if (simulationState.currentTurn == Turn.player) {
-                    final campaignState = ref.read(campaignProvider);
-                    if (campaignState.selectedKingdomId != null) {
-                      ref.read(campaignProvider.notifier).conquerKingdom(
-                            campaignState.selectedKingdomId!,
-                          );
+                  if (settings.mode == GameMode.story) {
+                    if (simulationState.currentTurn == Turn.player) {
+                      final campaignState = ref.read(campaignProvider);
+                      if (campaignState.selectedKingdomId != null) {
+                        ref.read(campaignProvider.notifier).conquerKingdom(
+                              campaignState.selectedKingdomId!,
+                            );
+                      }
                     }
+                    Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
+                  } else {
+                    // Multiplayer mode: return to map selection
+                    Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
                   }
-                  Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/overworld');
-                  // Since I don't have named routes set up yet, I'll just pop twice if I came from PreBattleScreen.
-                  // Actually, popping twice is safer for now.
-                  Navigator.of(context).pop(); 
                 },
               ),
           ],

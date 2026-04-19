@@ -1,14 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/enums/turn.dart';
+import '../../../core/enums/game_mode.dart';
+import '../../../providers/game_settings_provider.dart';
 
-class TurnIndicator extends StatelessWidget {
+class TurnIndicator extends ConsumerWidget {
   final Turn currentTurn;
+  final GameMode mode;
 
-  const TurnIndicator({super.key, required this.currentTurn});
+  const TurnIndicator({super.key, required this.currentTurn, required this.mode});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isPlayer = currentTurn == Turn.player;
+    final isMultiplayer = mode == GameMode.multiplayer;
+    final settings = ref.watch(gameSettingsProvider);
+
+    String text;
+    if (isMultiplayer) {
+      text = isPlayer ? '${settings.player1Name} TURN' : '${settings.player2Name} TURN';
+    } else {
+      text = isPlayer ? 'PLAYER TURN' : 'AI TURN';
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       decoration: BoxDecoration(
@@ -20,7 +34,7 @@ class TurnIndicator extends StatelessWidget {
         ),
       ),
       child: Text(
-        "${isPlayer ? 'PLAYER' : 'AI'} TURN",
+        text,
         style: TextStyle(
           color: isPlayer ? Colors.blueAccent : Colors.redAccent,
           fontWeight: FontWeight.bold,

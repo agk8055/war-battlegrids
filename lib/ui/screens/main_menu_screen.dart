@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants.dart';
+import '../../providers/game_settings_provider.dart';
+import '../../core/enums/game_mode.dart';
 import 'overworld_map_screen.dart';
+import 'map_selection_screen.dart';
 
-class GameHomeScreen extends StatelessWidget {
+class GameHomeScreen extends ConsumerWidget {
   const GameHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -40,6 +44,7 @@ class GameHomeScreen extends StatelessWidget {
                     children: [
                       IconButton(
                         onPressed: () {
+                          ref.read(gameSettingsProvider.notifier).setMode(GameMode.story);
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -73,7 +78,13 @@ class GameHomeScreen extends StatelessWidget {
                     children: [
                       IconButton(
                         onPressed: () {
-                          // Navigate to Multiplayer
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              settings: const RouteSettings(name: '/map_selection'),
+                              builder: (context) => const MapSelectionScreen(),
+                            ),
+                          );
                         },
                         icon: const Icon(Icons.people_rounded, size: 28),
                         style: IconButton.styleFrom(

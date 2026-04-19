@@ -61,6 +61,7 @@ kingdom_siege/
 ├── game_constants.dart        # default point thresholds, capture rules
 └── ui_constants.dart          # colors, typography, sizing
 ├── enums/
+│   ├── game_mode.dart             # story, multiplayer
 │   ├── game_phase.dart            # placement, kingdom_attack, game_over
 │   ├── cell_state.dart            # empty, player, ai, zone
 │   └── turn.dart                  # player, ai
@@ -75,7 +76,8 @@ kingdom_siege/
 │   │   ├── game_simulation.dart           # orchestrates a full game instance
 │   │   └── ai/
 │   │       ├── minimax.dart               # Minimax algorithm with alpha-beta pruning
-│   │       └── evaluator.dart             # board heuristic scoring function
+│   │       ├── evaluator.dart             # board heuristic scoring function
+│   │       └── rule_engine.dart           # hybrid AI: heuristic rules + minimax fallback
 │   │
 ├── campaign/
 │   ├── models/
@@ -110,6 +112,8 @@ kingdom_siege/
 │   │   │   ├── main_menu_screen.dart
 │   │   │   ├── overworld_map_screen.dart  # conquest map, territory states
 │   │   │   ├── pre_battle_screen.dart     # enemy kingdom intro + lore card
+│   │   │   ├── map_selection_screen.dart  # multiplayer map picker
+│   │   │   ├── multiplayer_setup_screen.dart # custom names, threshold setup
 │   │   │   ├── game_screen.dart           # Flame GameWidget + Flutter HUD
 │   │   │   ├── post_battle_screen.dart    # victory screen + map conquest anim
 │   │   │   └── game_over_screen.dart
@@ -210,6 +214,7 @@ kingdom_siege/
 
 - [x] Implement `evaluator.dart` — heuristic board scoring (positional control, threat detection, dynamic palace proximity)
 - [x] Implement `minimax.dart` — Minimax with alpha-beta pruning, configurable depth
+- [x] Implement `rule_engine.dart` — a hybrid AI approach using priority-based rules (win instantly, block capture, sigil threat) with a Minimax fallback
 - [x] Wire AI to run inside a Dart `Isolate` via `turn_provider`
 - [x] Expose AI thinking state through `AsyncNotifierProvider` so UI can react
 - [x] Tune evaluator weights until AI feels challenging but fair
@@ -257,12 +262,26 @@ kingdom_siege/
 
 ---
 
+### Phase 10 — Multiplayer Layer
+**Goal:** Local "Hot-Seat" competitive play.
+
+- [x] Implement `game_mode.dart` enum and `game_settings_provider.dart`
+- [x] Build `map_selection_screen.dart` — grid-based battlefield selection
+- [x] Build `multiplayer_setup_screen.dart` — custom commander names and Kingdom Attack threshold input
+- [x] Update `KingdomGame` to bypass AI logic when `GameMode.multiplayer` is active
+- [x] Update HUD, Toasts, and Overlays to use custom names (e.g., "COMMANDER RED TURN")
+
+**Milestone:** Two human players can compete on the same device with customized rules.
+
+---
+
 ## Key Architectural Decisions
 
 | Decision | Rationale |
 |---|---|
 | Riverpod over BLoC | Less ceremony, cleaner async handling for AI isolate, pairs naturally with Flame's game loop |
 | Simulation as pure Dart | Fully testable without Flutter/Flame overhead, portable, and future multiplayer ready |
+| Hybrid AI (RuleEngine) | Combines fast, deterministic tactical rules (e.g. blocking captures) with strategic Minimax depth |
 | Coordinate translation in `board_component.dart` | Tiled migration becomes a single-file change |
 | Constants in `core/constants/` | Zone boundaries and sigil positions are defined once, used everywhere, easy to swap |
 | AI in Dart Isolate | Minimax tree search is CPU-heavy; isolate keeps the UI thread free and responsive |

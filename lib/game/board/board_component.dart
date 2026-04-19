@@ -11,6 +11,7 @@ class BoardComponent extends PositionComponent {
   final Board simulationBoard;
   final void Function(int x, int y) onCellTapped;
   final double cellSize;
+  final String mapPath;
 
   late List<List<CellComponent>> _cellGrid;
   late TiledComponent tiledComponent;
@@ -18,6 +19,7 @@ class BoardComponent extends PositionComponent {
   BoardComponent({
     required this.simulationBoard,
     required this.onCellTapped,
+    required this.mapPath,
     this.cellSize = 40.0,
   }) {
     // Initial size based on simulation board
@@ -35,7 +37,7 @@ class BoardComponent extends PositionComponent {
     // Custom Images instance with assets/tiles/ prefix allows loading images 
     // from assets/tiles/images/ as referenced in the .tsx files.
     tiledComponent = await TiledComponent.load(
-      '25x25_map.tmx',
+      mapPath,
       Vector2.all(cellSize),
       images: Images(prefix: 'assets/tiles/'),
     );
