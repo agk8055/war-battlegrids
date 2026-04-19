@@ -27,8 +27,10 @@ class Board {
     this.width = kDefaultBoardWidth,
     this.height = kDefaultBoardHeight,
   }) {
-    playableMaxX = width - 1;
-    playableMaxY = height - 1;
+    playableMinX = kPlayableBoundary;
+    playableMinY = kPlayableBoundary;
+    playableMaxX = width - 1 - kPlayableBoundary;
+    playableMaxY = height - 1 - kPlayableBoundary;
     _initializeGrid();
   }
 
@@ -46,10 +48,10 @@ class Board {
   void resize(int newWidth, int newHeight) {
     width = newWidth;
     height = newHeight;
-    playableMinX = 0;
-    playableMinY = 0;
-    playableMaxX = width - 1;
-    playableMaxY = height - 1;
+    playableMinX = kPlayableBoundary;
+    playableMinY = kPlayableBoundary;
+    playableMaxX = width - 1 - kPlayableBoundary;
+    playableMaxY = height - 1 - kPlayableBoundary;
     _initializeGrid();
   }
 

@@ -4,6 +4,7 @@ import 'package:flame/components.dart';
 import 'package:flame_tiled/flame_tiled.dart';
 import '../../simulation/board.dart';
 import '../../core/enums/cell_state.dart';
+import '../../core/constants/board_constants.dart';
 import 'cell_component.dart';
 
 class BoardComponent extends PositionComponent {
@@ -49,12 +50,11 @@ class BoardComponent extends PositionComponent {
     }
     
     // Set Playable Area: 3 rows/cols from EACH side
-    const int boundary = 3;
     simulationBoard.setPlayableArea(
-      boundary, 
-      boundary, 
-      tileMap.width - 1 - boundary, 
-      tileMap.height - 1 - boundary
+      kPlayableBoundary, 
+      kPlayableBoundary, 
+      tileMap.width - 1 - kPlayableBoundary, 
+      tileMap.height - 1 - kPlayableBoundary
     );
 
     // 2. Parse Map Properties to Simulation Board

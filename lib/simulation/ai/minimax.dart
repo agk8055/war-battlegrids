@@ -16,23 +16,22 @@ class TranspositionEntry {
 
 class MinimaxAI {
   static final Map<int, TranspositionEntry> _transpositionTable = {};
+  static final Map<int, List<(int, int)>> _killerMoves = {};
 
-  /// Calculates the best legally available move for the AI using Minimax with Alpha-Beta pruning.
-  /// Returns the coordinates (x, y) to place a piece, or null if no moves are available.
+  /// Calculates the best legally available move for the AI using Minimax with Alpha-Beta pruning,
+  /// PVS (Principal Variation Search), and Killer Heuristic.
   static (int, int)? getBestMove(GameSimulation sim, int maxDepth) {
     ZobristHash.initialize(sim.board.width, sim.board.height);
     _transpositionTable.clear();
+    _killerMoves.clear();
 
     int bestScore = -9999999;
     (int, int)? bestMove;
 
-    // Use restricted moves for performance
-    final availableMoves = sim.board.getRestrictedAvailableCells(radius: 2, allowZones: true);
-    
-    // Sort moves to improve pruning (simple heuristic: center-first or just distance-based)
-    _sortMoves(availableMoves, sim.board);
+    final availableMoves = sim.board.getRestrictedAvailableCells(radius: 2, allowZones: false);
+    _sortMoves(availableMoves, sim.board, maxDepth);
 
-    // 10% chance to make a mistake (reduced from 20%)
+    // 10% chance to make a mistake
     if (availableMoves.isNotEmpty && Random().nextDouble() < 0.10) {
       final randMove = availableMoves[Random().nextInt(availableMoves.length)];
       final simClone = _cloneSimulation(sim);
@@ -44,12 +43,22 @@ class MinimaxAI {
     int alpha = -9999999;
     int beta = 9999999;
 
+    bool firstMove = true;
     for (final move in availableMoves) {
       final GameSimulation simClone = _cloneSimulation(sim);
-
       if (!simClone.placeUnit(move.$1, move.$2)) continue;
 
-      int score = _minimax(simClone, maxDepth - 1, alpha, beta, false);
+      int score;
+      if (firstMove) {
+        score = _minimax(simClone, maxDepth - 1, alpha, beta, false);
+        firstMove = false;
+      } else {
+        // Null window search
+        score = _minimax(simClone, maxDepth - 1, alpha, alpha + 1, false);
+        if (score > alpha && score < beta) {
+          score = _minimax(simClone, maxDepth - 1, alpha, beta, false);
+        }
+      }
 
       if (score > bestScore) {
         bestScore = score;
@@ -60,11 +69,7 @@ class MinimaxAI {
       if (beta <= alpha) break;
     }
 
-    if (bestMove == null && availableMoves.isNotEmpty) {
-      return availableMoves.first;
-    }
-
-    return bestMove;
+    return bestMove ?? (availableMoves.isNotEmpty ? availableMoves.first : null);
   }
 
   static int _minimax(
@@ -88,10 +93,11 @@ class MinimaxAI {
       return HeuristicEvaluator.evaluate(sim);
     }
 
-    final availableMoves = sim.board.getRestrictedAvailableCells(radius: 2, allowZones: true);
-    _sortMoves(availableMoves, sim.board);
+    final availableMoves = sim.board.getRestrictedAvailableCells(radius: 2, allowZones: false);
+    _sortMoves(availableMoves, sim.board, depth);
 
     int originalAlpha = alpha;
+    bool firstMove = true;
 
     if (isMaximizingPlayer) {
       int maxEval = -9999999;
@@ -99,10 +105,23 @@ class MinimaxAI {
         final GameSimulation simClone = _cloneSimulation(sim);
         if (!simClone.placeUnit(move.$1, move.$2)) continue;
 
-        int eval = _minimax(simClone, depth - 1, alpha, beta, false);
+        int eval;
+        if (firstMove) {
+          eval = _minimax(simClone, depth - 1, alpha, beta, false);
+          firstMove = false;
+        } else {
+          eval = _minimax(simClone, depth - 1, alpha, alpha + 1, false);
+          if (eval > alpha && eval < beta) {
+            eval = _minimax(simClone, depth - 1, alpha, beta, false);
+          }
+        }
+
         maxEval = max(maxEval, eval);
         alpha = max(alpha, eval);
-        if (beta <= alpha) break;
+        if (beta <= alpha) {
+          _storeKillerMove(move, depth);
+          break;
+        }
       }
       
       _storeEntry(hash, maxEval, depth, originalAlpha, beta);
@@ -113,14 +132,36 @@ class MinimaxAI {
         final GameSimulation simClone = _cloneSimulation(sim);
         if (!simClone.placeUnit(move.$1, move.$2)) continue;
 
-        int eval = _minimax(simClone, depth - 1, alpha, beta, true);
+        int eval;
+        if (firstMove) {
+          eval = _minimax(simClone, depth - 1, alpha, beta, true);
+          firstMove = false;
+        } else {
+          eval = _minimax(simClone, depth - 1, beta - 1, beta, true);
+          if (eval < beta && eval > alpha) {
+            eval = _minimax(simClone, depth - 1, alpha, beta, true);
+          }
+        }
+
         minEval = min(minEval, eval);
         beta = min(beta, eval);
-        if (beta <= alpha) break;
+        if (beta <= alpha) {
+          _storeKillerMove(move, depth);
+          break;
+        }
       }
 
       _storeEntry(hash, minEval, depth, originalAlpha, beta);
       return minEval == 9999999 ? HeuristicEvaluator.evaluate(sim) : minEval;
+    }
+  }
+
+  static void _storeKillerMove((int, int) move, int depth) {
+    _killerMoves.putIfAbsent(depth, () => []);
+    final killers = _killerMoves[depth]!;
+    if (!killers.contains(move)) {
+      killers.insert(0, move);
+      if (killers.length > 2) killers.removeLast();
     }
   }
 
@@ -131,12 +172,19 @@ class MinimaxAI {
     _transpositionTable[hash] = TranspositionEntry(score, depth, type);
   }
 
-  static void _sortMoves(List<(int, int)> moves, Board board) {
-    // Basic move ordering: prefer cells closer to the center
+  static void _sortMoves(List<(int, int)> moves, Board board, int depth) {
     final centerX = board.width / 2;
     final centerY = board.height / 2;
+    final killers = _killerMoves[depth] ?? [];
 
     moves.sort((a, b) {
+      // Killer moves first
+      final aIsKiller = killers.contains(a);
+      final bIsKiller = killers.contains(b);
+      if (aIsKiller && !bIsKiller) return -1;
+      if (!aIsKiller && bIsKiller) return 1;
+
+      // Then center-first
       final dxA = a.$1 - centerX;
       final dyA = a.$2 - centerY;
       final distA = dxA * dxA + dyA * dyA;
