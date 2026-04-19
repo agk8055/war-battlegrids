@@ -138,9 +138,7 @@ class Board {
     clonedBoard.playerPalaceEndY = playerPalaceEndY;
 
     for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        clonedBoard.setCell(x, y, getCell(x, y));
-      }
+      clonedBoard._grid[y] = List<CellState>.from(_grid[y]);
     }
     return clonedBoard;
   }
@@ -162,5 +160,70 @@ class Board {
       }
     }
     return emptyCells;
+  }
+
+  /// Returns empty cells that are within [radius] steps of any existing piece.
+  /// This significantly reduces the move space for the Minimax algorithm.
+  List<(int, int)> getRestrictedAvailableCells({int radius = 2, bool allowZones = false}) {
+    final List<(int, int)> restrictedCells = [];
+    final List<(int, int)> occupiedCells = [];
+
+    // First, find all occupied cells
+    for (int y = playableMinY; y <= playableMaxY; y++) {
+      for (int x = playableMinX; x <= playableMaxX; x++) {
+        final cell = getCell(x, y);
+        if (cell == CellState.player || 
+            cell == CellState.ai || 
+            cell == CellState.playerSigil || 
+            cell == CellState.aiSigil ||
+            cell == CellState.capturedGrid) {
+          occupiedCells.add((x, y));
+        }
+      }
+    }
+
+    // If board is empty, return cells near the center or just use the first available ones
+    if (occupiedCells.isEmpty) {
+      // Return a small set of cells near the center
+      int centerX = (playableMinX + playableMaxX) ~/ 2;
+      int centerY = (playableMinY + playableMaxY) ~/ 2;
+      for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+          int nx = centerX + dx;
+          int ny = centerY + dy;
+          if (isWithinPlayableArea(nx, ny)) {
+            final cell = getCell(nx, ny);
+            if (cell == CellState.empty || (allowZones && (cell == CellState.playerZone || cell == CellState.aiZone))) {
+              restrictedCells.add((nx, ny));
+            }
+          }
+        }
+      }
+      if (restrictedCells.isNotEmpty) return restrictedCells;
+      return getAvailableCells(allowZones: allowZones);
+    }
+
+    // For each occupied cell, look at its neighbors within [radius]
+    final Set<(int, int)> visited = {};
+    for (final (ox, oy) in occupiedCells) {
+      for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+          if (dx == 0 && dy == 0) continue;
+          
+          int nx = ox + dx;
+          int ny = oy + dy;
+          
+          if (isWithinPlayableArea(nx, ny) && !visited.contains((nx, ny))) {
+            visited.add((nx, ny));
+            final cell = getCell(nx, ny);
+            if (cell == CellState.empty || (allowZones && (cell == CellState.playerZone || cell == CellState.aiZone))) {
+              restrictedCells.add((nx, ny));
+            }
+          }
+        }
+      }
+    }
+
+    return restrictedCells;
   }
 }

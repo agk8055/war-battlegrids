@@ -1,40 +1,54 @@
 import 'dart:math';
 import '../game_simulation.dart';
-
+import '../board.dart';
 import '../../core/enums/game_phase.dart';
+import '../../core/enums/turn.dart';
 import 'evaluator.dart';
+import 'zobrist_hash.dart';
+
+class TranspositionEntry {
+  final int score;
+  final int depth;
+  final int type; // 0: exact, 1: lower bound, 2: upper bound
+
+  TranspositionEntry(this.score, this.depth, this.type);
+}
 
 class MinimaxAI {
+  static final Map<int, TranspositionEntry> _transpositionTable = {};
+
   /// Calculates the best legally available move for the AI using Minimax with Alpha-Beta pruning.
   /// Returns the coordinates (x, y) to place a piece, or null if no moves are available.
   static (int, int)? getBestMove(GameSimulation sim, int maxDepth) {
+    ZobristHash.initialize(sim.board.width, sim.board.height);
+    _transpositionTable.clear();
+
     int bestScore = -9999999;
     (int, int)? bestMove;
 
-    final availableMoves = sim.board.getAvailableCells(allowZones: true);
+    // Use restricted moves for performance
+    final availableMoves = sim.board.getRestrictedAvailableCells(radius: 2, allowZones: true);
+    
+    // Sort moves to improve pruning (simple heuristic: center-first or just distance-based)
+    _sortMoves(availableMoves, sim.board);
 
-    // 20% chance to make a completely random mistake to make it beatable
-    if (availableMoves.isNotEmpty && Random().nextDouble() < 0.20) {
+    // 10% chance to make a mistake (reduced from 20%)
+    if (availableMoves.isNotEmpty && Random().nextDouble() < 0.10) {
       final randMove = availableMoves[Random().nextInt(availableMoves.length)];
-      if (_cloneSimulation(sim).placeUnit(randMove.$1, randMove.$2)) {
+      final simClone = _cloneSimulation(sim);
+      if (simClone.placeUnit(randMove.$1, randMove.$2)) {
         return randMove;
       }
     }
 
-    // Alpha-beta pruning bounds
     int alpha = -9999999;
     int beta = 9999999;
 
     for (final move in availableMoves) {
-      // Clone game simulation state completely for branching
       final GameSimulation simClone = _cloneSimulation(sim);
 
-      // Attempt the move
-      bool valid = simClone.placeUnit(move.$1, move.$2);
-      if (!valid)
-        continue; // Move was illegal (e.g. into enemy palace without unlock)
+      if (!simClone.placeUnit(move.$1, move.$2)) continue;
 
-      // Recursively evaluate the new board state as the Opposing player (Player)
       int score = _minimax(simClone, maxDepth - 1, alpha, beta, false);
 
       if (score > bestScore) {
@@ -43,18 +57,11 @@ class MinimaxAI {
       }
 
       alpha = max(alpha, bestScore);
-      if (beta <= alpha) break; // Prune
+      if (beta <= alpha) break;
     }
 
-    // Fallback pseudo-random move if all branches are completely neutral (score 0),
-    // to give it variety, though MiniMax usually finds a "best" edge move early.
     if (bestMove == null && availableMoves.isNotEmpty) {
-      for (final m in availableMoves) {
-        final testClone = _cloneSimulation(sim);
-        if (testClone.placeUnit(m.$1, m.$2)) {
-          return m;
-        }
-      }
+      return availableMoves.first;
     }
 
     return bestMove;
@@ -67,11 +74,24 @@ class MinimaxAI {
     int beta,
     bool isMaximizingPlayer,
   ) {
+    int hash = ZobristHash.computeHash(sim.board, isMaximizingPlayer);
+    final entry = _transpositionTable[hash];
+    if (entry != null && entry.depth >= depth) {
+      if (entry.type == 0) return entry.score;
+      if (entry.type == 1) alpha = max(alpha, entry.score);
+      else if (entry.type == 2) beta = min(beta, entry.score);
+
+      if (alpha >= beta) return entry.score;
+    }
+
     if (depth == 0 || sim.currentPhase == GamePhase.gameOver) {
       return HeuristicEvaluator.evaluate(sim);
     }
 
-    final availableMoves = sim.board.getAvailableCells(allowZones: true);
+    final availableMoves = sim.board.getRestrictedAvailableCells(radius: 2, allowZones: true);
+    _sortMoves(availableMoves, sim.board);
+
+    int originalAlpha = alpha;
 
     if (isMaximizingPlayer) {
       int maxEval = -9999999;
@@ -84,9 +104,9 @@ class MinimaxAI {
         alpha = max(alpha, eval);
         if (beta <= alpha) break;
       }
-      // If no valid moves were found, return static evaluation
-      if (maxEval == -9999999) return HeuristicEvaluator.evaluate(sim);
-      return maxEval;
+      
+      _storeEntry(hash, maxEval, depth, originalAlpha, beta);
+      return maxEval == -9999999 ? HeuristicEvaluator.evaluate(sim) : maxEval;
     } else {
       int minEval = 9999999;
       for (final move in availableMoves) {
@@ -98,25 +118,39 @@ class MinimaxAI {
         beta = min(beta, eval);
         if (beta <= alpha) break;
       }
-      if (minEval == 9999999) return HeuristicEvaluator.evaluate(sim);
-      return minEval;
+
+      _storeEntry(hash, minEval, depth, originalAlpha, beta);
+      return minEval == 9999999 ? HeuristicEvaluator.evaluate(sim) : minEval;
     }
+  }
+
+  static void _storeEntry(int hash, int score, int depth, int alpha, int beta) {
+    int type = 0;
+    if (score <= alpha) type = 2;
+    else if (score >= beta) type = 1;
+    _transpositionTable[hash] = TranspositionEntry(score, depth, type);
+  }
+
+  static void _sortMoves(List<(int, int)> moves, Board board) {
+    // Basic move ordering: prefer cells closer to the center
+    final centerX = board.width / 2;
+    final centerY = board.height / 2;
+
+    moves.sort((a, b) {
+      final dxA = a.$1 - centerX;
+      final dyA = a.$2 - centerY;
+      final distA = dxA * dxA + dyA * dyA;
+
+      final dxB = b.$1 - centerX;
+      final dyB = b.$2 - centerY;
+      final distB = dxB * dxB + dyB * dyB;
+
+      return distA.compareTo(distB);
+    });
   }
 
   /// Deep clones a simulation instance so we can branch without destroying real state.
   static GameSimulation _cloneSimulation(GameSimulation original) {
-    final clone = GameSimulation(config: original.config);
-    // Copy Board using its own clone method which preserves palace bounds
-    clone.board = original.board.clone();
-    
-    // Copy Game State
-    clone.currentPhase = original.currentPhase;
-    clone.currentTurn = original.currentTurn;
-    clone.playerScore = original.playerScore;
-    clone.aiScore = original.aiScore;
-    clone.playerKingdomAttackUnlocked = original.playerKingdomAttackUnlocked;
-    clone.aiKingdomAttackUnlocked = original.aiKingdomAttackUnlocked;
-
-    return clone;
+    return original.clone();
   }
 }
