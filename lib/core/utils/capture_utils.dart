@@ -120,6 +120,21 @@ class CaptureUtils {
       return null;
     }
 
+    // A captured group MUST contain at least one enemy unit. 
+    // Capturing purely empty space without enemy units is not allowed.
+    final defenderState = attackerState == CellState.player ? CellState.ai : CellState.player;
+    bool containsEnemy = false;
+    for (final coord in group) {
+      if (board.getCell(coord.$1, coord.$2) == defenderState) {
+        containsEnemy = true;
+        break;
+      }
+    }
+
+    if (!containsEnemy) {
+      return null;
+    }
+
     return group.toList();
   }
 

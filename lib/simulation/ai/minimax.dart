@@ -188,10 +188,14 @@ class MinimaxAI {
       try {
         final captures = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
         if (captures.isNotEmpty) {
-          severity += 100 + (captures.length * 10);
+          int enemyCount = 0;
+          for (final c in captures) {
+            if (sim.board.getCell(c.$1, c.$2) == defenderState) enemyCount++;
+          }
+          severity += 100 + (enemyCount * 10);
           
           // Double Threat Logic (Immediate)
-          if (strategy.prioritizeDoubleThreats && captures.length >= 2) {
+          if (strategy.prioritizeDoubleThreats && enemyCount >= 2) {
             severity += 150;
           }
         }
@@ -222,7 +226,12 @@ class MinimaxAI {
       try {
         final enemyCaptures = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn);
         if (enemyCaptures.isNotEmpty) {
-          severity += 80 + (enemyCaptures.length * 5);
+          int oppEnemyCount = 0;
+          final myState = currentTurn == Turn.player ? CellState.player : CellState.ai;
+          for (final c in enemyCaptures) {
+             if (sim.board.getCell(c.$1, c.$2) == myState) oppEnemyCount++;
+          }
+          severity += 80 + (oppEnemyCount * 5);
         }
       } finally {
         sim.board.setCell(move.$1, move.$2, CellState.empty); // Reset

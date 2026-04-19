@@ -83,9 +83,16 @@ class RuleEngine {
       sim.board.setCell(move.$1, move.$2, attackerState);
       try {
         final captures = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
-        if (captures.length > maxCaptures) {
-          maxCaptures = captures.length;
-          bestMove = move;
+        if (captures.isNotEmpty) {
+           int enemyCount = 0;
+           final defState = currentTurn == Turn.player ? CellState.ai : CellState.player;
+           for (final c in captures) {
+              if (sim.board.getCell(c.$1, c.$2) == defState) enemyCount++;
+           }
+           if (enemyCount > maxCaptures) {
+             maxCaptures = enemyCount;
+             bestMove = move;
+           }
         }
       } finally {
         sim.board.setCell(move.$1, move.$2, CellState.empty);
@@ -119,7 +126,12 @@ class RuleEngine {
       sim.board.setCell(move.$1, move.$2, defenderState);
       int potentialCaptures = 0;
       try {
-        potentialCaptures = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn).length;
+        final cList = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn);
+        for(final c in cList) {
+            if (sim.board.getCell(c.$1, c.$2) == defenderState) {
+                potentialCaptures++;
+            }
+        }
       } finally {
         sim.board.setCell(move.$1, move.$2, CellState.empty);
       }
@@ -199,6 +211,7 @@ class RuleEngine {
   }
 
   /// 4. If Kingdom Attack is unlocked, finds a move that threatens the opponent's sigil.
+  /// Actively prioritizes moves that build a contiguous U-shaped blockade.
   static (int, int)? _findSigilMove(GameSimulation sim) {
     final isPlayer = sim.currentTurn == Turn.player;
     final attackUnlocked = isPlayer ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
@@ -213,29 +226,43 @@ class RuleEngine {
     final palStartY = isPlayer ? board.aiPalaceStartY : board.playerPalaceStartY;
     final palEndY = isPlayer ? board.aiPalaceEndY : board.playerPalaceEndY;
 
+    (int, int)? bestMove;
+    int bestScore = -1;
+
     for (final move in rawMoves) {
       if (!GameRules.isValidPlacement(board, move.$1, move.$2, sim.currentTurn, attackUnlocked)) {
         continue;
       }
 
-      // 1. Proximity Check
       if (_isAdjacentToPalace(move.$1, move.$2, palStartX, palEndX, palStartY, palEndY)) {
-        return move;
-      }
+        int score = 0;
+        final myState = isPlayer ? CellState.player : CellState.ai;
+        
+        // Count friendly neighbors to encourage a contiguous wall (U-Shape)
+        final adjacentDirs = [
+          (move.$1, move.$2 - 1), (move.$1, move.$2 + 1), 
+          (move.$1 - 1, move.$2), (move.$1 + 1, move.$2),
+          (move.$1 - 1, move.$2 - 1), (move.$1 + 1, move.$2 - 1), 
+          (move.$1 - 1, move.$2 + 1), (move.$1 + 1, move.$2 + 1),
+        ];
 
-      // 2. Immediate Win Check
-      final state = isPlayer ? CellState.player : CellState.ai;
-      final original = board.getCell(move.$1, move.$2);
-      board.setCell(move.$1, move.$2, state);
-      final wins = GameRules.checkWinCondition(board, sim.currentTurn, kingdomAttackUnlocked: true);
-      board.setCell(move.$1, move.$2, original);
-      
-      if (wins) {
-        return move;
+        for (final dir in adjacentDirs) {
+          if (dir.$1 >= 0 && dir.$1 < board.width && dir.$2 >= 0 && dir.$2 < board.height) {
+            if (board.getCell(dir.$1, dir.$2) == myState) {
+               // Higher weight for orthogonal vs diagonal if we want, but 8-way is good for contiguous feel.
+               score += 5; 
+            }
+          }
+        }
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = move;
+        }
       }
     }
 
-    return null;
+    return bestMove;
   }
 
 
