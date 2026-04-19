@@ -15,11 +15,14 @@ class OverworldMapScreen extends ConsumerStatefulWidget {
 class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> {
   final TransformationController _transformationController = TransformationController();
 
+  // Image dimensions
+  static const double _mapWidth = 1970;
+  static const double _mapHeight = 3188;
+
   @override
   void initState() {
     super.initState();
-    // Start with a zoomed out view to show it's a map
-    _transformationController.value = Matrix4.identity()..scale(0.5, 0.5, 1.0);
+    // Initial scale will be set in the build method once we have constraints
   }
 
   @override
@@ -28,23 +31,26 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> {
     super.dispose();
   }
 
+  bool _initialScaleSet = false;
+
   @override
   Widget build(BuildContext context) {
     final campaignState = ref.watch(campaignProvider);
-
-    // Image dimensions
-    const double mapWidth = 1970;
-    const double mapHeight = 3188;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // Calculate min scale to prevent showing too much black space
-          // We want the map to at least fill the screen width or height
-          final double minScale = (constraints.maxWidth / mapWidth > constraints.maxHeight / mapHeight)
-              ? constraints.maxWidth / mapWidth
-              : constraints.maxHeight / mapHeight;
+          // Calculate min scale to ensure the map is always zoomed in
+          // We use a 1.8x multiplier so the user never sees the full map at once
+          final double screenRatioW = constraints.maxWidth / _mapWidth;
+          final double screenRatioH = constraints.maxHeight / _mapHeight;
+          final double minScale = (screenRatioW > screenRatioH ? screenRatioW : screenRatioH) * 1.2;
+
+          if (!_initialScaleSet) {
+            _transformationController.value = Matrix4.identity()..scale(minScale, minScale, 1.0);
+            _initialScaleSet = true;
+          }
 
           return Stack(
             children: [
@@ -52,31 +58,35 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> {
               Positioned.fill(
                 child: InteractiveViewer(
                   transformationController: _transformationController,
-                  maxScale: 2.0,
+                  maxScale: 2.0, // Increased max scale for more detail
                   minScale: minScale,
                   constrained: false,
-                  boundaryMargin: EdgeInsets.zero, // Restrict to map edges
+                  boundaryMargin: const EdgeInsets.all(180), // Increased margin to allow panning more into the sides
                   child: SizedBox(
-                    width: mapWidth,
-                    height: mapHeight,
+                    width: _mapWidth,
+                    height: _mapHeight,
                     child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
                         Image.asset(
                           'assets/images/overworld_map.png',
-                          width: mapWidth,
-                          height: mapHeight,
-                          fit: BoxFit.none,
+                          width: _mapWidth,
+                          height: _mapHeight,
+                          fit: BoxFit.contain,
                         ),
                         
+                        // Decorations (Fog and Clouds strictly outside the map edges)
+                        ..._buildMapDecorations(),
+
                         // Paths between kingdoms
                         CustomPaint(
-                          size: const Size(mapWidth, mapHeight),
+                          size: const Size(_mapWidth, _mapHeight),
                           painter: PathPainter(kingdoms: kKingdoms, state: campaignState),
                         ),
         
                         // Kingdom Nodes
                         ...kKingdoms.map((kingdom) {
-                          return _buildKingdomNode(context, ref, kingdom, campaignState, mapWidth, mapHeight);
+                          return _buildKingdomNode(context, ref, kingdom, campaignState, _mapWidth, _mapHeight);
                         }),
                       ],
                     ),
@@ -141,6 +151,50 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  List<Widget> _buildMapDecorations() {
+    return [
+      // Left side cloud frame (Vertical) - Adjusted for more side panning
+      _buildCloud(-350, 200, 0.9, 3.2, rotation: 1),
+      _buildCloud(-300, 1000, 0.8, 2.8, rotation: 1),
+      _buildCloud(-300, 1800, 0.9, 3.5, rotation: 1),
+      _buildCloud(-300, 2600, 0.8, 3.0, rotation: 1),
+
+      // Right side cloud frame (Vertical) - Adjusted for more side panning
+      _buildCloud(_mapWidth - 50, 300, 0.9, 3.2, rotation: 3),
+      _buildCloud(_mapWidth - 50, 1100, 0.8, 2.8, rotation: 3),
+      _buildCloud(_mapWidth- 1, 1900, 0.9, 3.5, rotation: 3),
+      _buildCloud(_mapWidth - 1, 2700, 0.8, 3.0, rotation: 3),
+
+      // Top cloud frame (Horizontal)
+      _buildCloud(250, -250, 0.9, 3.2),
+      _buildCloud(1000, -200, 0.8, 2.7),
+      _buildCloud(1800, -300, 0.9, 3.0),
+
+      // Bottom cloud frame (Horizontal)
+      _buildCloud(100, _mapHeight - 250, 0.9, 3.4),
+      _buildCloud(900, _mapHeight - 100, 0.8, 2.8),
+      _buildCloud(1700, _mapHeight - 50, 0.9, 3.1),
+    ];
+  }
+  Widget _buildCloud(double x, double y, double opacity, double scale, {int rotation = 0}) {
+    return Positioned(
+      left: x,
+      top: y,
+      child: IgnorePointer(
+        child: Transform.scale(
+          scale: scale,
+          child: Opacity(
+            opacity: opacity,
+            child: RotatedBox(
+              quarterTurns: rotation,
+              child: Image.asset('assets/images/cloud.png', width: 600),
+            ),
+          ),
+        ),
       ),
     );
   }
