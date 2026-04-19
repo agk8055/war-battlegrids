@@ -15,12 +15,6 @@ enum CellState {
   /// A designated zone tile belonging to the AI (Kingdom Zone).
   aiZone,
 
-  /// The crucial Sigil belonging to the Player.
-  playerSigil,
-
-  /// The crucial Sigil belonging to the AI.
-  aiSigil,
-
   /// A tile where a unit was captured, rendering it permanently unplayable.
   capturedGrid,
 

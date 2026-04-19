@@ -68,12 +68,18 @@ class GameSimulation {
   }
 
   void _handleCaptures(List<(int, int)> capturedCoords) {
-    // Instead of making them empty, mark them as permanently captured!
+    int enemyUnitsCount = 0;
+    final enemyState = currentTurn == Turn.player ? CellState.ai : CellState.player;
+
+    // Mark cells as captured and count only enemy units for points
     for (final coord in capturedCoords) {
+      if (board.getCell(coord.$1, coord.$2) == enemyState) {
+        enemyUnitsCount++;
+      }
       board.setCell(coord.$1, coord.$2, CellState.capturedGrid);
     }
 
-    final pointsGained = GameRules.calculateCaptureScore(capturedCoords.length);
+    final pointsGained = GameRules.calculateCaptureScore(enemyUnitsCount);
 
     if (currentTurn == Turn.player) {
       playerScore += pointsGained;

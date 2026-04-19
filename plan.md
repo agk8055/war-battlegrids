@@ -57,13 +57,14 @@ kingdom_siege/
 │   │   ├── models/
 │   │   │   └── level_config.dart          # dynamic battle configurations (board size, thresholds)
 │   │   ├── constants/
-│   │   │   ├── board_constants.dart       # standard grid size, zone boundaries, sigil positions
-│   │   │   ├── game_constants.dart        # default point thresholds, capture rules
-│   │   │   └── ui_constants.dart          # colors, typography, sizing
-│   │   ├── enums/
-│   │   │   ├── game_phase.dart            # placement, kingdom_attack, game_over
-│   │   │   ├── cell_state.dart            # empty, player, ai, sigil, zone
-│   │   │   └── turn.dart                  # player, ai
+├── board_constants.dart       # standard grid size, zone boundaries
+├── game_constants.dart        # default point thresholds, capture rules
+└── ui_constants.dart          # colors, typography, sizing
+├── enums/
+│   ├── game_phase.dart            # placement, kingdom_attack, game_over
+│   ├── cell_state.dart            # empty, player, ai, zone
+│   └── turn.dart                  # player, ai
+
 │   │   └── utils/
 │   │       ├── board_utils.dart           # adjacency helpers, coordinate utils
 │   │       └── capture_utils.dart         # surround detection, capture logic
@@ -76,11 +77,12 @@ kingdom_siege/
 │   │       ├── minimax.dart               # Minimax algorithm with alpha-beta pruning
 │   │       └── evaluator.dart             # board heuristic scoring function
 │   │
-│   ├── campaign/
-│   │   ├── models/
-│   │   │   ├── kingdom_model.dart         # kingdom name, lore, difficulty, banner
-│   │   │   ├── battle_config.dart         # board layout, sigil position, AI depth
-│   │   │   └── campaign_state.dart        # conquered territories, unlocked battles
+├── campaign/
+│   ├── models/
+│   │   ├── kingdom_model.dart         # kingdom name, lore, difficulty, banner
+│   │   ├── battle_config.dart         # board layout, AI depth
+│   │   └── campaign_state.dart        # conquered territories, unlocked battles
+
 │   │   ├── data/
 │   │   │   ├── kingdoms_data.dart         # all kingdom definitions
 │   │   │   └── battle_configs.dart        # all battle configurations

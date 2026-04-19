@@ -10,7 +10,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
       playerKingdomAttackThreshold: 30,
       aiKingdomAttackThreshold: 30,
     ),
-    aiDepth: 4,
+    aiDepth: 3,
   ),
   'blue_dome_town': const BattleConfig(
     kingdomId: 'blue_dome_town',

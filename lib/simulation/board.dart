@@ -174,8 +174,6 @@ class Board {
         final cell = getCell(x, y);
         if (cell == CellState.player || 
             cell == CellState.ai || 
-            cell == CellState.playerSigil || 
-            cell == CellState.aiSigil ||
             cell == CellState.capturedGrid) {
           occupiedCells.add((x, y));
         }

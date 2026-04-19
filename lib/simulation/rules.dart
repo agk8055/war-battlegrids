@@ -23,8 +23,6 @@ class GameRules {
     // Can only place on an empty cell or a zone cell. Cannot place on an existing unit, captured grid, or obstacle.
     if (cell == CellState.player ||
         cell == CellState.ai ||
-        cell == CellState.playerSigil ||
-        cell == CellState.aiSigil ||
         cell == CellState.capturedGrid ||
         cell == CellState.obstacle) {
       return false;
