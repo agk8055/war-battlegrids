@@ -11,7 +11,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
       playerKingdomAttackThreshold: 30,
       aiKingdomAttackThreshold: 30,
     ),
-    aiStrategy: AIStrategy.fromType(AIStrategyType.master),
+    aiStrategy: AIStrategy.fromType(AIStrategyType.basic),
   ),
   'blue_dome_town': BattleConfig(
     kingdomId: 'blue_dome_town',

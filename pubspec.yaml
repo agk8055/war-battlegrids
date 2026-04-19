@@ -70,6 +70,8 @@ flutter:
     - assets/images/
     - assets/tiles/
     - assets/tiles/images/
+    - assets/icons/
+    - assets/symbols/
 
 flutter_launcher_icons:
   android: "launcher_icon"

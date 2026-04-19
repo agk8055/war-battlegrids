@@ -6,6 +6,7 @@ import '../../providers/game_settings_provider.dart';
 import '../../core/enums/game_mode.dart';
 import 'overworld_map_screen.dart';
 import 'map_selection_screen.dart';
+import 'settings_screen.dart';
 
 class GameHomeScreen extends ConsumerWidget {
   const GameHomeScreen({super.key});
@@ -21,7 +22,7 @@ class GameHomeScreen extends ConsumerWidget {
               'WAR : BATTLEGRIDS',
               style: GoogleFonts.sairaStencilOne(
                 color: kMainThemeColor,
-                fontSize: 28,
+                fontSize: 35,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 4.0,
               ),
@@ -53,11 +54,14 @@ class GameHomeScreen extends ConsumerWidget {
                             ),
                           );
                         },
-                        icon: const Icon(Icons.play_arrow_rounded, size: 28),
+                        icon: Image.asset('assets/icons/story_mode_icon.png', width: 60, height: 60),
                         style: IconButton.styleFrom(
                           backgroundColor: kMainThemeColor,
                           foregroundColor: Colors.black,
-                          minimumSize: const Size(56, 56),
+                          minimumSize: const Size(100, 70),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -65,7 +69,7 @@ class GameHomeScreen extends ConsumerWidget {
                         'STORY MODE',
                         style: TextStyle(
                           color: kMainThemeColor,
-                          fontSize: 10,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.0,
                         ),
@@ -86,11 +90,14 @@ class GameHomeScreen extends ConsumerWidget {
                             ),
                           );
                         },
-                        icon: const Icon(Icons.people_rounded, size: 28),
+                        icon: Image.asset('assets/icons/multiplayer_icon.png', width: 60, height: 60),
                         style: IconButton.styleFrom(
                           backgroundColor: kMainThemeColor,
                           foregroundColor: Colors.black,
-                          minimumSize: const Size(56, 56),
+                          minimumSize: const Size(100, 70),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -98,7 +105,7 @@ class GameHomeScreen extends ConsumerWidget {
                         'MULTIPLAYER',
                         style: TextStyle(
                           color: kMainThemeColor,
-                          fontSize: 10,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.0,
                         ),
@@ -111,13 +118,22 @@ class GameHomeScreen extends ConsumerWidget {
                     children: [
                       IconButton(
                         onPressed: () {
-                          // Navigate to Settings
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SettingsScreen(),
+                            ),
+                          );
                         },
-                        icon: const Icon(Icons.settings_rounded, size: 28),
+                        icon: Image.asset('assets/icons/settings_icon.png', width: 60, height: 60),
+
                         style: IconButton.styleFrom(
                           backgroundColor: kMainThemeColor,
                           foregroundColor: Colors.black,
-                          minimumSize: const Size(56, 56),
+                          minimumSize: const Size(100, 70),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -125,7 +141,7 @@ class GameHomeScreen extends ConsumerWidget {
                         'SETTINGS',
                         style: TextStyle(
                           color: kMainThemeColor,
-                          fontSize: 10,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.0,
                         ),

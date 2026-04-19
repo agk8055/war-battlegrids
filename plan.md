@@ -115,6 +115,7 @@ kingdom_siege/
 │   │   │   ├── map_selection_screen.dart  # multiplayer map picker
 │   │   │   ├── multiplayer_setup_screen.dart # custom names, threshold setup
 │   │   │   ├── game_screen.dart           # Flame GameWidget + Flutter HUD
+│   │   │   ├── settings_screen.dart       # game configuration
 │   │   │   ├── post_battle_screen.dart    # victory screen + map conquest anim
 │   │   │   └── game_over_screen.dart
 │   │   └── widgets/
