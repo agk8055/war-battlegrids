@@ -26,6 +26,13 @@ class AIStrategy {
   final bool avoidHangingPieces;
   final bool focusOnForks;
   
+  // Rule Engine Options
+  final bool useRuleWinInstantly;
+  final bool useRuleImmediateCapture;
+  final bool useRuleBlocking;
+  final bool useRuleDoubleThreat;
+  final bool useRuleSigil;
+  
   // Search Depth - We still use depth, but it's no longer the ONLY scale.
   final int searchDepth;
 
@@ -40,6 +47,11 @@ class AIStrategy {
     this.prioritizeDoubleThreats = false,
     this.avoidHangingPieces = false,
     this.focusOnForks = false,
+    this.useRuleWinInstantly = true,
+    this.useRuleImmediateCapture = true,
+    this.useRuleBlocking = true,
+    this.useRuleDoubleThreat = true,
+    this.useRuleSigil = true,
     required this.searchDepth,
   });
 

@@ -1,7 +1,7 @@
 import 'dart:isolate';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../simulation/game_simulation.dart';
-import '../simulation/ai/minimax.dart';
+import '../simulation/ai/rule_engine.dart';
 import '../simulation/ai/ai_strategy.dart';
 
 /// Represents the state of the AI's internal thinking process.
@@ -27,7 +27,7 @@ class AIStateNotifier extends Notifier<AIState> {
   final AIStrategy strategy = args['strategy'] as AIStrategy;
 
   // Run the heavy computation
-  return MinimaxAI.getBestMove(clonedSim, strategy);
+  return RuleEngine.getBestMove(clonedSim, strategy);
 }
 
 class AIManager {
