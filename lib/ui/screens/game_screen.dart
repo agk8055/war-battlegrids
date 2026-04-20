@@ -10,6 +10,8 @@ import '../../core/enums/game_mode.dart';
 import '../../core/enums/game_phase.dart';
 import '../../core/enums/turn.dart';
 import '../../campaign/campaign_manager.dart';
+import '../../campaign/data/kingdoms_data.dart';
+import '../../core/services/audio_service.dart';
 
 import '../widgets/hud/score_panel.dart';
 import '../widgets/hud/turn_indicator.dart';
@@ -31,6 +33,18 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   void initState() {
     super.initState();
     _game = KingdomGame(ref);
+    
+    // Stop main theme music during match
+    Future.microtask(() {
+      ref.read(audioServiceProvider).stopMusic();
+    });
+  }
+
+  @override
+  void dispose() {
+    // Resume main theme music when leaving match
+    ref.read(audioServiceProvider).playMainTheme();
+    super.dispose();
   }
 
   @override
@@ -40,6 +54,24 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
     final settings = ref.watch(gameSettingsProvider);
     final isMultiplayer = settings.mode == GameMode.multiplayer;
+    
+    final campaignState = ref.watch(campaignProvider);
+    final selectedKingdom = campaignState.selectedKingdomId != null 
+        ? kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId)
+        : null;
+
+    final p1Name = isMultiplayer ? settings.player1Name : settings.player1Name;
+    final p1Symbol = settings.player1Symbol;
+
+    final p2Name = isMultiplayer 
+        ? settings.player2Name 
+        : (selectedKingdom?.name ?? "AI");
+    final p2Symbol = isMultiplayer 
+        ? settings.player2Symbol 
+        : (selectedKingdom?.symbolAsset ?? "assets/icons/eagle.png");
+    final p2Color = isMultiplayer 
+        ? Colors.red 
+        : (selectedKingdom?.primaryColor ?? Colors.red);
 
     // Listen for score increases to show Capture toasts
     ref.listen(simulationProvider, (previous, next) {
@@ -47,73 +79,82 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       if (next.playerScore > previous.playerScore) {
         CaptureToast.show(
           context,
-          "${isMultiplayer ? settings.player1Name : 'PLAYER'} CAPTURE! +${next.playerScore - previous.playerScore}",
+          "${p1Name.toUpperCase()} CAPTURE! +${next.playerScore - previous.playerScore}",
           Colors.blue,
         );
       } else if (next.aiScore > previous.aiScore) {
         CaptureToast.show(
           context,
-          "${isMultiplayer ? settings.player2Name : 'AI'} CAPTURE! +${next.aiScore - previous.aiScore}",
-          Colors.red,
+          "${p2Name.toUpperCase()} CAPTURE! +${next.aiScore - previous.aiScore}",
+          p2Color,
         );
       }
     });
 
     return Scaffold(
-      backgroundColor: Colors.black, // Dark background for game feel
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // 1. The Game Layer
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // 1. The Game Layer (Full Screen)
+          Positioned.fill(
+            child: GameWidget(game: _game!),
+          ),
+
+          // 2. HUD Layer (Safe Area)
+          SafeArea(
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  right: 10,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Player Score Panel
+                      _buildOverlayContainer(
+                        child: ScorePanel(
+                          title: p1Name,
+                          symbolAsset: p1Symbol,
+                          points: simulationState.playerScore,
+                          color: Colors.blue,
+                          kingdomAttackUnlocked:
+                              simulationState.playerKingdomAttackUnlocked,
+                          activeWinCondition: simulationState.playerActiveWinCondition,
+                        ),
+                      ),
+
+                      // Turn Indicator
+                      TurnIndicator(currentTurn: simulationState.currentTurn, mode: settings.mode),
+
+                      // AI Score Panel
+                      _buildOverlayContainer(
+                        child: ScorePanel(
+                          title: p2Name,
+                          symbolAsset: p2Symbol,
+                          points: simulationState.aiScore,
+                          color: p2Color,
+                          kingdomAttackUnlocked:
+                              simulationState.aiKingdomAttackUnlocked,
+                          activeWinCondition: simulationState.aiActiveWinCondition,
+                          alignment: CrossAxisAlignment.end,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 3. Overlays (Full Screen - Outside SafeArea)
+          if (aiState == AIState.thinking) 
+            const Positioned.fill(child: AiThinkingOverlay()),
+
+          if (simulationState.currentPhase == GamePhase.gameOver)
             Positioned.fill(
-              child: GameWidget(game: _game!),
-            ),
-
-            // 2. Fixed Overlays (Top HUD)
-            Positioned(
-              top: 10,
-              left: 10,
-              right: 10,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Player Score Panel (Top Left)
-                  _buildOverlayContainer(
-                    child: ScorePanel(
-                      title: isMultiplayer ? settings.player1Name : "PLAYER",
-                      points: simulationState.playerScore,
-                      color: Colors.blue,
-                      kingdomAttackUnlocked:
-                          simulationState.playerKingdomAttackUnlocked,
-                      activeWinCondition: simulationState.playerActiveWinCondition,
-                    ),
-                  ),
-
-                  // Turn Indicator (Top Center) - Has its own background
-                  TurnIndicator(currentTurn: simulationState.currentTurn, mode: settings.mode),
-
-                  // AI Score Panel (Top Right)
-                  _buildOverlayContainer(
-                    child: ScorePanel(
-                      title: isMultiplayer ? settings.player2Name : "AI",
-                      points: simulationState.aiScore,
-                      color: Colors.red,
-                      kingdomAttackUnlocked:
-                          simulationState.aiKingdomAttackUnlocked,
-                      activeWinCondition: simulationState.aiActiveWinCondition,
-                      alignment: CrossAxisAlignment.end,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 3. Other Overlays (Thinking, Game Over)
-            if (aiState == AIState.thinking) const AiThinkingOverlay(),
-
-            if (simulationState.currentPhase == GamePhase.gameOver)
-              GameOverOverlay(
+              child: GameOverOverlay(
                 winner: simulationState.currentTurn,
                 mode: settings.mode,
                 onReturnToMap: () {
@@ -128,23 +169,21 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     }
                     Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
                   } else {
-                    // Multiplayer mode: return to map selection
                     Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
                   }
                 },
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
 
-  /// Helper to wrap HUD components in a consistent, readable background container.
   Widget _buildOverlayContainer({required Widget child}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.7), // Semi-transparent black
+        color: Colors.black.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white24, width: 1),
       ),

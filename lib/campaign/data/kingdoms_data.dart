@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import '../models/kingdom_model.dart';
 
 const List<KingdomModel> kKingdoms = [
@@ -7,6 +8,7 @@ const List<KingdomModel> kKingdoms = [
     lore: 'A quiet settlement in the frozen north, where the cold never fades.',
     difficulty: 1,
     bannerAsset: 'assets/images/home_banner.png',
+    primaryColor: Colors.orangeAccent,
     x: 0.0909,
     y: 0.1430,
     unlockedBy: [],
@@ -17,6 +19,7 @@ const List<KingdomModel> kKingdoms = [
     lore: 'A city of scholars and artists, known for its beautiful blue-domed towers.',
     difficulty: 1,
     bannerAsset: 'assets/images/home_banner.png',
+    primaryColor: Colors.redAccent,
     x: 0.3731,
     y: 0.2861,
     unlockedBy: ['snowy_village'],
@@ -27,6 +30,7 @@ const List<KingdomModel> kKingdoms = [
     lore: 'A rugged castle built on the cliffs to guard against maritime threats.',
     difficulty: 2,
     bannerAsset: 'assets/images/home_banner.png',
+    primaryColor: Colors.teal,
     x: 0.4523,
     y: 0.3965,
     unlockedBy: ['blue_dome_town'],
@@ -37,6 +41,7 @@ const List<KingdomModel> kKingdoms = [
     lore: 'Ancient structures that hold the secrets of a forgotten civilization.',
     difficulty: 2,
     bannerAsset: 'assets/images/home_banner.png',
+    primaryColor: Colors.amber,
     x: 0.7279,
     y: 0.4906,
     unlockedBy: ['coastal_castle'],
@@ -47,6 +52,7 @@ const List<KingdomModel> kKingdoms = [
     lore: 'A thriving marketplace in the heart of the golden sands.',
     difficulty: 3,
     bannerAsset: 'assets/images/home_banner.png',
+    primaryColor: Colors.cyan,
     x: 0.6122,
     y: 0.6474,
     unlockedBy: ['pyramid_area'],
@@ -57,6 +63,7 @@ const List<KingdomModel> kKingdoms = [
     lore: 'The strongest fortification in the south, never once breached.',
     difficulty: 3,
     bannerAsset: 'assets/images/home_banner.png',
+    primaryColor: Colors.yellowAccent,
     x: 0.6690,
     y: 0.7704,
     unlockedBy: ['desert_settlement'],
@@ -67,6 +74,7 @@ const List<KingdomModel> kKingdoms = [
     lore: 'A serene temple hidden among the lush hills of the south-east.',
     difficulty: 4,
     bannerAsset: 'assets/images/home_banner.png',
+    primaryColor: Colors.greenAccent,
     x: 0.8721,
     y: 0.6926,
     unlockedBy: ['large_fort'],
@@ -77,6 +85,7 @@ const List<KingdomModel> kKingdoms = [
     lore: 'The heart of the empire, a city of immense wealth and power.',
     difficulty: 5,
     bannerAsset: 'assets/images/home_banner.png',
+    primaryColor: Colors.deepPurpleAccent,
     x: 0.8437,
     y: 0.9134,
     unlockedBy: ['oriental_pagoda'],

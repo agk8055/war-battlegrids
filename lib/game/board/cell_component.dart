@@ -2,24 +2,42 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import '../../core/enums/cell_state.dart';
+import '../kingdom_game.dart';
 
-class CellComponent extends PositionComponent with TapCallbacks {
+class CellComponent extends PositionComponent with TapCallbacks, HasGameRef<KingdomGame> {
   final int gridX;
   final int gridY;
   final CellState initialState;
   final void Function(int x, int y) onTapCell;
+  final String playerSymbol;
+  final String opponentSymbol;
+  final Color playerColor;
+  final Color opponentColor;
 
   late CellState _currentState;
+  Sprite? _playerSprite;
+  Sprite? _opponentSprite;
 
   CellComponent({
     required this.gridX,
     required this.gridY,
     required this.initialState,
     required this.onTapCell,
+    required this.playerSymbol,
+    required this.opponentSymbol,
+    required this.playerColor,
+    required this.opponentColor,
     required Vector2 size,
     required Vector2 position,
   }) : super(size: size, position: position) {
     _currentState = initialState;
+  }
+
+  @override
+  Future<void> onLoad() async {
+    super.onLoad();
+    _playerSprite = await Sprite.load(playerSymbol);
+    _opponentSprite = await Sprite.load(opponentSymbol);
   }
 
   void updateState(CellState newState) {
@@ -35,26 +53,24 @@ class CellComponent extends PositionComponent with TapCallbacks {
     // Draw base tile
     switch (_currentState) {
       case CellState.empty:
-        // Make empty tiles transparent so we can see the Tiled map
         paint.color = Colors.transparent;
         break;
       case CellState.playerZone:
-        paint.color = Colors.blue.withValues(alpha: 0.2);
+        paint.color = playerColor.withValues(alpha: 0.2);
         break;
       case CellState.aiZone:
-        paint.color = Colors.red.withValues(alpha: 0.2);
+        paint.color = opponentColor.withValues(alpha: 0.2);
         break;
       case CellState.player:
-        paint.color = Colors.blue.withValues(alpha: 0.7); 
+        paint.color = playerColor.withValues(alpha: 0.4); 
         break;
       case CellState.ai:
-        paint.color = Colors.red.withValues(alpha: 0.7);
+        paint.color = opponentColor.withValues(alpha: 0.4);
         break;
       case CellState.capturedGrid:
         paint.color = Colors.black.withValues(alpha: 0.5);
         break;
       case CellState.obstacle:
-        // Obstacles are handled by Tiled map visuals, but we can highlight them if needed
         paint.color = Colors.orange.withValues(alpha: 0.1);
         break;
       default:
@@ -68,12 +84,21 @@ class CellComponent extends PositionComponent with TapCallbacks {
       paint,
     );
 
-    // If there is a unit on this tile, draw a circle (sigil) over the base tile
-    if (_currentState == CellState.player || _currentState == CellState.ai) {
-      Paint unitPaint = Paint()
-        ..color = _currentState == CellState.player ? Colors.cyanAccent : Colors.orangeAccent
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(size.x / 2, size.y / 2), size.x / 3, unitPaint);
+    // If there is a unit on this tile, draw the symbol (sigil)
+    if (_currentState == CellState.player && _playerSprite != null) {
+      _playerSprite!.render(
+        canvas,
+        position: Vector2(size.x * 0.15, size.y * 0.15),
+        size: Vector2(size.x * 0.7, size.y * 0.7),
+        overridePaint: Paint()..colorFilter = ColorFilter.mode(playerColor, BlendMode.srcIn),
+      );
+    } else if (_currentState == CellState.ai && _opponentSprite != null) {
+      _opponentSprite!.render(
+        canvas,
+        position: Vector2(size.x * 0.15, size.y * 0.15),
+        size: Vector2(size.x * 0.7, size.y * 0.7),
+        overridePaint: Paint()..colorFilter = ColorFilter.mode(opponentColor, BlendMode.srcIn),
+      );
     }
   }
 

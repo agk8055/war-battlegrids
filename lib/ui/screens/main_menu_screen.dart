@@ -14,100 +14,98 @@ class GameHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            Text(
-              'WAR : BATTLEGRIDS',
-              style: GoogleFonts.sairaStencilOne(
-                color: Theme.of(context).colorScheme.primary,
-                fontSize: 35,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 4.0,
+      body: Column(
+        children: [
+          const SizedBox(height: 50),
+          Text(
+            'WAR : BATTLEGRIDS',
+            style: GoogleFonts.sairaStencilOne(
+              color: Theme.of(context).colorScheme.primary,
+              fontSize: 35,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 4.0,
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Image.asset(
+                'assets/images/home_banner.png',
+                fit: BoxFit.contain,
               ),
             ),
-            Expanded(
-              child: Center(
-                child: Image.asset(
-                  'assets/images/home_banner.png',
-                  fit: BoxFit.contain,
-                ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(width: 24),
+                  _buildMenuButton(
+                    context,
+                    label: 'STORY MODE',
+                    iconAsset: 'assets/icons/story_mode_icon.png',
+                    onPressed: () {
+                      ref.read(gameSettingsProvider.notifier).setMode(GameMode.story);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          settings: const RouteSettings(name: '/overworld'),
+                          builder: (context) => const OverworldMapScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 24),
+                  _buildMenuButton(
+                    context,
+                    label: 'MULTIPLAYER',
+                    iconAsset: 'assets/icons/multiplayer_icon.png',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          settings: const RouteSettings(name: '/map_selection'),
+                          builder: (context) => const MapSelectionScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 24),
+                  _buildMenuButton(
+                    context,
+                    label: 'PROFILE',
+                    iconData: Icons.person_rounded,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ProfileScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 24),
+                  _buildMenuButton(
+                    context,
+                    label: 'SETTINGS',
+                    iconAsset: 'assets/icons/settings_icon.png',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 24),
+                ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(width: 24),
-                    _buildMenuButton(
-                      context,
-                      label: 'STORY MODE',
-                      iconAsset: 'assets/icons/story_mode_icon.png',
-                      onPressed: () {
-                        ref.read(gameSettingsProvider.notifier).setMode(GameMode.story);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            settings: const RouteSettings(name: '/overworld'),
-                            builder: (context) => const OverworldMapScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 24),
-                    _buildMenuButton(
-                      context,
-                      label: 'MULTIPLAYER',
-                      iconAsset: 'assets/icons/multiplayer_icon.png',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            settings: const RouteSettings(name: '/map_selection'),
-                            builder: (context) => const MapSelectionScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 24),
-                    _buildMenuButton(
-                      context,
-                      label: 'PROFILE',
-                      iconData: Icons.person_rounded,
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ProfileScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 24),
-                    _buildMenuButton(
-                      context,
-                      label: 'SETTINGS',
-                      iconAsset: 'assets/icons/settings_icon.png',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SettingsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 24),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

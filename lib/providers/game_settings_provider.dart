@@ -7,6 +7,8 @@ class GameSettings {
   final String selectedMapPath;
   final String player1Name;
   final String player2Name;
+  final String player1Symbol;
+  final String player2Symbol;
   final int kingdomAttackThreshold;
   final bool musicEnabled;
   final double musicVolume;
@@ -16,7 +18,9 @@ class GameSettings {
     this.selectedMapPath = '25x25_map.tmx',
     this.player1Name = 'PLAYER 1',
     this.player2Name = 'PLAYER 2',
-    this.kingdomAttackThreshold = 100, // Default threshold
+    this.player1Symbol = 'assets/symbols/fire.png',
+    this.player2Symbol = 'assets/icons/eagle.png',
+    this.kingdomAttackThreshold = 100,
     this.musicEnabled = true,
     this.musicVolume = 0.5,
   });
@@ -26,6 +30,8 @@ class GameSettings {
     String? selectedMapPath,
     String? player1Name,
     String? player2Name,
+    String? player1Symbol,
+    String? player2Symbol,
     int? kingdomAttackThreshold,
     bool? musicEnabled,
     double? musicVolume,
@@ -35,6 +41,8 @@ class GameSettings {
       selectedMapPath: selectedMapPath ?? this.selectedMapPath,
       player1Name: player1Name ?? this.player1Name,
       player2Name: player2Name ?? this.player2Name,
+      player1Symbol: player1Symbol ?? this.player1Symbol,
+      player2Symbol: player2Symbol ?? this.player2Symbol,
       kingdomAttackThreshold: kingdomAttackThreshold ?? this.kingdomAttackThreshold,
       musicEnabled: musicEnabled ?? this.musicEnabled,
       musicVolume: musicVolume ?? this.musicVolume,
@@ -45,6 +53,8 @@ class GameSettings {
 class GameSettingsNotifier extends Notifier<GameSettings> {
   static const _keyMusicEnabled = 'music_enabled';
   static const _keyMusicVolume = 'music_volume';
+  static const _keyKingdomName = 'kingdom_name';
+  static const _keyKingdomSymbol = 'kingdom_symbol';
 
   @override
   GameSettings build() {
@@ -56,10 +66,15 @@ class GameSettingsNotifier extends Notifier<GameSettings> {
     final prefs = await SharedPreferences.getInstance();
     final musicEnabled = prefs.getBool(_keyMusicEnabled) ?? true;
     final musicVolume = prefs.getDouble(_keyMusicVolume) ?? 0.5;
+    
+    final savedName = prefs.getString(_keyKingdomName);
+    final savedSymbol = prefs.getString(_keyKingdomSymbol);
 
     state = state.copyWith(
       musicEnabled: musicEnabled,
       musicVolume: musicVolume,
+      player1Name: savedName ?? state.player1Name,
+      player1Symbol: savedSymbol ?? state.player1Symbol,
     );
   }
 
@@ -89,6 +104,10 @@ class GameSettingsNotifier extends Notifier<GameSettings> {
 
   void setKingdomAttackThreshold(int threshold) {
     state = state.copyWith(kingdomAttackThreshold: threshold);
+  }
+
+  void setPlayerSymbols(String s1, String s2) {
+    state = state.copyWith(player1Symbol: s1, player2Symbol: s2);
   }
 }
 

@@ -12,6 +12,10 @@ class BoardComponent extends PositionComponent {
   final void Function(int x, int y) onCellTapped;
   final double cellSize;
   final String mapPath;
+  final String playerSymbol;
+  final String opponentSymbol;
+  final Color playerColor;
+  final Color opponentColor;
 
   late List<List<CellComponent>> _cellGrid;
   late TiledComponent tiledComponent;
@@ -20,6 +24,10 @@ class BoardComponent extends PositionComponent {
     required this.simulationBoard,
     required this.onCellTapped,
     required this.mapPath,
+    required this.playerSymbol,
+    required this.opponentSymbol,
+    required this.playerColor,
+    required this.opponentColor,
     this.cellSize = 40.0,
   }) {
     // Initial size based on simulation board
@@ -78,6 +86,10 @@ class BoardComponent extends PositionComponent {
           gridY: y,
           initialState: simulationBoard.getCell(x, y),
           onTapCell: isPlayable ? onCellTapped : (x, y) {}, // Disable tap for non-playable
+          playerSymbol: playerSymbol,
+          opponentSymbol: opponentSymbol,
+          playerColor: playerColor,
+          opponentColor: opponentColor,
           size: Vector2.all(cellSize),
           position: Vector2(x * cellSize, y * cellSize),
         );

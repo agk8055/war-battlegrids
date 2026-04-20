@@ -111,7 +111,7 @@ class SettingsScreen extends ConsumerWidget {
     required Widget trailing,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 12).copyWith(left: 16),
       child: Row(
         children: [
           Expanded(

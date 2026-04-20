@@ -1,12 +1,15 @@
 import 'package:flame/game.dart';
 import 'package:flame/events.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/material.dart';
 import '../../campaign/campaign_manager.dart';
 import '../../campaign/data/battle_configs.dart';
 import '../../providers/turn_provider.dart';
 import '../../providers/simulation_provider.dart';
 import '../../providers/game_settings_provider.dart';
 import '../../simulation/ai/ai_strategy.dart';
+import '../../campaign/data/kingdoms_data.dart';
+import '../../campaign/models/kingdom_model.dart';
 
 import '../core/enums/turn.dart';
 import '../core/enums/game_mode.dart';
@@ -23,16 +26,37 @@ class KingdomGame extends FlameGame with ScaleDetector {
 
   @override
   Future<void> onLoad() async {
+    images.prefix = ''; // Allow loading from any assets/ folder
     super.onLoad();
 
     final simulation = ref.read(simulationProvider);
     final settings = ref.read(gameSettingsProvider);
+    final campaignState = ref.read(campaignProvider);
+    final isMultiplayer = settings.mode == GameMode.multiplayer;
+
+    final selectedKingdom = campaignState.selectedKingdomId != null 
+        ? kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId)
+        : null;
+
+    final playerSymbol = settings.player1Symbol;
+    final opponentSymbol = isMultiplayer 
+        ? settings.player2Symbol 
+        : (selectedKingdom?.symbolAsset ?? 'assets/icons/eagle.png');
+
+    final playerColor = Colors.blue;
+    final opponentColor = isMultiplayer 
+        ? Colors.red 
+        : (selectedKingdom?.primaryColor ?? Colors.red);
 
     // Create the board visualization
     boardComponent = BoardComponent(
       simulationBoard: simulation.board,
       cellSize: 40.0,
       mapPath: settings.selectedMapPath,
+      playerSymbol: playerSymbol,
+      opponentSymbol: opponentSymbol,
+      playerColor: playerColor,
+      opponentColor: opponentColor,
       onCellTapped: _handleCellTapped,
     );
 

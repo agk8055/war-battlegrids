@@ -76,6 +76,7 @@ flutter:
     - assets/symbols/
     - assets/video/
     - assets/audio/
+    - assets/audio/sfx/
 
 flutter_launcher_icons:
   android: "launcher_icon"
