@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/game_settings_provider.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(gameSettingsProvider);
+    final settingsNotifier = ref.read(gameSettingsProvider.notifier);
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -13,32 +18,126 @@ class SettingsScreen extends StatelessWidget {
         foregroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
       ),
-      body: Center(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.settings_suggest_rounded,
-              size: 80,
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'COMMAND CENTER UNDER CONSTRUCTION',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
+            _buildSectionHeader(context, 'AUDIO'),
+            const SizedBox(height: 16),
+            _buildSettingTile(
+              context,
+              title: 'MUSIC',
+              subtitle: 'Background soundtrack',
+              trailing: Switch(
+                value: settings.musicEnabled,
+                onChanged: (value) => settingsNotifier.setMusicEnabled(value),
+                activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+                activeThumbColor: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Configuration options will be available soon.',
-              style: TextStyle(color: Colors.white54, fontSize: 12),
+            _buildSettingTile(
+              context,
+              title: 'VOLUME',
+              subtitle: '${(settings.musicVolume * 100).toInt()}%',
+              trailing: SizedBox(
+                width: 150,
+                child: Slider(
+                  value: settings.musicVolume,
+                  onChanged: settings.musicEnabled 
+                      ? (value) => settingsNotifier.setMusicVolume(value)
+                      : null,
+                  activeColor: Theme.of(context).colorScheme.primary,
+                  inactiveColor: Colors.white12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 48),
+            Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.settings_suggest_rounded,
+                    size: 60,
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'COMMAND CENTER v1.0.0',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required Widget trailing,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          trailing,
+        ],
       ),
     );
   }
