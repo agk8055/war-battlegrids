@@ -1,6 +1,7 @@
 import '../core/enums/cell_state.dart';
 import '../core/enums/game_phase.dart';
 import '../core/enums/turn.dart';
+import '../core/enums/win_condition_type.dart';
 import '../core/models/level_config.dart';
 import '../core/utils/capture_utils.dart';
 import 'board.dart';
@@ -18,6 +19,11 @@ class GameSimulation {
   bool playerKingdomAttackUnlocked = false;
   bool aiKingdomAttackUnlocked = false;
 
+  WinConditionType playerActiveWinCondition = WinConditionType.uShape;
+  WinConditionType aiActiveWinCondition = WinConditionType.uShape;
+
+  Turn? winner;
+
   GameSimulation({LevelConfig? config})
     : config = config ?? LevelConfig.standard(),
       board = Board(
@@ -28,7 +34,7 @@ class GameSimulation {
   /// Attempts to place a unit for the current turn at the given coordinates.
   /// Returns true if the move was successful and valid.
   bool placeUnit(int x, int y) {
-    if (currentPhase == GamePhase.gameOver) return false;
+    if (currentPhase == GamePhase.gameOver || currentPhase == GamePhase.draw) return false;
 
     final isPlayer = currentTurn == Turn.player;
     final attackUnlocked = isPlayer
@@ -59,13 +65,50 @@ class GameSimulation {
       kingdomAttackUnlocked: attackUnlocked,
     )) {
       currentPhase = GamePhase.gameOver;
+      winner = currentTurn;
       // Do NOT switch turns if game is over
       return true;
     }
 
+    // Evaluate Draw Condition
+    if (GameRules.checkDraw(board, playerKingdomAttackUnlocked, aiKingdomAttackUnlocked)) {
+      currentPhase = GamePhase.draw;
+      winner = null; // No winner
+      return true;
+    }
+
+    // Update active win conditions for both players
+    _updateActiveWinConditions();
+
     // Switch turns
     currentTurn = isPlayer ? Turn.ai : Turn.player;
     return true;
+  }
+
+  void _updateActiveWinConditions() {
+    // Player
+    if (playerActiveWinCondition == WinConditionType.uShape) {
+      if (!GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.uShape)) {
+        playerActiveWinCondition = WinConditionType.parallel;
+      }
+    }
+    if (playerActiveWinCondition == WinConditionType.parallel) {
+      if (!GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.parallel)) {
+        playerActiveWinCondition = WinConditionType.kingdomAssisted;
+      }
+    }
+
+    // AI
+    if (aiActiveWinCondition == WinConditionType.uShape) {
+      if (!GameRules.isWinConditionPossible(board, Turn.ai, WinConditionType.uShape)) {
+        aiActiveWinCondition = WinConditionType.parallel;
+      }
+    }
+    if (aiActiveWinCondition == WinConditionType.parallel) {
+      if (!GameRules.isWinConditionPossible(board, Turn.ai, WinConditionType.parallel)) {
+        aiActiveWinCondition = WinConditionType.kingdomAssisted;
+      }
+    }
   }
 
   void _handleCaptures(List<(int, int)> capturedCoords) {
@@ -110,6 +153,9 @@ class GameSimulation {
     cloned.aiScore = aiScore;
     cloned.playerKingdomAttackUnlocked = playerKingdomAttackUnlocked;
     cloned.aiKingdomAttackUnlocked = aiKingdomAttackUnlocked;
+    cloned.playerActiveWinCondition = playerActiveWinCondition;
+    cloned.aiActiveWinCondition = aiActiveWinCondition;
+    cloned.winner = winner;
     return cloned;
   }
 }

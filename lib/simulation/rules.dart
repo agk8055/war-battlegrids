@@ -1,5 +1,6 @@
 import '../core/enums/cell_state.dart';
 import '../core/enums/turn.dart';
+import '../core/enums/win_condition_type.dart';
 import '../core/constants/game_constants.dart';
 import '../core/constants/board_constants.dart';
 import 'board.dart';
@@ -81,91 +82,112 @@ class GameRules {
   }) {
     if (!kingdomAttackUnlocked) return false;
 
-    // Use Topological Blockade Logic
-    // Winning condition: The attacking player forms a continuous horizontal wall
-    // separating the target Palace's top/bottom from its escape route.
+    // Use Topological Blockade Logic with strict fallback hierarchy:
+    // 1. U-shaped Blockade (Top-Left to Top-Right)
+    // 2. Parallel Blockade (Left Edge to Right Edge)
+    // 3. Kingdom-assisted Blockade (Last resort)
 
-    final attackerState = currentTurn == Turn.player
-        ? CellState.player
-        : CellState.ai;
+    // Check for actual U-shaped win
+    bool uWon = _findBlockade(board, currentTurn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: false);
+    if (uWon) return true;
+
+    // If not won by U-shape, is a U-shape STILL POSSIBLE?
+    bool uPossible = _findBlockade(board, currentTurn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: true);
+    if (uPossible) return false; // If a U-shape is possible, you MUST win that way.
+
+    // U-shape is impossible. Check for actual Parallel win.
+    bool pWon = _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: false);
+    if (pWon) return true;
+
+    // If not won by Parallel, is a Parallel STILL POSSIBLE?
+    bool pPossible = _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: true);
+    if (pPossible) return false; // If a Parallel is possible, you MUST win that way.
+
+    // Both U-shape and Parallel are impossible. Check for Kingdom-assisted win.
+    return _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge, AnchorType.topLeft, AnchorType.topRight}, includeKingdom: true, includeEmpty: false, requireKingdom: true);
+  }
+
+  static bool _findBlockade(
+    Board board, 
+    Turn currentTurn, 
+    Set<AnchorType> requiredAnchors, 
+    {required bool includeKingdom, required bool includeEmpty, bool requireKingdom = false}
+  ) {
+    final attackerState = currentTurn == Turn.player ? CellState.player : CellState.ai;
+    final attackerZone = currentTurn == Turn.player ? CellState.playerZone : CellState.aiZone;
     final isTargetingAI = currentTurn == Turn.player;
 
-    final leftX = isTargetingAI ? board.aiPalaceStartX : board.playerPalaceStartX;
-    final rightX = isTargetingAI ? board.aiPalaceEndX : board.playerPalaceEndX;
+    final leftPalaceX = isTargetingAI ? board.aiPalaceStartX : board.playerPalaceStartX;
+    final rightPalaceX = isTargetingAI ? board.aiPalaceEndX : board.playerPalaceEndX;
+    final palaceY = isTargetingAI ? board.playableMinY : board.playableMaxY;
 
-    bool isLeftAnchor((int, int) coord) {
-      if (coord.$1 == board.playableMinX) return true; // Touches playable left edge
-      if (isTargetingAI) {
-        return coord.$2 == board.playableMinY &&
-            coord.$1 < leftX; // Touches Top Edge to the left
-      } else {
-        return coord.$2 == board.playableMaxY &&
-            coord.$1 < leftX; // Touches Bottom Edge to the left
+    AnchorType? getAnchorType(int x, int y) {
+      if (x == board.playableMinX) return AnchorType.leftEdge;
+      if (x == board.playableMaxX) return AnchorType.rightEdge;
+      if (y == palaceY) {
+        if (x < leftPalaceX) return AnchorType.topLeft;
+        if (x > rightPalaceX) return AnchorType.topRight;
       }
-    }
-
-    bool isRightAnchor((int, int) coord) {
-      if (coord.$1 == board.playableMaxX)
-        return true; // Touches playable right edge
-      if (isTargetingAI) {
-        return coord.$2 == board.playableMinY &&
-            coord.$1 > rightX; // Touches Top Edge to the right
-      } else {
-        return coord.$2 == board.playableMaxY &&
-            coord.$1 > rightX; // Touches Bottom Edge to the right
-      }
+      return null;
     }
 
     final visited = <(int, int)>{};
 
-    for (int y = 0; y < board.height; y++) {
-      for (int x = 0; x < board.width; x++) {
-        // Any piece owned by the attacker, or any grid they have captured (scorched earth acts as a wall for them too!)
+    for (int y = board.playableMinY; y <= board.playableMaxY; y++) {
+      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
         final state = board.getCell(x, y);
-        if ((state == attackerState || state == CellState.capturedGrid) &&
-            !visited.contains((x, y))) {
+        bool isWallPart = (state == attackerState || state == CellState.capturedGrid);
+        if (includeKingdom && state == attackerZone) isWallPart = true;
+        if (includeEmpty && state == CellState.empty) isWallPart = true;
+
+        if (isWallPart && !visited.contains((x, y))) {
           final queue = <(int, int)>[(x, y)];
           visited.add((x, y));
 
-          bool touchesLeft = false;
-          bool touchesRight = false;
+          final foundAnchors = <AnchorType>{};
+          bool usesKingdom = false;
 
           while (queue.isNotEmpty) {
             final curr = queue.removeAt(0);
 
-            if (isLeftAnchor(curr)) touchesLeft = true;
-            if (isRightAnchor(curr)) touchesRight = true;
-
-            if (touchesLeft && touchesRight) {
-              return true;
+            final anchor = getAnchorType(curr.$1, curr.$2);
+            if (anchor != null) foundAnchors.add(anchor);
+            
+            if (board.getCell(curr.$1, curr.$2) == attackerZone) {
+              usesKingdom = true;
             }
 
-            // Check 8-way neighbors (Orthogonal + Diagonal) to allow diagonal blockades!
+            // Check 8-way neighbors
             final dirs = [
-              (curr.$1, curr.$2 - 1),
-              (curr.$1, curr.$2 + 1),
-              (curr.$1 - 1, curr.$2),
-              (curr.$1 + 1, curr.$2),
-              (curr.$1 - 1, curr.$2 - 1),
-              (curr.$1 + 1, curr.$2 - 1),
-              (curr.$1 - 1, curr.$2 + 1),
-              (curr.$1 + 1, curr.$2 + 1),
+              (curr.$1, curr.$2 - 1), (curr.$1, curr.$2 + 1), (curr.$1 - 1, curr.$2), (curr.$1 + 1, curr.$2),
+              (curr.$1 - 1, curr.$2 - 1), (curr.$1 + 1, curr.$2 - 1), (curr.$1 - 1, curr.$2 + 1), (curr.$1 + 1, curr.$2 + 1),
             ];
 
             for (final dir in dirs) {
-              if (dir.$1 >= board.playableMinX &&
-                  dir.$1 <= board.playableMaxX &&
-                  dir.$2 >= board.playableMinY &&
-                  dir.$2 <= board.playableMaxY) {
+              if (board.isWithinPlayableArea(dir.$1, dir.$2)) {
                 final neighborState = board.getCell(dir.$1, dir.$2);
-                if ((neighborState == attackerState ||
-                        neighborState == CellState.capturedGrid) &&
-                    !visited.contains(dir)) {
+                bool isNeighborWall = (neighborState == attackerState || neighborState == CellState.capturedGrid);
+                if (includeKingdom && neighborState == attackerZone) isNeighborWall = true;
+                if (includeEmpty && neighborState == CellState.empty) isNeighborWall = true;
+
+                if (isNeighborWall && !visited.contains(dir)) {
                   visited.add(dir);
                   queue.add(dir);
                 }
               }
             }
+          }
+
+          if (requireKingdom && !usesKingdom) continue;
+
+          // Check if the connected group satisfies the required anchor combination
+          if (requiredAnchors.every((a) => foundAnchors.contains(a))) {
+            return true;
+          }
+          
+          // Special case for Kingdom-assisted: any TWO distinct anchors from the set
+          if (requireKingdom && foundAnchors.length >= 2) {
+            return true;
           }
         }
       }
@@ -173,4 +195,29 @@ class GameRules {
 
     return false;
   }
+
+  /// Checks if the board is full and no moves are possible.
+  static bool checkDraw(Board board, bool playerAttackUnlocked, bool aiAttackUnlocked) {
+    for (int y = board.playableMinY; y <= board.playableMaxY; y++) {
+      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
+        if (isValidPlacement(board, x, y, Turn.player, playerAttackUnlocked)) return false;
+        if (isValidPlacement(board, x, y, Turn.ai, aiAttackUnlocked)) return false;
+      }
+    }
+    return true;
+  }
+
+  /// Checks if a specific win condition is still structurally possible for a player.
+  static bool isWinConditionPossible(Board board, Turn turn, WinConditionType type) {
+    switch (type) {
+      case WinConditionType.uShape:
+        return _findBlockade(board, turn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: true);
+      case WinConditionType.parallel:
+        return _findBlockade(board, turn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: true);
+      case WinConditionType.kingdomAssisted:
+        return _findBlockade(board, turn, {AnchorType.leftEdge, AnchorType.rightEdge, AnchorType.topLeft, AnchorType.topRight}, includeKingdom: true, includeEmpty: true, requireKingdom: true);
+    }
+  }
 }
+
+enum AnchorType { leftEdge, rightEdge, topLeft, topRight }

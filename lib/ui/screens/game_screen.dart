@@ -86,6 +86,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                       color: Colors.blue,
                       kingdomAttackUnlocked:
                           simulationState.playerKingdomAttackUnlocked,
+                      activeWinCondition: simulationState.playerActiveWinCondition,
                     ),
                   ),
 
@@ -100,6 +101,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                       color: Colors.red,
                       kingdomAttackUnlocked:
                           simulationState.aiKingdomAttackUnlocked,
+                      activeWinCondition: simulationState.aiActiveWinCondition,
                       alignment: CrossAxisAlignment.end,
                     ),
                   ),
