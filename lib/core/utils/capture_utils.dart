@@ -29,7 +29,7 @@ class CaptureUtils {
       
       // If the neighbor is NOT the attacker's color and NOT the attacker's zone, 
       // and NOT already captured, check if it's enclosed.
-      if (cell != attackerState && cell != attackerZone && cell != CellState.capturedGrid && cell != CellState.obstacle) {
+      if (cell != attackerState && cell != attackerZone && cell != CellState.obstacle) {
         if (!captured.any((c) => c.$1 == neighbor.$1 && c.$2 == neighbor.$2)) {
           final groupResult = _checkGroupCapture(board, neighbor, attackerState, attackerZone);
           if (groupResult != null) {
@@ -51,7 +51,6 @@ class CaptureUtils {
     bool hasLiberty = false;
 
     // The owner of the starting cell is the one who needs to reach their own zone
-    final startCellState = board.getCell(startCoord.$1, startCoord.$2);
     // If starting cell is empty, the "owner" zone that grants liberty is the enemy's zone
     // Wait, if it's empty space, it should be captured if it can't reach EITHER palace?
     // No, if it's empty, it can be captured by anyone.
@@ -86,12 +85,6 @@ class CaptureUtils {
           continue;
         }
 
-        if (cell == CellState.capturedGrid) {
-          // The user specifically wants capturedGrid to be a liberty!
-          hasLiberty = true;
-          continue;
-        }
-
         if (cell == aiZone || cell == playerZone) {
           // Touching ANY kingdom zone provides liberty for the territory?
           // No, only the "friendly" zone.
@@ -109,7 +102,7 @@ class CaptureUtils {
           continue;
         }
 
-        // Otherwise, it's an empty cell or an enemy unit
+        // Otherwise, it's an empty cell, enemy unit, or capturedGrid
         if (!group.contains(neighbor) && !toCheck.contains(neighbor)) {
           toCheck.add(neighbor);
         }
