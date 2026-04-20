@@ -25,14 +25,26 @@ class ThreatMove {
   ThreatMove(this.coord, this.severity);
 }
 
+/*
+ * STATIC STATE ISOLATION:
+ * The _transpositionTable and _killerMoves are static for performance but are 
+ * explicitly cleared at the start of every getBestMove call to ensure 
+ * isolation between different moves and campaign battles.
+ * 
+ * IMPORTANT: RuleEngine and other callers must always enter through 
+ * getBestMove and never call _minimax directly to guarantee this clean state.
+ */
 class MinimaxAI {
+  static const int _maxTableSize = 100000;
   static final Map<int, TranspositionEntry> _transpositionTable = {};
   static final Map<int, List<(int, int)>> _killerMoves = {};
 
   /// Calculates the best legally available move for the AI using Minimax with Alpha-Beta pruning,
   /// PVS (Principal Variation Search), Killer Heuristic, and Threat-Space Search (TSS).
   static (int, int)? getBestMove(GameSimulation sim, AIStrategy strategy) {
-    ZobristHash.initialize(sim.board.width, sim.board.height);
+    if (ZobristHash.initialize(sim.board.width, sim.board.height)) {
+      sim.board.recalculateHash();
+    }
     _transpositionTable.clear();
     _killerMoves.clear();
 
@@ -41,19 +53,6 @@ class MinimaxAI {
     (int, int)? bestMove;
 
     final availableMoves = _generateCandidateMoves(sim, maxDepth, strategy);
-
-    // 10% chance to make a mistake (reduced for higher levels)
-    double mistakeChance = 0.10;
-    if (strategy.type == AIStrategyType.master) mistakeChance = 0.02;
-    if (strategy.type == AIStrategyType.forkExpert) mistakeChance = 0.05;
-
-    if (availableMoves.isNotEmpty && Random().nextDouble() < mistakeChance) {
-      final randMove = availableMoves[Random().nextInt(availableMoves.length)];
-      final simClone = _cloneSimulation(sim);
-      if (simClone.placeUnit(randMove.$1, randMove.$2)) {
-        return randMove;
-      }
-    }
 
     int alpha = -9999999;
     int beta = 9999999;
@@ -84,7 +83,7 @@ class MinimaxAI {
     bool isMaximizingPlayer,
     AIStrategy strategy,
   ) {
-    int hash = ZobristHash.computeHash(sim.board, isMaximizingPlayer);
+    int hash = ZobristHash.computeHash(sim.board.currentHash, isMaximizingPlayer);
     final entry = _transpositionTable[hash];
     if (entry != null && entry.depth >= depth) {
       if (entry.type == 0) return entry.score;
@@ -350,6 +349,10 @@ class MinimaxAI {
       type = 2;
     } else if (score >= beta) {
       type = 1;
+    }
+    
+    if (_transpositionTable.length >= _maxTableSize) {
+      _transpositionTable.remove(_transpositionTable.keys.first);
     }
     _transpositionTable[hash] = TranspositionEntry(score, depth, type);
   }

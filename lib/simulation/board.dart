@@ -1,10 +1,12 @@
 import '../core/enums/cell_state.dart';
 import '../core/constants/board_constants.dart';
+import 'ai/zobrist_hash.dart';
 
 class Board {
   int width;
   int height;
   late List<List<CellState>> _grid; // Y, X format for rows/cols
+  int currentHash = 0;
 
   // Playable Area Boundaries (inclusive)
   int playableMinX = 0;
@@ -31,10 +33,12 @@ class Board {
     playableMinY = kPlayableBoundary;
     playableMaxX = width - 1 - kPlayableBoundary;
     playableMaxY = height - 1 - kPlayableBoundary;
+    ZobristHash.initialize(width, height);
     _initializeGrid();
   }
 
   void _initializeGrid() {
+    currentHash = 0;
     _grid = List.generate(
       height,
       (y) => List.generate(
@@ -52,6 +56,7 @@ class Board {
     playableMinY = kPlayableBoundary;
     playableMaxX = width - 1 - kPlayableBoundary;
     playableMaxY = height - 1 - kPlayableBoundary;
+    ZobristHash.initialize(width, height);
     _initializeGrid();
   }
 
@@ -87,10 +92,10 @@ class Board {
       for (int x = 0; x < width; x++) {
         if (y >= aiPalaceStartY && y <= aiPalaceEndY && 
             x >= aiPalaceStartX && x <= aiPalaceEndX) {
-          _grid[y][x] = CellState.aiZone;
+          setCell(x, y, CellState.aiZone);
         } else if (y >= playerPalaceStartY && y <= playerPalaceEndY && 
                    x >= playerPalaceStartX && x <= playerPalaceEndX) {
-          _grid[y][x] = CellState.playerZone;
+          setCell(x, y, CellState.playerZone);
         }
       }
     }
@@ -102,10 +107,40 @@ class Board {
     return _grid[y][x];
   }
 
-  /// Sets the state of a cell.
+  /// Sets the state of a cell and updates the incremental Zobrist hash.
   void setCell(int x, int y, CellState state) {
     if (_isOutOfBounds(x, y)) throw Exception("Out of bounds: $x, $y");
+    
+    final oldState = _grid[y][x];
+    if (oldState == state) return;
+
+    // Incremental Zobrist update: XOR out the old piece and XOR in the new one.
+    // Safety check for initialization is required since this can be called before the Zobrist table is fully ready during load.
+    if (ZobristHash.isInitialized) {
+      if (oldState != CellState.empty) {
+        currentHash ^= ZobristHash.getTableValue(x, y, width, oldState.index);
+      }
+      if (state != CellState.empty) {
+        currentHash ^= ZobristHash.getTableValue(x, y, width, state.index);
+      }
+    }
+
     _grid[y][x] = state;
+  }
+
+  /// Recalculates the full hash, used when the Zobrist table is reinitialized.
+  void recalculateHash() {
+    currentHash = 0;
+    if (!ZobristHash.isInitialized) return;
+
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        final state = _grid[y][x];
+        if (state != CellState.empty) {
+          currentHash ^= ZobristHash.getTableValue(x, y, width, state.index);
+        }
+      }
+    }
   }
 
   bool _isOutOfBounds(int x, int y) {
@@ -122,6 +157,9 @@ class Board {
   Board clone() {
     final clonedBoard = Board(width: width, height: height);
     
+    // Copy hash
+    clonedBoard.currentHash = currentHash;
+
     // Copy Playable Area
     clonedBoard.playableMinX = playableMinX;
     clonedBoard.playableMaxX = playableMaxX;

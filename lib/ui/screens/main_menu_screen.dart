@@ -54,7 +54,7 @@ class GameHomeScreen extends ConsumerWidget {
                             ),
                           );
                         },
-                        icon: Image.asset('assets/icons/story_mode_icon.png', width: 60, height: 60),
+                        icon: Image.asset('assets/icons/story_mode_icon.png', width: 55, height: 55),
                         style: IconButton.styleFrom(
                           backgroundColor: kMainThemeColor,
                           foregroundColor: Colors.black,
@@ -90,7 +90,7 @@ class GameHomeScreen extends ConsumerWidget {
                             ),
                           );
                         },
-                        icon: Image.asset('assets/icons/multiplayer_icon.png', width: 60, height: 60),
+                        icon: Image.asset('assets/icons/multiplayer_icon.png', width: 55, height: 55),
                         style: IconButton.styleFrom(
                           backgroundColor: kMainThemeColor,
                           foregroundColor: Colors.black,
@@ -125,7 +125,7 @@ class GameHomeScreen extends ConsumerWidget {
                             ),
                           );
                         },
-                        icon: Image.asset('assets/icons/settings_icon.png', width: 60, height: 60),
+                        icon: Image.asset('assets/icons/settings_icon.png', width: 55, height: 55),
 
                         style: IconButton.styleFrom(
                           backgroundColor: kMainThemeColor,
