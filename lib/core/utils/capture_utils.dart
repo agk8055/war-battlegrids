@@ -74,7 +74,8 @@ class CaptureUtils {
 
       for (final neighbor in allDirCoords) {
         if (!board.isWithinPlayableArea(neighbor.$1, neighbor.$2)) {
-          // Edge acts as a wall
+          // Boundary acts as a liberty
+          hasLiberty = true;
           continue;
         }
 
