@@ -48,7 +48,7 @@ class ScorePanel extends StatelessWidget {
                     ? "PARALLEL BLOCKADE" 
                     : "KINGDOM ASSISTED",
                 style: TextStyle(
-                  color: color.withOpacity(0.9),
+                  color: color.withValues(alpha: 0.9),
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   fontStyle: FontStyle.italic,

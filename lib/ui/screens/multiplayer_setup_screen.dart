@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/game_settings_provider.dart';
 import '../../providers/simulation_provider.dart';
 import 'game_screen.dart';
-import '../../constants.dart';
 
 class MultiplayerSetupScreen extends ConsumerStatefulWidget {
   const MultiplayerSetupScreen({super.key});
@@ -32,7 +31,7 @@ class _MultiplayerSetupScreenState extends ConsumerState<MultiplayerSetupScreen>
       appBar: AppBar(
         title: const Text('MATCH SETUP', style: TextStyle(letterSpacing: 2)),
         backgroundColor: Colors.transparent,
-        foregroundColor: kMainThemeColor,
+        foregroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -50,7 +49,7 @@ class _MultiplayerSetupScreenState extends ConsumerState<MultiplayerSetupScreen>
             const SizedBox(height: 8),
             Text(
               'Points required to unlock direct kingdom assault.',
-              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -58,7 +57,7 @@ class _MultiplayerSetupScreenState extends ConsumerState<MultiplayerSetupScreen>
               child: _buildTextField(
                 _thresholdController, 
                 'THRESHOLD', 
-                kMainThemeColor,
+                Theme.of(context).colorScheme.primary,
                 isNumeric: true,
               ),
             ),
@@ -103,8 +102,8 @@ class _MultiplayerSetupScreenState extends ConsumerState<MultiplayerSetupScreen>
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(
-        color: kMainThemeColor,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.primary,
         fontSize: 14,
         fontWeight: FontWeight.bold,
         letterSpacing: 1.5,
@@ -126,7 +125,7 @@ class _MultiplayerSetupScreenState extends ConsumerState<MultiplayerSetupScreen>
         labelText: label,
         labelStyle: TextStyle(color: accentColor),
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: accentColor.withOpacity(0.5)),
+          borderSide: BorderSide(color: accentColor.withValues(alpha: 0.5)),
           borderRadius: BorderRadius.circular(12),
         ),
         focusedBorder: OutlineInputBorder(
@@ -134,7 +133,7 @@ class _MultiplayerSetupScreenState extends ConsumerState<MultiplayerSetupScreen>
           borderRadius: BorderRadius.circular(12),
         ),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
+        fillColor: Colors.white.withValues(alpha: 0.05),
       ),
     );
   }

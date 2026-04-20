@@ -4,7 +4,6 @@ import '../../providers/game_settings_provider.dart';
 import '../../providers/simulation_provider.dart';
 import '../../core/enums/game_mode.dart';
 import 'multiplayer_setup_screen.dart';
-import '../../constants.dart';
 
 class MapSelectionScreen extends ConsumerWidget {
   const MapSelectionScreen({super.key});
@@ -25,7 +24,7 @@ class MapSelectionScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('SELECT BATTLEFIELD', style: TextStyle(letterSpacing: 2)),
         backgroundColor: Colors.transparent,
-        foregroundColor: kMainThemeColor,
+        foregroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
       ),
       body: Padding(
@@ -73,12 +72,12 @@ class MapSelectionScreen extends ConsumerWidget {
                         color: Colors.grey[900],
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: kMainThemeColor.withOpacity(0.4),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                           width: 2,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -91,7 +90,7 @@ class MapSelectionScreen extends ConsumerWidget {
                             Positioned.fill(
                               child: Opacity(
                                 opacity: 0.1,
-                                child: Icon(Icons.grid_4x4, size: 80, color: kMainThemeColor),
+                                child: Icon(Icons.grid_4x4, size: 80, color: Theme.of(context).colorScheme.primary),
                               ),
                             ),
                             Padding(
@@ -99,7 +98,7 @@ class MapSelectionScreen extends ConsumerWidget {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.landscape_rounded, color: kMainThemeColor, size: 36),
+                                  Icon(Icons.landscape_rounded, color: Theme.of(context).colorScheme.primary, size: 36),
                                   const SizedBox(height: 8),
                                   Text(
                                     map['name']!.toUpperCase(),
@@ -115,7 +114,7 @@ class MapSelectionScreen extends ConsumerWidget {
                                   Text(
                                     "CLICK TO SELECT",
                                     style: TextStyle(
-                                      color: kMainThemeColor.withOpacity(0.7),
+                                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
                                       fontSize: 9,
                                       fontWeight: FontWeight.w900,
                                     ),

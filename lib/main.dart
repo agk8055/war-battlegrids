@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'constants.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'ui/screens/splash_screen.dart';
 
 void main() {
@@ -23,28 +23,41 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const Color primaryColor = Color(0xFFFCB103);
+    
     return MaterialApp(
-      title: 'Game',
+      title: 'WAR : BATTLEGRIDS',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.black,
+        brightness: Brightness.dark,
+        textTheme: GoogleFonts.sairaStencilOneTextTheme(
+          ThemeData.dark().textTheme,
+        ).apply(
+          bodyColor: Colors.white,
+          displayColor: primaryColor,
+        ),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: kMainThemeColor,
+          seedColor: primaryColor,
           brightness: Brightness.dark,
         ).copyWith(
-          primary: kMainThemeColor,
+          primary: primaryColor,
           secondary: Colors.red,
           onPrimary: Colors.black,
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: kMainThemeColor,
+            backgroundColor: primaryColor,
             foregroundColor: Colors.black,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+            textStyle: GoogleFonts.sairaStencilOne(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
           ),
         ),
         useMaterial3: true,

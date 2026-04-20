@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../constants.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -11,7 +10,7 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('SETTINGS', style: TextStyle(letterSpacing: 2)),
         backgroundColor: Colors.transparent,
-        foregroundColor: kMainThemeColor,
+        foregroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
       ),
       body: Center(
@@ -21,13 +20,13 @@ class SettingsScreen extends StatelessWidget {
             Icon(
               Icons.settings_suggest_rounded,
               size: 80,
-              color: kMainThemeColor.withOpacity(0.5),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 24),
             Text(
               'COMMAND CENTER UNDER CONSTRUCTION',
               style: TextStyle(
-                color: kMainThemeColor.withOpacity(0.7),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
