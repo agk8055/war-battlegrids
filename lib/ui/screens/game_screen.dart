@@ -18,6 +18,8 @@ import '../widgets/hud/turn_indicator.dart';
 import '../widgets/overlays/ai_thinking_overlay.dart';
 import '../widgets/overlays/capture_toast.dart';
 import '../widgets/overlays/game_over_overlay.dart';
+import '../widgets/overlays/pause_overlay.dart';
+import 'settings_screen.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
   const GameScreen({super.key});
@@ -29,6 +31,7 @@ class GameScreen extends ConsumerStatefulWidget {
 class _GameScreenState extends ConsumerState<GameScreen> {
   KingdomGame? _game;
   late AudioService _audioService;
+  bool _isPaused = false;
 
   @override
   void initState() {
@@ -48,6 +51,26 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     // Resume main theme music when leaving match
     _audioService.resumeMusicAfterMatch();
     super.dispose();
+  }
+
+  void _togglePause() {
+    setState(() {
+      _isPaused = !_isPaused;
+      if (_isPaused) {
+        _game?.pauseEngine();
+      } else {
+        _game?.resumeEngine();
+      }
+    });
+  }
+
+  void _quitBattle(GameMode mode) {
+    _game?.resumeEngine(); // Ensure engine is not frozen
+    if (mode == GameMode.story) {
+      Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
+    } else {
+      Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
+    }
   }
 
   @override
@@ -128,8 +151,22 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                         ),
                       ),
 
-                      // Turn Indicator
-                      TurnIndicator(currentTurn: simulationState.currentTurn, mode: settings.mode),
+                      // Turn Indicator & Pause
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TurnIndicator(currentTurn: simulationState.currentTurn, mode: settings.mode),
+                          const SizedBox(height: 12),
+                          IconButton(
+                            onPressed: _togglePause,
+                            icon: const Icon(Icons.pause_circle_filled, color: Colors.white70, size: 48),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.black45,
+                              padding: const EdgeInsets.all(4),
+                            ),
+                          ),
+                        ],
+                      ),
 
                       // AI Score Panel
                       _buildOverlayContainer(
@@ -152,8 +189,20 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           ),
 
           // 3. Overlays (Full Screen - Outside SafeArea)
-          if (aiState == AIState.thinking) 
+          if (aiState == AIState.thinking && !_isPaused) 
             const Positioned.fill(child: AiThinkingOverlay()),
+
+          if (_isPaused)
+            PauseOverlay(
+              onResume: _togglePause,
+              onSettings: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                );
+              },
+              onQuit: () => _quitBattle(settings.mode),
+            ),
 
           if (simulationState.currentPhase == GamePhase.gameOver)
             Positioned.fill(
