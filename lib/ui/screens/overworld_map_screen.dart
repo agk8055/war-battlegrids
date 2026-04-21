@@ -346,26 +346,40 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
               width: isSelected ? 90 : 60,
               height: isSelected ? 90 : 60,
               decoration: BoxDecoration(
-                color: isConquered ? Colors.blueAccent : (isUnlocked ? Colors.redAccent : Colors.grey[800]),
+                color: isConquered ? const Color(0xFFFCB103) : (isUnlocked ? Colors.redAccent : Colors.grey[800]),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? Colors.yellowAccent : (isUnlocked ? Colors.white : Colors.white24), 
+                  color: isSelected ? const Color(0xFFFCB103) : (isConquered ? Colors.black : (isUnlocked ? Colors.white : Colors.white24)), 
                   width: isSelected ? 4 : 3,
                 ),
                 boxShadow: [
                   if (isUnlocked || isSelected) BoxShadow(
-                    color: (isSelected ? Colors.yellowAccent : (isConquered ? Colors.blueAccent : Colors.redAccent)).withValues(alpha: 0.5),
+                    color: (isSelected ? const Color(0xFFFCB103) : (isConquered ? const Color(0xFFFCB103) : Colors.redAccent)).withValues(alpha: 0.5),
                     blurRadius: isSelected ? 25 : 15,
                     spreadRadius: isSelected ? 5 : 2,
                   ),
                   const BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 4)),
                 ],
               ),
-              child: Icon(
-                isConquered ? Icons.check_circle : (isUnlocked ? Icons.shield : Icons.lock),
-                color: isUnlocked ? Colors.white : Colors.white24,
-                size: isSelected ? 45 : 30,
-              ),
+              child: isConquered
+                  ? Image.asset(
+                      'assets/icons/throne.png',
+                      width: isSelected ? 45 : 30,
+                      height: isSelected ? 45 : 30,
+                      color: Colors.black,
+                    )
+                  : (isUnlocked
+                      ? Image.asset(
+                          'assets/icons/shield_sword.png',
+                          width: isSelected ? 45 : 30,
+                          height: isSelected ? 45 : 30,
+                          color: Colors.white,
+                        )
+                      : Icon(
+                          Icons.lock,
+                          color: Colors.white24,
+                          size: isSelected ? 45 : 30,
+                        )),
             ),
             if (!isSelected) ...[
               const SizedBox(height: 8),
@@ -409,7 +423,7 @@ class PathPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final conqueredPaint = Paint()
-      ..color = Colors.blueAccent.withValues(alpha: 0.4)
+      ..color = const Color(0xFFFCB103).withValues(alpha: 0.4)
       ..strokeWidth = 6
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;

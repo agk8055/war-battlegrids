@@ -107,6 +107,37 @@ class BoardComponent extends PositionComponent {
       gridMaxY: simulationBoard.playableMaxY,
       cellSize: cellSize,
     ));
+
+    // 5. Add Palace Overlays
+    _addPalaceOverlays();
+  }
+
+  void _addPalaceOverlays() {
+    // AI Palace
+    if (simulationBoard.aiPalaceStartX != 0 || simulationBoard.aiPalaceEndX != 0) {
+      add(PalaceOverlayComponent(
+        startX: simulationBoard.aiPalaceStartX,
+        endX: simulationBoard.aiPalaceEndX,
+        startY: simulationBoard.aiPalaceStartY,
+        endY: simulationBoard.aiPalaceEndY,
+        cellSize: cellSize,
+        symbolAsset: opponentSymbol,
+        color: opponentColor,
+      ));
+    }
+
+    // Player Palace
+    if (simulationBoard.playerPalaceStartX != 0 || simulationBoard.playerPalaceEndX != 0) {
+      add(PalaceOverlayComponent(
+        startX: simulationBoard.playerPalaceStartX,
+        endX: simulationBoard.playerPalaceEndX,
+        startY: simulationBoard.playerPalaceStartY,
+        endY: simulationBoard.playerPalaceEndY,
+        cellSize: cellSize,
+        symbolAsset: playerSymbol,
+        color: playerColor,
+      ));
+    }
   }
 
   void _parseMapProperties() {
@@ -260,5 +291,55 @@ class GridLinesComponent extends PositionComponent {
       Rect.fromLTWH(0, 0, widthInCells * cellSize, heightInCells * cellSize),
       _borderPaint,
     );
+  }
+}
+
+class PalaceOverlayComponent extends PositionComponent {
+  final int startX;
+  final int endX;
+  final int startY;
+  final int endY;
+  final double cellSize;
+  final String symbolAsset;
+  final Color color;
+
+  PalaceOverlayComponent({
+    required this.startX,
+    required this.endX,
+    required this.startY,
+    required this.endY,
+    required this.cellSize,
+    required this.symbolAsset,
+    required this.color,
+  }) {
+    position = Vector2(startX * cellSize, startY * cellSize);
+    size = Vector2(
+      (endX - startX + 1) * cellSize,
+      (endY - startY + 1) * cellSize,
+    );
+  }
+
+  @override
+  Future<void> onLoad() async {
+    // Add the Border
+    add(RectangleComponent(
+      size: size,
+      paint: Paint()
+        ..color = color.withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0,
+    ));
+
+    // Add the Symbol in the center
+    final sprite = await Sprite.load(symbolAsset);
+    // Scale symbol to fit nicely (e.g., 60% of palace height)
+    final symbolSize = size.y * 0.6;
+    add(SpriteComponent(
+      sprite: sprite,
+      size: Vector2.all(symbolSize),
+      position: size / 2,
+      anchor: Anchor.center,
+      paint: Paint()..colorFilter = ColorFilter.mode(color, BlendMode.srcIn),
+    ));
   }
 }

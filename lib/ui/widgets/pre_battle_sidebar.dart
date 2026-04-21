@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../campaign/models/kingdom_model.dart';
 import '../../campaign/data/battle_configs.dart';
+import '../../campaign/campaign_manager.dart';
 
 class PreBattleSidebar extends ConsumerWidget {
   final KingdomModel kingdom;
@@ -20,6 +21,9 @@ class PreBattleSidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final battleConfig = kBattleConfigs[kingdom.id];
+    final campaignState = ref.watch(campaignProvider);
+    final bool isConquered = campaignState.isConquered(kingdom.id);
+    const Color customYellow = Color(0xFFFCB103);
 
     return Container(
       margin: const EdgeInsets.all(20),
@@ -29,7 +33,7 @@ class PreBattleSidebar extends ConsumerWidget {
       decoration: BoxDecoration(
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white24, width: 2),
+        border: Border.all(color: isConquered ? customYellow.withValues(alpha: 0.3) : Colors.white24, width: 2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.6),
@@ -43,12 +47,12 @@ class PreBattleSidebar extends ConsumerWidget {
         children: [
           // Header with Kingdom Banner/Image
           Expanded(
-            flex: 2,
+            flex: 3, // Increased flex for more vertical space
             child: Stack(
               children: [
                 Positioned.fill(
                   child: Image.asset(
-                    'assets/images/home_banner.png', // Placeholder
+                    kingdom.bannerAsset,
                     fit: BoxFit.cover,
                     opacity: const AlwaysStoppedAnimation(0.3),
                   ),
@@ -63,17 +67,61 @@ class PreBattleSidebar extends ConsumerWidget {
                   ),
                 ),
                 Positioned(
-                  bottom: 20,
+                  bottom: 16, // Adjusted bottom offset
                   left: 20,
                   right: 20,
-                  child: Text(
-                    kingdom.name.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 4,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          kingdom.name.toUpperCase(),
+                          maxLines: 1,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 4,
+                          ),
+                        ),
+                      ),
+                      if (isConquered) ...[
+                        const SizedBox(height: 6), // Reduced gap
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), // Compact padding
+                          decoration: BoxDecoration(
+                            color: customYellow,
+                            borderRadius: BorderRadius.circular(4),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.stars, color: Colors.black, size: 10), // Smaller icon
+                              SizedBox(width: 4),
+                              Text(
+                                "CONQUERED",
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 9, // Smaller font
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],
@@ -82,7 +130,7 @@ class PreBattleSidebar extends ConsumerWidget {
 
           // Lore & Stats
           Expanded(
-            flex: 3,
+            flex: 4, // Balanced flex for content
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
@@ -91,7 +139,7 @@ class PreBattleSidebar extends ConsumerWidget {
                   Text(
                     "LORE",
                     style: TextStyle(
-                      color: Colors.blueAccent[100],
+                      color: isConquered ? customYellow : Colors.blueAccent[100],
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2,
@@ -111,15 +159,16 @@ class PreBattleSidebar extends ConsumerWidget {
                   Text(
                     "INTELLIGENCE",
                     style: TextStyle(
-                      color: Colors.blueAccent[100],
+                      color: isConquered ? customYellow : Colors.blueAccent[100],
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2,
                     ),
                   ),
                   const SizedBox(height: 16),
+                  _buildStatRow("Status", isConquered ? "Conquered" : "Active"),
                   _buildStatRow("Difficulty", "⭐" * kingdom.difficulty),
-                  _buildStatRow("Board Size", "${battleConfig?.levelConfig.boardWidth}x${battleConfig?.levelConfig.boardHeight}"),
+                  _buildStatRow("Map", battleConfig?.mapPath.replaceAll('.tmx', '').replaceAll('_', ' ').toUpperCase() ?? "Unknown"),
                   _buildStatRow("AI Intellect", battleConfig?.aiStrategy.displayName ?? "Novice"),
                 ],
               ),
@@ -134,14 +183,14 @@ class PreBattleSidebar extends ConsumerWidget {
                 ElevatedButton(
                   onPressed: onEnterBattle,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
+                    backgroundColor: isConquered ? customYellow : Colors.blueAccent,
+                    foregroundColor: isConquered ? Colors.black : Colors.white,
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: const Text(
-                    "ENTER BATTLE",
-                    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                  child: Text(
+                    isConquered ? "REPLAY BATTLE" : "ENTER BATTLE",
+                    style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5),
                   ),
                 ),
                 const SizedBox(height: 12),
