@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 import '../../campaign/campaign_manager.dart';
+import '../../campaign/data/battle_configs.dart';
 import '../../campaign/data/kingdoms_data.dart';
 import '../../campaign/models/kingdom_model.dart';
+import '../../providers/game_settings_provider.dart';
 import '../widgets/pre_battle_sidebar.dart';
 import 'pre_battle_screen.dart';
 
@@ -60,9 +62,9 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
 
     // The transformation that puts (kingdomX, kingdomY) at (viewportCenterX, viewportCenterY)
     final Matrix4 endMatrix = Matrix4.identity()
-      ..translate(viewportCenterX, viewportCenterY)
-      ..scale(targetScale)
-      ..translate(-kingdomX, -kingdomY);
+      ..translateByVector3(Vector3(viewportCenterX, viewportCenterY, 0.0))
+      ..scaleByVector3(Vector3(targetScale, targetScale, 1.0))
+      ..translateByVector3(Vector3(-kingdomX, -kingdomY, 0.0));
 
     _animation = Matrix4Tween(
       begin: _transformationController.value,
@@ -198,6 +200,10 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
                   child: PreBattleSidebar(
                     kingdom: selectedKingdom,
                     onEnterBattle: () {
+                      final battleConfig = kBattleConfigs[selectedKingdom.id];
+                      if (battleConfig != null) {
+                        ref.read(gameSettingsProvider.notifier).setSelectedMap(battleConfig.mapPath);
+                      }
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => PreBattleScreen(kingdom: selectedKingdom)),

@@ -79,7 +79,13 @@ class KingdomGame extends FlameGame with ScaleDetector {
       (size.y - (boardComponent.size.y * fitScale)) / 2,
     );
 
-    add(boardComponent);
+    await add(boardComponent);
+
+    // Re-center if the size changed after loading the map content
+    boardComponent.position = Vector2(
+      (size.x - (boardComponent.size.x * fitScale)) / 2,
+      (size.y - (boardComponent.size.y * fitScale)) / 2,
+    );
     
     // Ensure it's clamped immediately
     _clampPosition();

@@ -13,6 +13,11 @@ class MapSelectionScreen extends ConsumerWidget {
     // Currently only one map available as requested
     final List<Map<String, String>> availableMaps = [
       {
+        'name': 'Northern Forest',
+        'path': '15x15_northern_forest_map.tmx',
+        'description': 'A dense 15x15 forest environment.',
+      },
+      {
         'name': 'Standard 25x25',
         'path': '25x25_map.tmx',
         'description': 'A balanced 25x25 grid for local warfare.',

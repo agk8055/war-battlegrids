@@ -51,6 +51,7 @@ class BoardComponent extends PositionComponent {
     );
 
     add(tiledComponent);
+    size = tiledComponent.size; // Ensure our size matches the loaded map content
 
     final tileMap = tiledComponent.tileMap.map;
     
