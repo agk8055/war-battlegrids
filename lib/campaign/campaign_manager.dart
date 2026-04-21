@@ -13,10 +13,11 @@ class CampaignState {
   CampaignState copyWith({
     Set<String>? conqueredKingdomIds,
     String? selectedKingdomId,
+    bool clearSelectedKingdom = false,
   }) {
     return CampaignState(
       conqueredKingdomIds: conqueredKingdomIds ?? this.conqueredKingdomIds,
-      selectedKingdomId: selectedKingdomId ?? this.selectedKingdomId,
+      selectedKingdomId: clearSelectedKingdom ? null : (selectedKingdomId ?? this.selectedKingdomId),
     );
   }
 
@@ -35,6 +36,7 @@ class CampaignNotifier extends Notifier<CampaignState> {
 
   @override
   CampaignState build() {
+    // Initial state will be updated by _loadCampaign
     _loadCampaign();
     return const CampaignState();
   }
@@ -56,15 +58,23 @@ class CampaignNotifier extends Notifier<CampaignState> {
     );
   }
 
-  void selectKingdom(String kingdomId) {
-    state = state.copyWith(selectedKingdomId: kingdomId);
+  void selectKingdom(String? kingdomId) {
+    if (kingdomId == null) {
+      state = state.copyWith(clearSelectedKingdom: true);
+    } else {
+      state = state.copyWith(selectedKingdomId: kingdomId, clearSelectedKingdom: false);
+    }
   }
 
   Future<void> conquerKingdom(String kingdomId) async {
-    if (state.conqueredKingdomIds.contains(kingdomId)) return;
+    if (state.conqueredKingdomIds.contains(kingdomId)) {
+      state = state.copyWith(clearSelectedKingdom: true);
+      return;
+    }
     
     state = state.copyWith(
       conqueredKingdomIds: {...state.conqueredKingdomIds, kingdomId},
+      clearSelectedKingdom: true,
     );
     await _saveCampaign();
   }

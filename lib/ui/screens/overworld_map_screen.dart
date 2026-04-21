@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:vector_math/vector_math_64.dart' hide Colors;
 import '../../campaign/campaign_manager.dart';
 import '../../campaign/data/kingdoms_data.dart';
 import '../../campaign/models/kingdom_model.dart';
+import '../widgets/pre_battle_sidebar.dart';
 import 'pre_battle_screen.dart';
 
 class OverworldMapScreen extends ConsumerStatefulWidget {
@@ -12,8 +14,10 @@ class OverworldMapScreen extends ConsumerStatefulWidget {
   ConsumerState<OverworldMapScreen> createState() => _OverworldMapScreenState();
 }
 
-class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> {
+class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with TickerProviderStateMixin {
   final TransformationController _transformationController = TransformationController();
+  late AnimationController _animationController;
+  Animation<Matrix4>? _animation;
 
   // Image dimensions
   static const double _mapWidth = 1970;
@@ -22,46 +26,110 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> {
   @override
   void initState() {
     super.initState();
-    // Initial scale will be set in the build method once we have constraints
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..addListener(() {
+        if (_animation != null) {
+          _transformationController.value = _animation!.value;
+        }
+      });
   }
 
   @override
   void dispose() {
     _transformationController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   bool _initialScaleSet = false;
+  String? _lastSelectedKingdomId;
+
+  void _zoomToKingdom(KingdomModel kingdom, BoxConstraints constraints, double minScale) {
+    // Zoom in a bit more than minScale
+    final double targetScale = (minScale * 1.8).clamp(minScale, 2.0);
+    
+    // If sidebar is on the right (takes 35%), the visible "center" for the map 
+    // is at 32.5% of the total screen width.
+    final double viewportCenterX = constraints.maxWidth * 0.325;
+    final double viewportCenterY = constraints.maxHeight / 2;
+
+    final double kingdomX = kingdom.x * _mapWidth;
+    final double kingdomY = kingdom.y * _mapHeight;
+
+    // The transformation that puts (kingdomX, kingdomY) at (viewportCenterX, viewportCenterY)
+    final Matrix4 endMatrix = Matrix4.identity()
+      ..translate(viewportCenterX, viewportCenterY)
+      ..scale(targetScale)
+      ..translate(-kingdomX, -kingdomY);
+
+    _animation = Matrix4Tween(
+      begin: _transformationController.value,
+      end: endMatrix,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.fastOutSlowIn,
+    ));
+
+    _animationController.forward(from: 0);
+  }
+
+  void _resetZoom(double minScale) {
+    _animation = Matrix4Tween(
+      begin: _transformationController.value,
+      end: Matrix4.identity()..scaleByVector3(Vector3(minScale, minScale, 1.0)),
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.fastOutSlowIn,
+    ));
+    _animationController.forward(from: 0);
+  }
 
   @override
   Widget build(BuildContext context) {
     final campaignState = ref.watch(campaignProvider);
+    final selectedKingdomId = campaignState.selectedKingdomId;
+    final selectedKingdom = selectedKingdomId != null 
+        ? kKingdoms.firstWhere((k) => k.id == selectedKingdomId)
+        : null;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // Calculate min scale to ensure the map is always zoomed in
-          // We use a 1.8x multiplier so the user never sees the full map at once
+          // Calculate min scale
           final double screenRatioW = constraints.maxWidth / _mapWidth;
           final double screenRatioH = constraints.maxHeight / _mapHeight;
           final double minScale = (screenRatioW > screenRatioH ? screenRatioW : screenRatioH) * 1.2;
 
           if (!_initialScaleSet) {
-            _transformationController.value = Matrix4.identity()..scale(minScale, minScale, 1.0);
+            _transformationController.value = Matrix4.identity()..scaleByVector3(Vector3(minScale, minScale, 1.0));
             _initialScaleSet = true;
+          }
+
+          // Trigger animation if selection changed
+          if (selectedKingdomId != _lastSelectedKingdomId) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (selectedKingdom != null) {
+                _zoomToKingdom(selectedKingdom, constraints, minScale);
+              } else if (_lastSelectedKingdomId != null) {
+                _resetZoom(minScale);
+              }
+              _lastSelectedKingdomId = selectedKingdomId;
+            });
           }
 
           return Stack(
             children: [
-              // Background Map with InteractiveViewer for panning/zooming
+              // Background Map
               Positioned.fill(
                 child: InteractiveViewer(
                   transformationController: _transformationController,
-                  maxScale: 2.0, // Increased max scale for more detail
-                  minScale: minScale,
+                  maxScale: 2.5,
+                  minScale: minScale * 0.5, // Allow zooming out slightly during transitions
                   constrained: false,
-                  boundaryMargin: const EdgeInsets.all(180), // Increased margin to allow panning more into the sides
+                  boundaryMargin: const EdgeInsets.all(600), // Large margin for free movement
                   child: SizedBox(
                     width: _mapWidth,
                     height: _mapHeight,
@@ -75,79 +143,129 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> {
                           fit: BoxFit.contain,
                         ),
                         
-                        // Decorations (Fog and Clouds strictly outside the map edges)
                         ..._buildMapDecorations(),
-
-                        // Paths between kingdoms
+          
                         CustomPaint(
                           size: const Size(_mapWidth, _mapHeight),
                           painter: PathPainter(kingdoms: kKingdoms, state: campaignState),
                         ),
-        
-                        // Kingdom Nodes
+          
                         ...kKingdoms.map((kingdom) {
-                          return _buildKingdomNode(context, ref, kingdom, campaignState, _mapWidth, _mapHeight);
+                          return _buildKingdomNode(
+                            context, 
+                            ref, 
+                            kingdom, 
+                            campaignState, 
+                            _mapWidth, 
+                            _mapHeight,
+                            isSelected: kingdom.id == selectedKingdomId,
+                          );
                         }),
                       ],
                     ),
                   ),
                 ),
               ),
-          
-              // HUD / Back Button
-              Positioned(
-                top: 40,
-                left: 20,
-                child: CircleAvatar(
-                  backgroundColor: Colors.black54,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-              ),
-              
-              // Campaign Info Overlay
-              Positioned(
-                bottom: 20,
-                left: 20,
-                right: 20,
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text("CAMPAIGN PROGRESS", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                          Text(
-                            "${campaignState.conqueredKingdomIds.length} / ${kKingdoms.length} KINGDOMS CONQUERED",
-                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 24.0),
-                          child: LinearProgressIndicator(
-                            value: kKingdoms.isEmpty ? 0 : campaignState.conqueredKingdomIds.length / kKingdoms.length,
-                            backgroundColor: Colors.white12,
-                            color: Colors.blueAccent,
-                            minHeight: 8,
-                          ),
+
+              // Sidebar Overlay
+              if (selectedKingdom != null) ...[
+                // Darken the area NOT covered by the sidebar slightly? 
+                // Or just the whole map is already visible. 
+                // Let's add a subtle gradient to push focus to the center.
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.0),
+                            Colors.black.withValues(alpha: 0.4),
+                          ],
+                          stops: const [0.65, 1.0],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+
+                // Sidebar
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: PreBattleSidebar(
+                    kingdom: selectedKingdom,
+                    onEnterBattle: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => PreBattleScreen(kingdom: selectedKingdom)),
+                      );
+                    },
+                    onWithdraw: () {
+                      ref.read(campaignProvider.notifier).selectKingdom(null);
+                    },
+                  ),
+                ),
+              ],
+          
+              // HUD / Back Button
+              if (selectedKingdom == null)
+                Positioned(
+                  top: 40,
+                  left: 20,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.black54,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ),
+              
+              // Campaign Info Overlay
+              if (selectedKingdom == null)
+                Positioned(
+                  bottom: 20,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text("CAMPAIGN PROGRESS", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                            Text(
+                              "${campaignState.conqueredKingdomIds.length} / ${kKingdoms.length} KINGDOMS CONQUERED",
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 24.0),
+                            child: LinearProgressIndicator(
+                              value: kKingdoms.isEmpty ? 0 : campaignState.conqueredKingdomIds.length / kKingdoms.length,
+                              backgroundColor: Colors.white12,
+                              color: Colors.blueAccent,
+                              minHeight: 8,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           );
         },
@@ -157,29 +275,23 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> {
 
   List<Widget> _buildMapDecorations() {
     return [
-      // Left side cloud frame (Vertical) - Adjusted for more side panning
       _buildCloud(-350, 200, 0.9, 3.2, rotation: 1),
       _buildCloud(-300, 1000, 0.8, 2.8, rotation: 1),
       _buildCloud(-300, 1800, 0.9, 3.5, rotation: 1),
       _buildCloud(-300, 2600, 0.8, 3.0, rotation: 1),
-
-      // Right side cloud frame (Vertical) - Adjusted for more side panning
       _buildCloud(_mapWidth - 50, 300, 0.9, 3.2, rotation: 3),
       _buildCloud(_mapWidth - 50, 1100, 0.8, 2.8, rotation: 3),
       _buildCloud(_mapWidth- 1, 1900, 0.9, 3.5, rotation: 3),
       _buildCloud(_mapWidth - 1, 2700, 0.8, 3.0, rotation: 3),
-
-      // Top cloud frame (Horizontal)
       _buildCloud(250, -250, 0.9, 3.2),
       _buildCloud(1000, -200, 0.8, 2.7),
       _buildCloud(1800, -300, 0.9, 3.0),
-
-      // Bottom cloud frame (Horizontal)
       _buildCloud(100, _mapHeight - 250, 0.9, 3.4),
       _buildCloud(900, _mapHeight - 100, 0.8, 2.8),
       _buildCloud(1700, _mapHeight - 50, 0.9, 3.1),
     ];
   }
+
   Widget _buildCloud(double x, double y, double opacity, double scale, {int rotation = 0}) {
     return Positioned(
       left: x,
@@ -205,43 +317,40 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> {
     KingdomModel kingdom, 
     CampaignState state, 
     double mapWidth, 
-    double mapHeight
+    double mapHeight,
+    {bool isSelected = false}
   ) {
     final bool isConquered = state.isConquered(kingdom.id);
     final bool isUnlocked = state.isUnlocked(kingdom.id, kingdom.unlockedBy);
     
-    // Coordinates are percentage (0..1)
     final double left = kingdom.x * mapWidth;
     final double top = kingdom.y * mapHeight;
 
     return Positioned(
-      left: left - 30, // Offset to center the 60x60 node
-      top: top - 30,
+      left: left - (isSelected ? 45 : 30),
+      top: top - (isSelected ? 45 : 30),
       child: GestureDetector(
         onTap: isUnlocked ? () {
           ref.read(campaignProvider.notifier).selectKingdom(kingdom.id);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => PreBattleScreen(kingdom: kingdom)),
-          );
         } : null,
         child: Column(
           children: [
-            Container(
-              width: 60,
-              height: 60,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: isSelected ? 90 : 60,
+              height: isSelected ? 90 : 60,
               decoration: BoxDecoration(
                 color: isConquered ? Colors.blueAccent : (isUnlocked ? Colors.redAccent : Colors.grey[800]),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isUnlocked ? Colors.white : Colors.white24, 
-                  width: 3,
+                  color: isSelected ? Colors.yellowAccent : (isUnlocked ? Colors.white : Colors.white24), 
+                  width: isSelected ? 4 : 3,
                 ),
                 boxShadow: [
-                  if (isUnlocked) BoxShadow(
-                    color: (isConquered ? Colors.blueAccent : Colors.redAccent).withValues(alpha: 0.5),
-                    blurRadius: 15,
-                    spreadRadius: 2,
+                  if (isUnlocked || isSelected) BoxShadow(
+                    color: (isSelected ? Colors.yellowAccent : (isConquered ? Colors.blueAccent : Colors.redAccent)).withValues(alpha: 0.5),
+                    blurRadius: isSelected ? 25 : 15,
+                    spreadRadius: isSelected ? 5 : 2,
                   ),
                   const BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 4)),
                 ],
@@ -249,27 +358,29 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> {
               child: Icon(
                 isConquered ? Icons.check_circle : (isUnlocked ? Icons.shield : Icons.lock),
                 color: isUnlocked ? Colors.white : Colors.white24,
-                size: 30,
+                size: isSelected ? 45 : 30,
               ),
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white24, width: 1),
-              ),
-              child: Text(
-                kingdom.name.toUpperCase(),
-                style: TextStyle(
-                  color: isUnlocked ? Colors.white : Colors.white38, 
-                  fontSize: 10, 
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+            if (!isSelected) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.white24, width: 1),
+                ),
+                child: Text(
+                  kingdom.name.toUpperCase(),
+                  style: TextStyle(
+                    color: isUnlocked ? Colors.white : Colors.white38, 
+                    fontSize: 10, 
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
