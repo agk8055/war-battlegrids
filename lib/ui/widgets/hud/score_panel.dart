@@ -27,7 +27,7 @@ class ScorePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -43,11 +43,11 @@ class ScorePanel extends StatelessWidget {
         children: [
         if (alignment == CrossAxisAlignment.end) ...[
           _buildTextContent(context),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           _buildSymbol(),
         ] else ...[
           _buildSymbol(),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           _buildTextContent(context),
         ],
       ],
@@ -57,10 +57,10 @@ class ScorePanel extends StatelessWidget {
 
   Widget _buildSymbol() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        border: Border.all(color: color.withValues(alpha: 0.4), width: 2),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -72,8 +72,8 @@ class ScorePanel extends StatelessWidget {
       ),
       child: Image.asset(
         symbolAsset,
-        width: 32,
-        height: 32,
+        width: 24,
+        height: 24,
         color: color,
       ),
     );
@@ -90,8 +90,8 @@ class ScorePanel extends StatelessWidget {
           style: TextStyle(
             color: color,
             fontWeight: FontWeight.w900,
-            letterSpacing: 1.5,
-            fontSize: 13,
+            letterSpacing: 1.2,
+            fontSize: 11,
           ),
         ),
         Text(
@@ -99,20 +99,20 @@ class ScorePanel extends StatelessWidget {
           textAlign: alignment == CrossAxisAlignment.end ? TextAlign.right : TextAlign.left,
           style: const TextStyle(
             color: Colors.white70,
-            fontSize: 11,
+            fontSize: 9,
             fontWeight: FontWeight.bold,
           ),
         ),
         if (kingdomAttackUnlocked) ...[
           const Padding(
-            padding: EdgeInsets.only(top: 4.0),
+            padding: EdgeInsets.only(top: 2.0),
             child: Text(
               "KINGDOM ATTACK!", 
               style: TextStyle(
                 color: Colors.yellow, 
-                fontSize: 10, 
+                fontSize: 8, 
                 fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
+                letterSpacing: 0.8,
                 shadows: [Shadow(color: Colors.yellowAccent, blurRadius: 4)]
               )
             ),

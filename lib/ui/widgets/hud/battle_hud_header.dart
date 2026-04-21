@@ -49,7 +49,7 @@ class BattleHudHeader extends ConsumerWidget {
       right: false,
       child: Container(
         margin: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(24),
@@ -86,7 +86,7 @@ class BattleHudHeader extends ConsumerWidget {
                 alignment: Alignment.center,
                 child: IconButton(
                   onPressed: onPausePressed,
-                  icon: const Icon(Icons.pause_circle_filled, color: Colors.white70, size: 40),
+                  icon: const Icon(Icons.pause_circle_filled, color: Colors.white70, size: 32),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),

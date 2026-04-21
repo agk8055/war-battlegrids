@@ -11,6 +11,8 @@ void main() async {
   
   final prefs = await SharedPreferences.getInstance();
 
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
