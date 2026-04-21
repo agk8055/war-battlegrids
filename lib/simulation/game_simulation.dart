@@ -32,9 +32,9 @@ class GameSimulation {
       );
 
   /// Attempts to place a unit for the current turn at the given coordinates.
-  /// Returns true if the move was successful and valid.
-  bool placeUnit(int x, int y) {
-    if (currentPhase == GamePhase.gameOver || currentPhase == GamePhase.draw) return false;
+  /// Returns a record: (success, captureOccurred)
+  (bool, bool) placeUnit(int x, int y) {
+    if (currentPhase == GamePhase.gameOver || currentPhase == GamePhase.draw) return (false, false);
 
     final isPlayer = currentTurn == Turn.player;
     final attackUnlocked = isPlayer
@@ -42,7 +42,7 @@ class GameSimulation {
         : aiKingdomAttackUnlocked;
 
     if (!GameRules.isValidPlacement(board, x, y, currentTurn, attackUnlocked)) {
-      return false; // Invalid move
+      return (false, false); // Invalid move
     }
 
     // Place the piece
@@ -54,8 +54,11 @@ class GameSimulation {
       x,
       y,
     ), currentTurn);
+    
+    bool captureOccurred = false;
     if (capturedCoords.isNotEmpty) {
       _handleCaptures(capturedCoords);
+      captureOccurred = true;
     }
 
     // Evaluate Win Condition
@@ -67,14 +70,14 @@ class GameSimulation {
       currentPhase = GamePhase.gameOver;
       winner = currentTurn;
       // Do NOT switch turns if game is over
-      return true;
+      return (true, captureOccurred);
     }
 
     // Evaluate Draw Condition
     if (GameRules.checkDraw(board, playerKingdomAttackUnlocked, aiKingdomAttackUnlocked)) {
       currentPhase = GamePhase.draw;
       winner = null; // No winner
-      return true;
+      return (true, captureOccurred);
     }
 
     // Update active win conditions for both players
@@ -82,7 +85,7 @@ class GameSimulation {
 
     // Switch turns
     currentTurn = isPlayer ? Turn.ai : Turn.player;
-    return true;
+    return (true, captureOccurred);
   }
 
   void _updateActiveWinConditions() {

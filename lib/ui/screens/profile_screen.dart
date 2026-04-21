@@ -1,40 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../providers/game_settings_provider.dart';
 import 'splash_screen.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  String? _kingdomName;
-  String? _kingdomSymbol;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
-
-  Future<void> _loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _kingdomName = prefs.getString('kingdom_name');
-      _kingdomSymbol = prefs.getString('kingdom_symbol');
-    });
-  }
-
-  Future<void> _resetProfile() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _resetProfile(BuildContext context, WidgetRef ref) async {
+    final prefs = ref.read(sharedPreferencesProvider);
     await prefs.remove('is_first_run');
     await prefs.remove('kingdom_name');
     await prefs.remove('kingdom_symbol');
     
-    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const SplashScreen()),
       (route) => false,
@@ -42,7 +20,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(gameSettingsProvider);
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -59,30 +39,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (_kingdomSymbol != null)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Theme.of(context).colorScheme.primary, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                          blurRadius: 15,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Image.asset(
-                      _kingdomSymbol!,
-                      width: 70,
-                      height: 70,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Theme.of(context).colorScheme.primary, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                        blurRadius: 15,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
+                  child: Image.asset(
+                    settings.player1Symbol,
+                    width: 70,
+                    height: 70,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
                 const SizedBox(height: 20),
                 Text(
-                  _kingdomName?.toUpperCase() ?? 'UNKNOWN KINGDOM',
+                  settings.player1Name.toUpperCase(),
                   style: GoogleFonts.sairaStencilOne(
                     fontSize: 32,
                     color: Theme.of(context).colorScheme.primary,
@@ -102,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 30),
                 OutlinedButton.icon(
-                  onPressed: _resetProfile,
+                  onPressed: () => _resetProfile(context, ref),
                   icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: const Text('RESET KINGDOM'),
                   style: OutlinedButton.styleFrom(

@@ -43,13 +43,14 @@ class SimulationNotifier extends Notifier<GameSimulation> {
   }
 
   /// Attempts to place a unit and updates state if successful.
-  bool placeUnit(int x, int y) {
-    bool success = state.placeUnit(x, y);
-    if (success) {
+  /// Returns a record: (success, captureOccurred)
+  (bool, bool) placeUnit(int x, int y) {
+    final result = state.placeUnit(x, y);
+    if (result.$1) {
       // Force riverpod to trigger a rebuild by assigning a genuinely new instance
       state = state.clone();
     }
-    return success;
+    return result;
   }
 
   /// Resets the current simulation to its initial state based on the current config.

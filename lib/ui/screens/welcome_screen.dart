@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../providers/game_settings_provider.dart';
 import 'main_menu_screen.dart';
 
-class WelcomeScreen extends StatefulWidget {
+class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
 
   @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
+  ConsumerState<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
+class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final TextEditingController _nameController = TextEditingController();
   String _selectedSymbol = 'assets/symbols/fire.png';
   final List<String> _symbols = [
@@ -20,17 +22,22 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   ];
 
   Future<void> _saveAndContinue() async {
-    if (_nameController.text.trim().isEmpty) {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter your Kingdom name')),
       );
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('kingdom_name', _nameController.text.trim());
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.setString('kingdom_name', name);
     await prefs.setString('kingdom_symbol', _selectedSymbol);
     await prefs.setBool('is_first_run', false);
+
+    // Update the provider so the rest of the app sees the changes immediately
+    ref.read(gameSettingsProvider.notifier).setPlayerNames(name, 'AI');
+    ref.read(gameSettingsProvider.notifier).setPlayerSymbols(_selectedSymbol, 'assets/icons/eagle.png');
 
     if (!mounted) return;
 

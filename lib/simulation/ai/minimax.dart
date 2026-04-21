@@ -59,7 +59,7 @@ class MinimaxAI {
 
     for (final move in availableMoves) {
       final GameSimulation simClone = _cloneSimulation(sim);
-      if (!simClone.placeUnit(move.$1, move.$2)) continue;
+      if (!simClone.placeUnit(move.$1, move.$2).$1) continue;
 
       int score = _minimax(simClone, maxDepth - 1, alpha, beta, false, strategy);
 
@@ -109,7 +109,7 @@ class MinimaxAI {
       int maxEval = -9999999;
       for (final move in availableMoves) {
         final GameSimulation simClone = _cloneSimulation(sim);
-        if (!simClone.placeUnit(move.$1, move.$2)) continue;
+        if (!simClone.placeUnit(move.$1, move.$2).$1) continue;
 
         int eval;
         if (firstMove) {
@@ -136,7 +136,7 @@ class MinimaxAI {
       int minEval = 9999999;
       for (final move in availableMoves) {
         final GameSimulation simClone = _cloneSimulation(sim);
-        if (!simClone.placeUnit(move.$1, move.$2)) continue;
+        if (!simClone.placeUnit(move.$1, move.$2).$1) continue;
 
         int eval;
         if (firstMove) {

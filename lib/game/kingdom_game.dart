@@ -10,6 +10,7 @@ import '../../providers/game_settings_provider.dart';
 import '../../simulation/ai/ai_strategy.dart';
 import '../../campaign/data/kingdoms_data.dart';
 import '../../campaign/models/kingdom_model.dart';
+import '../../core/services/audio_service.dart';
 
 import '../core/enums/turn.dart';
 import '../core/enums/game_mode.dart';
@@ -28,6 +29,12 @@ class KingdomGame extends FlameGame with ScaleDetector {
   Future<void> onLoad() async {
     images.prefix = ''; // Allow loading from any assets/ folder
     super.onLoad();
+
+    // Start preloading SFX in background so we don't block the map rendering
+    ref.read(audioServiceProvider).preloadSfx([
+      'audio/sfx/capture.mp3',
+      'audio/sfx/click.mp3',
+    ]);
 
     final simulation = ref.read(simulationProvider);
     final settings = ref.read(gameSettingsProvider);
@@ -91,9 +98,14 @@ class KingdomGame extends FlameGame with ScaleDetector {
       return;
     }
 
-    final success = notifier.placeUnit(x, y);
+    final result = notifier.placeUnit(x, y);
 
-    if (success) {
+    if (result.$1) {
+      if (result.$2) {
+        ref.read(audioServiceProvider).playSfx('audio/sfx/capture.mp3');
+      } else {
+        ref.read(audioServiceProvider).playSfx('audio/sfx/click.mp3');
+      }
       boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
       
       if (settings.mode == GameMode.story) {
@@ -127,8 +139,13 @@ class KingdomGame extends FlameGame with ScaleDetector {
 
       if (bestMove != null) {
         final notifier = ref.read(simulationProvider.notifier);
-        final success = notifier.placeUnit(bestMove.$1, bestMove.$2);
-        if (success) {
+        final result = notifier.placeUnit(bestMove.$1, bestMove.$2);
+        if (result.$1) {
+          if (result.$2) {
+            ref.read(audioServiceProvider).playSfx('audio/sfx/capture.mp3');
+          } else {
+            ref.read(audioServiceProvider).playSfx('audio/sfx/click.mp3');
+          }
           boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
         }
       }

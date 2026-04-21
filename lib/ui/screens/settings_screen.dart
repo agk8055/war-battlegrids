@@ -39,7 +39,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             _buildSettingTile(
               context,
-              title: 'VOLUME',
+              title: 'MUSIC VOLUME',
               subtitle: '${(settings.musicVolume * 100).toInt()}%',
               trailing: SizedBox(
                 width: 150,
@@ -47,6 +47,35 @@ class SettingsScreen extends ConsumerWidget {
                   value: settings.musicVolume,
                   onChanged: settings.musicEnabled 
                       ? (value) => settingsNotifier.setMusicVolume(value)
+                      : null,
+                  activeColor: Theme.of(context).colorScheme.primary,
+                  inactiveColor: Colors.white12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildSettingTile(
+              context,
+              title: 'SFX',
+              subtitle: 'Sound effects',
+              trailing: Switch(
+                value: settings.sfxEnabled,
+                onChanged: (value) => settingsNotifier.setSfxEnabled(value),
+                activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+                activeThumbColor: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildSettingTile(
+              context,
+              title: 'SFX VOLUME',
+              subtitle: '${(settings.sfxVolume * 100).toInt()}%',
+              trailing: SizedBox(
+                width: 150,
+                child: Slider(
+                  value: settings.sfxVolume,
+                  onChanged: settings.sfxEnabled 
+                      ? (value) => settingsNotifier.setSfxVolume(value)
                       : null,
                   activeColor: Theme.of(context).colorScheme.primary,
                   inactiveColor: Colors.white12,
