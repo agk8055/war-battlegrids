@@ -10,11 +10,9 @@ import '../../core/enums/game_mode.dart';
 import '../../core/enums/game_phase.dart';
 import '../../core/enums/turn.dart';
 import '../../campaign/campaign_manager.dart';
-import '../../campaign/data/kingdoms_data.dart';
 import '../../core/services/audio_service.dart';
 
-import '../widgets/hud/score_panel.dart';
-import '../widgets/hud/turn_indicator.dart';
+import '../widgets/hud/battle_hud_header.dart';
 import '../widgets/overlays/ai_thinking_overlay.dart';
 import '../widgets/overlays/capture_toast.dart';
 import '../widgets/overlays/game_over_overlay.dart';
@@ -77,31 +75,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   Widget build(BuildContext context) {
     final simulationState = ref.watch(simulationProvider);
     final aiState = ref.watch(aiStateProvider);
-
     final settings = ref.watch(gameSettingsProvider);
-    final isMultiplayer = settings.mode == GameMode.multiplayer;
-    
-    final campaignState = ref.watch(campaignProvider);
-    final selectedKingdom = campaignState.selectedKingdomId != null 
-        ? kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId)
-        : null;
-
-    final p1Name = isMultiplayer ? settings.player1Name : settings.player1Name;
-    final p1Symbol = settings.player1Symbol;
-
-    final p2Name = isMultiplayer 
-        ? settings.player2Name 
-        : (selectedKingdom?.name ?? "AI");
-    final p2Symbol = isMultiplayer 
-        ? settings.player2Symbol 
-        : (selectedKingdom?.symbolAsset ?? "assets/icons/eagle.png");
-    final p2Color = isMultiplayer 
-        ? Colors.red 
-        : (selectedKingdom?.primaryColor ?? Colors.red);
 
     // Listen for score increases to show Capture toasts
     ref.listen(simulationProvider, (previous, next) {
       if (previous == null) return;
+      
+      // Determine Player names for toast messages
+      final p1Name = settings.player1Name;
+      final p2Name = settings.mode == GameMode.multiplayer ? settings.player2Name : "AI";
+
       if (next.playerScore > previous.playerScore) {
         CaptureToast.show(
           context,
@@ -112,7 +95,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         CaptureToast.show(
           context,
           "${p2Name.toUpperCase()} CAPTURE! +${next.aiScore - previous.aiScore}",
-          p2Color,
+          Colors.redAccent,
         );
       }
     });
@@ -126,65 +109,13 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             child: GameWidget(game: _game!),
           ),
 
-          // 2. HUD Layer (Safe Area)
-          SafeArea(
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  right: 10,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Player Score Panel
-                      _buildOverlayContainer(
-                        child: ScorePanel(
-                          title: p1Name,
-                          symbolAsset: p1Symbol,
-                          points: simulationState.playerScore,
-                          color: Colors.blue,
-                          kingdomAttackUnlocked:
-                              simulationState.playerKingdomAttackUnlocked,
-                          activeWinCondition: simulationState.playerActiveWinCondition,
-                        ),
-                      ),
-
-                      // Turn Indicator & Pause
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TurnIndicator(currentTurn: simulationState.currentTurn, mode: settings.mode),
-                          const SizedBox(height: 12),
-                          IconButton(
-                            onPressed: _togglePause,
-                            icon: const Icon(Icons.pause_circle_filled, color: Colors.white70, size: 48),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.black45,
-                              padding: const EdgeInsets.all(4),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // AI Score Panel
-                      _buildOverlayContainer(
-                        child: ScorePanel(
-                          title: p2Name,
-                          symbolAsset: p2Symbol,
-                          points: simulationState.aiScore,
-                          color: p2Color,
-                          kingdomAttackUnlocked:
-                              simulationState.aiKingdomAttackUnlocked,
-                          activeWinCondition: simulationState.aiActiveWinCondition,
-                          alignment: CrossAxisAlignment.end,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          // 2. HUD Layer (Top Aligned)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: BattleHudHeader(
+              onPausePressed: _togglePause,
             ),
           ),
 
@@ -228,18 +159,6 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             ),
         ],
       ),
-    );
-  }
-
-  Widget _buildOverlayContainer({required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white24, width: 1),
-      ),
-      child: child,
     );
   }
 }

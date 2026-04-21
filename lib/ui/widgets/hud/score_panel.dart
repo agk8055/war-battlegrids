@@ -8,6 +8,7 @@ class ScorePanel extends StatelessWidget {
   final String symbolAsset;
   final bool kingdomAttackUnlocked;
   final WinConditionType activeWinCondition;
+  final bool isActiveTurn;
   final CrossAxisAlignment alignment;
 
   const ScorePanel({
@@ -18,14 +19,28 @@ class ScorePanel extends StatelessWidget {
     required this.symbolAsset,
     required this.kingdomAttackUnlocked,
     required this.activeWinCondition,
+    this.isActiveTurn = false,
     this.alignment = CrossAxisAlignment.start,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isActiveTurn ? color.withValues(alpha: 0.8) : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: alignment == CrossAxisAlignment.end 
+            ? MainAxisAlignment.end 
+            : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
         if (alignment == CrossAxisAlignment.end) ...[
           _buildTextContent(context),
           const SizedBox(width: 12),
@@ -36,8 +51,9 @@ class ScorePanel extends StatelessWidget {
           _buildTextContent(context),
         ],
       ],
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSymbol() {
     return Container(
@@ -70,6 +86,7 @@ class ScorePanel extends StatelessWidget {
       children: [
         Text(
           title.toUpperCase(),
+          textAlign: alignment == CrossAxisAlignment.end ? TextAlign.right : TextAlign.left,
           style: TextStyle(
             color: color,
             fontWeight: FontWeight.w900,
@@ -79,6 +96,7 @@ class ScorePanel extends StatelessWidget {
         ),
         Text(
           "POINTS: $points",
+          textAlign: alignment == CrossAxisAlignment.end ? TextAlign.right : TextAlign.left,
           style: const TextStyle(
             color: Colors.white70,
             fontSize: 11,

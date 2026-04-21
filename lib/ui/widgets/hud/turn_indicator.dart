@@ -20,17 +20,17 @@ class TurnIndicator extends ConsumerWidget {
     if (isMultiplayer) {
       text = isPlayer ? '${settings.player1Name} TURN' : '${settings.player2Name} TURN';
     } else {
-      text = isPlayer ? 'PLAYER TURN' : 'AI TURN';
+      text = isPlayer ? 'PLAYER' : 'AI';
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: isPlayer ? Colors.blue.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isPlayer ? Colors.blueAccent : Colors.redAccent, 
-          width: 2
+          width: 1.5
         ),
       ),
       child: Text(
@@ -38,8 +38,8 @@ class TurnIndicator extends ConsumerWidget {
         style: TextStyle(
           color: isPlayer ? Colors.blueAccent : Colors.redAccent,
           fontWeight: FontWeight.bold,
-          fontSize: 16,
-          letterSpacing: 2,
+          fontSize: 12,
+          letterSpacing: 1.5,
         ),
       ),
     );
