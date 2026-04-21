@@ -28,22 +28,25 @@ class GameScreen extends ConsumerStatefulWidget {
 
 class _GameScreenState extends ConsumerState<GameScreen> {
   KingdomGame? _game;
+  late AudioService _audioService;
 
   @override
   void initState() {
     super.initState();
     _game = KingdomGame(ref);
+    _audioService = ref.read(audioServiceProvider);
     
     // Stop main theme music during match
     Future.microtask(() {
-      ref.read(audioServiceProvider).stopMusic();
+      if (!mounted) return;
+      _audioService.stopMusicForMatch();
     });
   }
 
   @override
   void dispose() {
     // Resume main theme music when leaving match
-    ref.read(audioServiceProvider).playMainTheme();
+    _audioService.resumeMusicAfterMatch();
     super.dispose();
   }
 

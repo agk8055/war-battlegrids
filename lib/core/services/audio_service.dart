@@ -5,6 +5,7 @@ import '../../providers/game_settings_provider.dart';
 
 class AudioService {
   final AudioPlayer _musicPlayer = AudioPlayer();
+  bool _isStoppedForMatch = false;
   
   // A larger circular pool is the most robust way to handle rapid SFX on Android
   final List<AudioPlayer> _pool = [];
@@ -42,14 +43,36 @@ class AudioService {
 
   Future<void> playMainTheme() async {
     final settings = _ref.read(gameSettingsProvider);
-    if (!settings.musicEnabled) return;
+    if (!settings.musicEnabled || _isStoppedForMatch) return;
     
-    await _musicPlayer.setVolume(settings.musicVolume);
-    await _musicPlayer.play(AssetSource('audio/Crown_of_the_Morning_Sky.mp3'));
+    // If it's already playing, just ensure volume is correct and return
+    if (_musicPlayer.state == PlayerState.playing) {
+      await _musicPlayer.setVolume(settings.musicVolume);
+      return;
+    }
+    
+    try {
+      // Ensure we are stopped before starting fresh
+      await _musicPlayer.stop();
+      await _musicPlayer.setVolume(settings.musicVolume);
+      await _musicPlayer.play(AssetSource('audio/Crown_of_the_Morning_Sky.mp3'));
+    } catch (e) {
+      debugPrint('AudioService: Failed to play main theme: $e');
+    }
   }
 
   Future<void> stopMusic() async {
     await _musicPlayer.stop();
+  }
+
+  Future<void> stopMusicForMatch() async {
+    _isStoppedForMatch = true;
+    await stopMusic();
+  }
+
+  Future<void> resumeMusicAfterMatch() async {
+    _isStoppedForMatch = false;
+    await playMainTheme();
   }
 
   void playSfx(String path) {
@@ -70,10 +93,12 @@ class AudioService {
 
   void _applySettings(GameSettings settings) {
     if (settings.musicEnabled) {
-      if (_musicPlayer.state != PlayerState.playing) {
-        playMainTheme();
-      } else {
-        _musicPlayer.setVolume(settings.musicVolume);
+      if (!_isStoppedForMatch) {
+        if (_musicPlayer.state != PlayerState.playing) {
+          playMainTheme();
+        } else {
+          _musicPlayer.setVolume(settings.musicVolume);
+        }
       }
     } else {
       if (_musicPlayer.state == PlayerState.playing) {
