@@ -5,6 +5,7 @@ import '../../providers/game_settings_provider.dart';
 import '../../core/enums/game_mode.dart';
 import 'overworld_map_screen.dart';
 import 'map_selection_screen.dart';
+import 'multiplayer_mode_selection_screen.dart';
 import 'settings_screen.dart';
 import 'profile_screen.dart';
 
@@ -44,7 +45,7 @@ class GameHomeScreen extends ConsumerWidget {
                   const SizedBox(width: 24),
                   _buildMenuButton(
                     context,
-                    label: 'STORY MODE',
+                    label: 'CAMPAIGN',
                     iconAsset: 'assets/icons/story_mode_icon.png',
                     onPressed: () {
                       ref.read(gameSettingsProvider.notifier).setMode(GameMode.story);
@@ -66,8 +67,8 @@ class GameHomeScreen extends ConsumerWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          settings: const RouteSettings(name: '/map_selection'),
-                          builder: (context) => const MapSelectionScreen(),
+                          settings: const RouteSettings(name: '/multiplayer_mode'),
+                          builder: (context) => const MultiplayerModeSelectionScreen(),
                         ),
                       );
                     },
