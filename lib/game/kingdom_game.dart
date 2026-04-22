@@ -7,6 +7,7 @@ import '../../campaign/data/battle_configs.dart';
 import '../../providers/turn_provider.dart';
 import '../../providers/simulation_provider.dart';
 import '../../providers/game_settings_provider.dart';
+import '../../providers/bluetooth_provider.dart';
 import '../../simulation/ai/ai_strategy.dart';
 import '../../campaign/data/kingdoms_data.dart';
 import '../../campaign/models/kingdom_model.dart';
@@ -95,6 +96,8 @@ class KingdomGame extends FlameGame with ScaleDetector {
     final notifier = ref.read(simulationProvider.notifier);
     final simulationState = ref.read(simulationProvider);
     final settings = ref.read(gameSettingsProvider);
+    final multiplayerMode = ref.read(multiplayerModeProvider);
+    final bluetoothState = ref.read(bluetoothProvider);
 
     // Prevent tap if game is over or AI is thinking
     if (simulationState.currentPhase == GamePhase.gameOver) return;
@@ -102,6 +105,13 @@ class KingdomGame extends FlameGame with ScaleDetector {
     // In story mode, prevent tap if it's AI turn
     if (settings.mode == GameMode.story && simulationState.currentTurn == Turn.ai) {
       return;
+    }
+
+    // In multiplayer mode, prevent tap if it's not our turn
+    if (multiplayerMode) {
+      final isOurTurn = (bluetoothState.isHost && simulationState.currentTurn == Turn.player) ||
+                       (!bluetoothState.isHost && simulationState.currentTurn == Turn.ai);
+      if (!isOurTurn) return;
     }
 
     final result = notifier.placeUnit(x, y);
@@ -114,7 +124,10 @@ class KingdomGame extends FlameGame with ScaleDetector {
       }
       boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
       
-      if (settings.mode == GameMode.story) {
+      if (multiplayerMode) {
+        // Send move to peer
+        ref.read(bluetoothProvider.notifier).sendMove(x, y);
+      } else if (settings.mode == GameMode.story) {
         _checkAITurn();
       }
     }

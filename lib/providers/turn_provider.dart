@@ -20,6 +20,19 @@ class AIStateNotifier extends Notifier<AIState> {
   void setIdle() => state = AIState.idle;
 }
 
+/// Provider to track if we are in multiplayer mode.
+final multiplayerModeProvider = NotifierProvider<MultiplayerModeNotifier, bool>(() {
+  return MultiplayerModeNotifier();
+});
+
+class MultiplayerModeNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  @override
+  set state(bool value) => super.state = value;
+}
+
 /// Helper function that runs inside the Dart Isolate.
 /// It MUST be a top-level or static function to work in `compute`/`Isolate.run`.
 (int, int)? _runMinimaxInIsolate(Map<String, dynamic> args) {

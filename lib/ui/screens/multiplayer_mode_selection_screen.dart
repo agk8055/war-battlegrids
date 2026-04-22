@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'map_selection_screen.dart';
+import 'bluetooth_lobby_screen.dart';
 
 class MultiplayerModeSelectionScreen extends StatelessWidget {
   const MultiplayerModeSelectionScreen({super.key});
@@ -26,10 +27,14 @@ class MultiplayerModeSelectionScreen extends StatelessWidget {
         'title': 'BLUETOOTH',
         'subtitle': 'Nearby connection',
         'icon': Icons.bluetooth_audio_rounded,
-        'enabled': false,
+        'enabled': true,
         'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bluetooth Multiplayer coming soon!')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: '/bluetooth_lobby'),
+              builder: (context) => const BluetoothLobbyScreen(),
+            ),
           );
         },
       },

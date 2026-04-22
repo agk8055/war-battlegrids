@@ -1,11 +1,12 @@
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/game_settings_provider.dart';
 
-class AudioService {
+class AudioService with WidgetsBindingObserver {
   final AudioPlayer _musicPlayer = AudioPlayer();
   bool _isStoppedForMatch = false;
+  bool _wasPlayingBeforePause = false;
   
   // A larger circular pool is the most robust way to handle rapid SFX on Android
   final List<AudioPlayer> _pool = [];
@@ -17,6 +18,7 @@ class AudioService {
   AudioService(this._ref) {
     _musicPlayer.setReleaseMode(ReleaseMode.loop);
     _initPool();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   void _initPool() {
@@ -25,6 +27,26 @@ class AudioService {
       // Use lowLatency mode which maps to SoundPool on Android (ideal for SFX)
       p.setPlayerMode(PlayerMode.lowLatency);
       _pool.add(p);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // App is in background or screen off
+      if (_musicPlayer.state == PlayerState.playing) {
+        _wasPlayingBeforePause = true;
+        _musicPlayer.pause();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      // App is back in foreground
+      if (_wasPlayingBeforePause && !_isStoppedForMatch) {
+        final settings = _ref.read(gameSettingsProvider);
+        if (settings.musicEnabled) {
+          _musicPlayer.resume();
+        }
+      }
+      _wasPlayingBeforePause = false;
     }
   }
 
@@ -110,6 +132,7 @@ class AudioService {
   }
 
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _musicPlayer.dispose();
     for (final p in _pool) {
       p.dispose();

@@ -5,7 +5,9 @@ import '../../game/kingdom_game.dart';
 import '../../providers/simulation_provider.dart';
 import '../../providers/turn_provider.dart';
 import '../../providers/game_settings_provider.dart';
+import '../../providers/bluetooth_provider.dart';
 import '../../core/enums/game_mode.dart';
+import 'multiplayer_mode_selection_screen.dart';
 
 import '../../core/enums/game_phase.dart';
 import '../../core/enums/turn.dart';
@@ -77,9 +79,39 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     final aiState = ref.watch(aiStateProvider);
     final settings = ref.watch(gameSettingsProvider);
 
+    // Listen for Bluetooth disconnection
+    ref.listen(bluetoothProvider, (previous, next) {
+      if (settings.mode == GameMode.multiplayer && 
+          next.status == BluetoothStatus.idle && 
+          previous?.status == BluetoothStatus.connected) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text('DISCONNECTED'),
+            content: const Text('The Bluetooth connection was lost.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection' || route.isFirst);
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (context) => const MultiplayerModeSelectionScreen()),
+                  );
+                },
+                child: const Text('RETURN TO MENU'),
+              ),
+            ],
+          ),
+        );
+      }
+    });
+
     // Listen for score increases to show Capture toasts
     ref.listen(simulationProvider, (previous, next) {
       if (previous == null) return;
+      
+      // Visual sync
+      _game?.forceSync();
       
       // Determine Player names for toast messages
       final p1Name = settings.player1Name;
