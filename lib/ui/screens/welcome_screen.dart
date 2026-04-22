@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/game_settings_provider.dart';
 import 'main_menu_screen.dart';
 
@@ -19,6 +18,11 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     'assets/symbols/fire.png',
     'assets/symbols/tiger.png',
     'assets/symbols/flash.png',
+    'assets/icons/hacker.png',
+    'assets/icons/lion.png',
+    'assets/icons/wolf.png',
+    'assets/icons/bull.png',
+    'assets/icons/shuriken.png',
   ];
 
   Future<void> _saveAndContinue() async {
@@ -44,6 +48,30 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const GameHomeScreen()),
     );
+  }
+
+  String _getSigilDescription(String path) {
+    final name = path.split('/').last.split('.').first;
+    switch (name) {
+      case 'fire':
+        return 'The FIRE sigil represents unyielding passion and destruction.';
+      case 'tiger':
+        return 'The TIGER sigil represents fierce independence and raw strength.';
+      case 'flash':
+        return 'The FLASH sigil represents lightning speed and overwhelming energy.';
+      case 'hacker':
+        return 'The HACKER sigil represents superior intellect and tactical subversion.';
+      case 'lion':
+        return 'The LION sigil represents noble leadership and courageous heart.';
+      case 'wolf':
+        return 'The WOLF sigil represents sharp instincts and the strength of the pack.';
+      case 'bull':
+        return 'The BULL sigil represents stubborn resilience and unstoppable force.';
+      case 'shuriken':
+        return 'The SHURIKEN sigil represents silent lethality and perfect precision.';
+      default:
+        return 'The ${name.toUpperCase()} sigil represents your chosen path.';
+    }
   }
 
   @override
@@ -155,8 +183,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                             borderRadius: BorderRadius.circular(16),
                             color: Colors.white.withValues(alpha: 0.03),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          child: Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            alignment: WrapAlignment.center,
                             children: _symbols.map((symbol) {
                               final isSelected = _selectedSymbol == symbol;
                               return GestureDetector(
@@ -167,7 +197,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                                 },
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: isSelected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15) : Colors.transparent,
                                     border: Border.all(
@@ -185,8 +215,8 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                                   ),
                                   child: Image.asset(
                                     symbol,
-                                    width: 50,
-                                    height: 50,
+                                    width: 45,
+                                    height: 45,
                                     fit: BoxFit.contain,
                                     color: isSelected ? Theme.of(context).colorScheme.primary : Colors.white70,
                                   ),
@@ -198,7 +228,8 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                         const SizedBox(height: 15),
                         Center(
                           child: Text(
-                            'The ${_selectedSymbol.split('/').last.split('.').first.toUpperCase()} sigil represents your power.',
+                            _getSigilDescription(_selectedSymbol),
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.4),
                               fontSize: 11,

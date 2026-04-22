@@ -3,8 +3,8 @@ import '../models/battle_config.dart';
 import '../../simulation/ai/ai_strategy.dart';
 
 final Map<String, BattleConfig> kBattleConfigs = {
-  'snowy_village': BattleConfig(
-    kingdomId: 'snowy_village',
+  'northern_village': BattleConfig(
+    kingdomId: 'northern_village',
     mapPath: '15x15_northern_forest_map.tmx',
     levelConfig: const LevelConfig(
       boardWidth: 15,
