@@ -40,31 +40,70 @@ class KingdomGame extends FlameGame with ScaleDetector {
     final simulation = ref.read(simulationProvider);
     final settings = ref.read(gameSettingsProvider);
     final campaignState = ref.read(campaignProvider);
+    final bluetoothState = ref.read(bluetoothProvider);
     final isMultiplayer = settings.mode == GameMode.multiplayer;
+    final isHost = bluetoothState.isHost;
 
     final selectedKingdom = campaignState.selectedKingdomId != null 
         ? kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId)
         : null;
 
-    final playerSymbol = settings.player1Symbol;
-    final opponentSymbol = isMultiplayer 
-        ? settings.player2Symbol 
-        : (selectedKingdom?.symbolAsset ?? 'assets/icons/eagle.png');
+    // In Simulation:
+    // Bottom (y >= height/2) is Turn.player
+    // Top (y < height/2) is Turn.ai
+    
+    // For Bluetooth Multiplayer:
+    // Host is Turn.player, Joiner is Turn.ai
+    // We want Bottom = Host, Top = Joiner on BOTH devices.
+    
+    final String bottomSymbol;
+    final String topSymbol;
+    final Color bottomColor;
+    final Color topColor;
 
-    final playerColor = Colors.blue;
-    final opponentColor = isMultiplayer 
-        ? Colors.red 
-        : (selectedKingdom?.primaryColor ?? Colors.red);
+    if (isMultiplayer) {
+      if (isHost) {
+        // Host device: Local is Player1 (Bottom), Peer is Player2 (Top)
+        bottomSymbol = settings.player1Symbol;
+        topSymbol = settings.player2Symbol;
+        bottomColor = Color(settings.player1Color);
+        topColor = Color(settings.player2Color);
+      } else {
+        // Joiner device: Local is Player1 (mapped to Turn.ai = Top)
+        // Peer is Player2 (mapped to Turn.player = Bottom)
+        // Wait, check sync_settings in BluetoothNotifier:
+        // p1Symbol (Host) is mapped to Joiner's p2Symbol (Peer)
+        // p2Symbol (Joiner) is mapped to Joiner's p1Symbol (Local)
+        
+        // Actually, let's keep it simple:
+        // In GameSettings on Joiner device:
+        // player1Name = Joiner, player2Name = Host
+        // player1Symbol = Joiner, player2Symbol = Host
+        // player1Color = Joiner, player2Color = Host
+        
+        // We want Host at Bottom (Turn.player), Joiner at Top (Turn.ai).
+        bottomSymbol = settings.player2Symbol; // Host symbol on joiner device
+        topSymbol = settings.player1Symbol;    // Joiner symbol on joiner device
+        bottomColor = Color(settings.player2Color);
+        topColor = Color(settings.player1Color);
+      }
+    } else {
+      // Single player
+      bottomSymbol = settings.player1Symbol;
+      topSymbol = selectedKingdom?.symbolAsset ?? 'assets/icons/eagle.png';
+      bottomColor = Colors.blue;
+      topColor = selectedKingdom?.primaryColor ?? Colors.red;
+    }
 
     // Create the board visualization
     boardComponent = BoardComponent(
       simulationBoard: simulation.board,
       cellSize: 40.0,
       mapPath: settings.selectedMapPath,
-      playerSymbol: playerSymbol,
-      opponentSymbol: opponentSymbol,
-      playerColor: playerColor,
-      opponentColor: opponentColor,
+      playerSymbol: bottomSymbol,    // Maps to Turn.player
+      opponentSymbol: topSymbol,     // Maps to Turn.ai
+      playerColor: bottomColor,
+      opponentColor: topColor,
       onCellTapped: _handleCellTapped,
     );
 

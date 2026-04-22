@@ -8,6 +8,7 @@ import '../../providers/game_settings_provider.dart';
 import '../../providers/bluetooth_provider.dart';
 import '../../core/enums/game_mode.dart';
 import 'multiplayer_mode_selection_screen.dart';
+import 'bluetooth_lobby_screen.dart';
 
 import '../../core/enums/game_phase.dart';
 import '../../core/enums/turn.dart';
@@ -114,20 +115,28 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       _game?.forceSync();
       
       // Determine Player names for toast messages
+      final isMultiplayer = settings.mode == GameMode.multiplayer;
+      final isHost = ref.read(bluetoothProvider).isHost;
       final p1Name = settings.player1Name;
-      final p2Name = settings.mode == GameMode.multiplayer ? settings.player2Name : "AI";
+      final p2Name = isMultiplayer ? settings.player2Name : "AI";
 
       if (next.playerScore > previous.playerScore) {
+        // Turn.player (Host) captured
+        final name = (isMultiplayer && !isHost) ? p2Name : p1Name;
+        final color = (isMultiplayer && !isHost) ? Colors.redAccent : Colors.blue;
         CaptureToast.show(
           context,
-          "${p1Name.toUpperCase()} CAPTURE! +${next.playerScore - previous.playerScore}",
-          Colors.blue,
+          "${name.toUpperCase()} CAPTURE! +${next.playerScore - previous.playerScore}",
+          color,
         );
       } else if (next.aiScore > previous.aiScore) {
+        // Turn.ai (Joiner/AI) captured
+        final name = (isMultiplayer && !isHost) ? p1Name : p2Name;
+        final color = (isMultiplayer && !isHost) ? Colors.blue : Colors.redAccent;
         CaptureToast.show(
           context,
-          "${p2Name.toUpperCase()} CAPTURE! +${next.aiScore - previous.aiScore}",
-          Colors.redAccent,
+          "${name.toUpperCase()} CAPTURE! +${next.aiScore - previous.aiScore}",
+          color,
         );
       }
     });
@@ -183,6 +192,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                       }
                     }
                     Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
+                  } else if (settings.mode == GameMode.multiplayer) {
+                    // Reset gameStarted flag so we can start again
+                    ref.read(bluetoothProvider.notifier).setGameStarted(false);
+                    
+                    // Return to lobby
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const BluetoothLobbyScreen(),
+                      ),
+                    );
                   } else {
                     Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
                   }

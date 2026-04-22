@@ -4,6 +4,7 @@ import '../../../core/enums/game_mode.dart';
 import '../../../core/enums/turn.dart';
 import '../../../providers/simulation_provider.dart';
 import '../../../providers/game_settings_provider.dart';
+import '../../../providers/bluetooth_provider.dart';
 import '../../../campaign/campaign_manager.dart';
 import '../../../campaign/data/kingdoms_data.dart';
 import 'score_panel.dart';
@@ -21,27 +22,66 @@ class BattleHudHeader extends ConsumerWidget {
     final simulationState = ref.watch(simulationProvider);
     final settings = ref.watch(gameSettingsProvider);
     final campaignState = ref.watch(campaignProvider);
+    final bluetoothState = ref.watch(bluetoothProvider);
 
     final isMultiplayer = settings.mode == GameMode.multiplayer;
+    final isHost = bluetoothState.isHost;
+
     final selectedKingdom = campaignState.selectedKingdomId != null 
         ? kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId)
         : null;
 
-    final p1Name = settings.player1Name;
-    final p1Symbol = settings.player1Symbol;
+    final String p1Name;
+    final String p1Symbol;
+    final int p1ColorVal;
 
-    final p2Name = isMultiplayer 
-        ? settings.player2Name 
-        : (selectedKingdom?.name ?? "AI");
-    final p2Symbol = isMultiplayer 
-        ? settings.player2Symbol 
-        : (selectedKingdom?.symbolAsset ?? 'assets/icons/eagle.png');
-    final p2Color = isMultiplayer 
-        ? Colors.red 
-        : (selectedKingdom?.primaryColor ?? Colors.red);
+    final String p2Name;
+    final String p2Symbol;
+    final int p2ColorVal;
 
-    final isP1Turn = simulationState.currentTurn == Turn.player;
-    final isP2Turn = simulationState.currentTurn == Turn.ai;
+    if (isMultiplayer) {
+      // Always Host on Left, Joiner on Right
+      if (isHost) {
+        p1Name = settings.player1Name;
+        p1Symbol = settings.player1Symbol;
+        p1ColorVal = settings.player1Color;
+
+        p2Name = settings.player2Name;
+        p2Symbol = settings.player2Symbol;
+        p2ColorVal = settings.player2Color;
+      } else {
+        // Joiner device: player1 in settings is Me (Joiner), player2 is Peer (Host)
+        p1Name = settings.player2Name; // Host
+        p1Symbol = settings.player2Symbol;
+        p1ColorVal = settings.player2Color;
+
+        p2Name = settings.player1Name; // Joiner
+        p2Symbol = settings.player1Symbol;
+        p2ColorVal = settings.player1Color;
+      }
+    } else {
+      p1Name = settings.player1Name;
+      p1Symbol = settings.player1Symbol;
+      p1ColorVal = settings.player1Color;
+
+      p2Name = selectedKingdom?.name ?? "AI";
+      p2Symbol = selectedKingdom?.symbolAsset ?? 'assets/icons/eagle.png';
+      p2ColorVal = selectedKingdom?.primaryColor.toARGB32() ?? Colors.red.toARGB32();
+    }
+
+    final p1Color = Color(p1ColorVal);
+    final p2Color = Color(p2ColorVal);
+
+    // Turn.player is Host (P1), Turn.ai is Joiner (P2)
+    final p1IsActive = simulationState.currentTurn == Turn.player;
+    final p1Score = simulationState.playerScore;
+    final p1KingdomAttackUnlocked = simulationState.playerKingdomAttackUnlocked;
+    final p1ActiveWinCondition = simulationState.playerActiveWinCondition;
+
+    final p2IsActive = simulationState.currentTurn == Turn.ai;
+    final p2Score = simulationState.aiScore;
+    final p2KingdomAttackUnlocked = simulationState.aiKingdomAttackUnlocked;
+    final p2ActiveWinCondition = simulationState.aiActiveWinCondition;
 
     return SafeArea(
       bottom: false,
@@ -71,11 +111,11 @@ class BattleHudHeader extends ConsumerWidget {
               child: ScorePanel(
                 title: p1Name,
                 symbolAsset: p1Symbol,
-                points: simulationState.playerScore,
-                color: Colors.blue,
-                kingdomAttackUnlocked: simulationState.playerKingdomAttackUnlocked,
-                activeWinCondition: simulationState.playerActiveWinCondition,
-                isActiveTurn: isP1Turn,
+                points: p1Score,
+                color: p1Color,
+                kingdomAttackUnlocked: p1KingdomAttackUnlocked,
+                activeWinCondition: p1ActiveWinCondition,
+                isActiveTurn: p1IsActive,
               ),
             ),
 
@@ -99,12 +139,12 @@ class BattleHudHeader extends ConsumerWidget {
               child: ScorePanel(
                 title: p2Name,
                 symbolAsset: p2Symbol,
-                points: simulationState.aiScore,
+                points: p2Score,
                 color: p2Color,
-                kingdomAttackUnlocked: simulationState.aiKingdomAttackUnlocked,
-                activeWinCondition: simulationState.aiActiveWinCondition,
+                kingdomAttackUnlocked: p2KingdomAttackUnlocked,
+                activeWinCondition: p2ActiveWinCondition,
                 alignment: CrossAxisAlignment.end,
-                isActiveTurn: isP2Turn,
+                isActiveTurn: p2IsActive,
               ),
             ),
           ],

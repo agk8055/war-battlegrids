@@ -5,6 +5,7 @@ import 'package:nearby_connections/nearby_connections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'simulation_provider.dart';
+import 'game_settings_provider.dart';
 
 enum BluetoothStatus { idle, scanning, connecting, connected, failed }
 
@@ -21,6 +22,14 @@ class BluetoothState {
   final DiscoveredDevice? connectedDevice;
   final bool isHost;
   final bool gameStarted;
+  final String? peerKingdomName;
+  final String? selectedMapPath;
+  final String? selectedMapName;
+  final String player1Symbol;
+  final String player2Symbol;
+  final int player1Color;
+  final int player2Color;
+  final int kingdomAttackThreshold;
 
   BluetoothState({
     this.status = BluetoothStatus.idle,
@@ -28,6 +37,14 @@ class BluetoothState {
     this.connectedDevice,
     this.isHost = false,
     this.gameStarted = false,
+    this.peerKingdomName,
+    this.selectedMapPath,
+    this.selectedMapName,
+    this.player1Symbol = 'assets/symbols/fire.png',
+    this.player2Symbol = 'assets/icons/eagle.png',
+    this.player1Color = 0xFF2196F3, // Colors.blue
+    this.player2Color = 0xFFF44336, // Colors.red
+    this.kingdomAttackThreshold = 100,
   });
 
   BluetoothState copyWith({
@@ -36,6 +53,14 @@ class BluetoothState {
     DiscoveredDevice? connectedDevice,
     bool? isHost,
     bool? gameStarted,
+    String? peerKingdomName,
+    String? selectedMapPath,
+    String? selectedMapName,
+    String? player1Symbol,
+    String? player2Symbol,
+    int? player1Color,
+    int? player2Color,
+    int? kingdomAttackThreshold,
   }) {
     return BluetoothState(
       status: status ?? this.status,
@@ -43,6 +68,14 @@ class BluetoothState {
       connectedDevice: connectedDevice ?? this.connectedDevice,
       isHost: isHost ?? this.isHost,
       gameStarted: gameStarted ?? this.gameStarted,
+      peerKingdomName: peerKingdomName ?? this.peerKingdomName,
+      selectedMapPath: selectedMapPath ?? this.selectedMapPath,
+      selectedMapName: selectedMapName ?? this.selectedMapName,
+      player1Symbol: player1Symbol ?? this.player1Symbol,
+      player2Symbol: player2Symbol ?? this.player2Symbol,
+      player1Color: player1Color ?? this.player1Color,
+      player2Color: player2Color ?? this.player2Color,
+      kingdomAttackThreshold: kingdomAttackThreshold ?? this.kingdomAttackThreshold,
     );
   }
 }
@@ -84,7 +117,7 @@ class BluetoothNotifier extends Notifier<BluetoothState> {
       try {
         await Nearby().stopDiscovery();
         await Nearby().startDiscovery(
-          "Player",
+          ref.read(gameSettingsProvider).player1Name,
           strategy,
           onEndpointFound: (id, name, serviceId) {
             final devices = List<DiscoveredDevice>.from(state.discoveredDevices);
@@ -119,7 +152,7 @@ class BluetoothNotifier extends Notifier<BluetoothState> {
       try {
         await Nearby().stopAdvertising();
         await Nearby().startAdvertising(
-          "Host",
+          ref.read(gameSettingsProvider).player1Name,
           strategy,
           onConnectionInitiated: _onConnectionInitiated,
           onConnectionResult: _onConnectionResult,
@@ -135,7 +168,6 @@ class BluetoothNotifier extends Notifier<BluetoothState> {
   }
 
   void _onConnectionInitiated(String id, ConnectionInfo info) {
-    // Automatically accept connection for now to simplify
     Nearby().acceptConnection(
       id,
       onPayLoadRecieved: (id, payload) {
@@ -154,6 +186,7 @@ class BluetoothNotifier extends Notifier<BluetoothState> {
         status: BluetoothStatus.connected,
         connectedDevice: DiscoveredDevice(id: id, name: "Peer"),
       );
+      sendKingdomName(ref.read(gameSettingsProvider).player1Name);
     } else {
       state = state.copyWith(status: BluetoothStatus.failed);
     }
@@ -172,17 +205,91 @@ class BluetoothNotifier extends Notifier<BluetoothState> {
     if (message['type'] == 'move') {
       final x = message['x'] as int;
       final y = message['y'] as int;
-      ref.read(simulationProvider.notifier).placeUnit(x, y);
+      ref.read(simulationProvider.notifier).placeUnitFromPeer(x, y);
     } else if (message['type'] == 'start_game') {
       state = state.copyWith(gameStarted: true);
+    } else if (message['type'] == 'kingdom_name') {
+      state = state.copyWith(peerKingdomName: message['name']);
+      ref.read(gameSettingsProvider.notifier).setPlayerNames(
+        ref.read(gameSettingsProvider).player1Name,
+        message['name'],
+      );
+    } else if (message['type'] == 'map_selection') {
+      state = state.copyWith(
+        selectedMapPath: message['path'],
+        selectedMapName: message['name'],
+      );
+      ref.read(gameSettingsProvider.notifier).setSelectedMap(message['path']);
+    } else if (message['type'] == 'sync_settings') {
+      state = state.copyWith(
+        player1Symbol: message['p1Symbol'],
+        player2Symbol: message['p2Symbol'],
+        player1Color: message['p1Color'],
+        player2Color: message['p2Color'],
+        kingdomAttackThreshold: message['threshold'],
+      );
+      // For joiner, p2 is local, p1 is peer
+      ref.read(gameSettingsProvider.notifier).setPlayerSymbols(
+        message['p2Symbol'],
+        message['p1Symbol'],
+      );
+      ref.read(gameSettingsProvider.notifier).setPlayerColors(
+        message['p2Color'],
+        message['p1Color'],
+      );
+      ref.read(gameSettingsProvider.notifier).setKingdomAttackThreshold(message['threshold']);
     }
+  }
+
+  void updateSettings({String? p1Symbol, String? p2Symbol, int? p1Color, int? p2Color, int? threshold}) {
+    state = state.copyWith(
+      player1Symbol: p1Symbol,
+      player2Symbol: p2Symbol,
+      player1Color: p1Color,
+      player2Color: p2Color,
+      kingdomAttackThreshold: threshold,
+    );
+    
+    if (state.isHost) {
+      ref.read(gameSettingsProvider.notifier).setPlayerSymbols(
+        state.player1Symbol,
+        state.player2Symbol,
+      );
+      ref.read(gameSettingsProvider.notifier).setPlayerColors(
+        state.player1Color,
+        state.player2Color,
+      );
+      ref.read(gameSettingsProvider.notifier).setKingdomAttackThreshold(state.kingdomAttackThreshold);
+      sendSettingsUpdate();
+    }
+  }
+
+  Future<void> sendSettingsUpdate() async {
+    if (state.status == BluetoothStatus.connected && state.connectedDevice != null && state.isHost) {
+      final message = jsonEncode({
+        'type': 'sync_settings',
+        'p1Symbol': state.player1Symbol,
+        'p2Symbol': state.player2Symbol,
+        'p1Color': state.player1Color,
+        'p2Color': state.player2Color,
+        'threshold': state.kingdomAttackThreshold,
+      });
+      await Nearby().sendBytesPayload(
+        state.connectedDevice!.id,
+        Uint8List.fromList(message.codeUnits),
+      );
+    }
+  }
+
+  void setGameStarted(bool value) {
+    state = state.copyWith(gameStarted: value);
   }
 
   Future<void> connectToDevice(DiscoveredDevice device) async {
     state = state.copyWith(status: BluetoothStatus.connecting);
     try {
       await Nearby().requestConnection(
-        "Player",
+        ref.read(gameSettingsProvider).player1Name,
         device.id,
         onConnectionInitiated: _onConnectionInitiated,
         onConnectionResult: _onConnectionResult,
@@ -190,6 +297,39 @@ class BluetoothNotifier extends Notifier<BluetoothState> {
       );
     } catch (e) {
       state = state.copyWith(status: BluetoothStatus.failed);
+    }
+  }
+
+  Future<void> sendKingdomName(String name) async {
+    if (state.status == BluetoothStatus.connected && state.connectedDevice != null) {
+      final message = jsonEncode({
+        'type': 'kingdom_name',
+        'name': name,
+      });
+      await Nearby().sendBytesPayload(
+        state.connectedDevice!.id,
+        Uint8List.fromList(message.codeUnits),
+      );
+    }
+  }
+
+  Future<void> sendMapSelection(String path, String name) async {
+    if (state.status == BluetoothStatus.connected && state.connectedDevice != null) {
+      final message = jsonEncode({
+        'type': 'map_selection',
+        'path': path,
+        'name': name,
+      });
+      await Nearby().sendBytesPayload(
+        state.connectedDevice!.id,
+        Uint8List.fromList(message.codeUnits),
+      );
+      
+      state = state.copyWith(
+        selectedMapPath: path,
+        selectedMapName: name,
+      );
+      ref.read(gameSettingsProvider.notifier).setSelectedMap(path);
     }
   }
 

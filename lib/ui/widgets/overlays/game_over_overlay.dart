@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/enums/turn.dart';
 import '../../../core/enums/game_mode.dart';
 import '../../../providers/game_settings_provider.dart';
+import '../../../providers/bluetooth_provider.dart';
 
 class GameOverOverlay extends ConsumerWidget {
   final Turn winner;
@@ -19,24 +20,33 @@ class GameOverOverlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isPlayer1Win = winner == Turn.player;
     final isMultiplayer = mode == GameMode.multiplayer;
-    final settings = ref.watch(gameSettingsProvider);
+    final isHost = ref.watch(bluetoothProvider).isHost;
+    
+    // In multiplayer: Turn.player is Host, Turn.ai is Joiner
+    final isLocalPlayerWin = isMultiplayer 
+        ? (isHost ? winner == Turn.player : winner == Turn.ai)
+        : (winner == Turn.player);
 
     String title;
     String subtitle;
 
     if (isMultiplayer) {
-      final winnerName = isPlayer1Win ? settings.player1Name : settings.player2Name;
-      title = "${winnerName.toUpperCase()} VICTORIOUS";
-      subtitle = "The battle is won. $winnerName claims dominance.";
+      title = isLocalPlayerWin ? "VICTORY" : "DEFEAT";
+      subtitle = isLocalPlayerWin 
+          ? "You have claimed dominance over the battlefield." 
+          : "Your kingdom's siege defenses have been breached.";
     } else {
-      title = isPlayer1Win ? "VICTORY" : "DEFEAT";
-      subtitle = isPlayer1Win 
+      title = isLocalPlayerWin ? "VICTORY" : "DEFEAT";
+      subtitle = isLocalPlayerWin 
           ? "The enemy kingdom has fallen to your blockade." 
           : "Your kingdom's siege defenses have been breached.";
     }
     
+    final settings = ref.watch(gameSettingsProvider);
+    final accentColor = isLocalPlayerWin ? Color(settings.player1Color) : Color(settings.player2Color);
+    final glowColor = accentColor.withValues(alpha: 0.5);
+
     return Positioned.fill(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
@@ -50,13 +60,13 @@ class GameOverOverlay extends ConsumerWidget {
                   title,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: isMultiplayer ? 48 : 64,
+                    fontSize: 64,
                     fontWeight: FontWeight.w900,
-                    color: isPlayer1Win ? Colors.blueAccent : Colors.redAccent,
-                    letterSpacing: isMultiplayer ? 4.0 : 8.0,
+                    color: accentColor,
+                    letterSpacing: 8.0,
                     shadows: [
                       Shadow(
-                        color: isPlayer1Win ? Colors.blue : Colors.red,
+                        color: glowColor,
                         blurRadius: 20,
                       )
                     ]

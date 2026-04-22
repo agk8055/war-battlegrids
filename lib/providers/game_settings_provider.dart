@@ -13,6 +13,8 @@ class GameSettings {
   final String player2Name;
   final String player1Symbol;
   final String player2Symbol;
+  final int player1Color;
+  final int player2Color;
   final int kingdomAttackThreshold;
   final bool musicEnabled;
   final double musicVolume;
@@ -26,6 +28,8 @@ class GameSettings {
     this.player2Name = 'PLAYER 2',
     this.player1Symbol = 'assets/symbols/fire.png',
     this.player2Symbol = 'assets/icons/eagle.png',
+    this.player1Color = 0xFF2196F3, // Colors.blue
+    this.player2Color = 0xFFF44336, // Colors.red
     this.kingdomAttackThreshold = 100,
     this.musicEnabled = true,
     this.musicVolume = 0.5,
@@ -40,6 +44,8 @@ class GameSettings {
     String? player2Name,
     String? player1Symbol,
     String? player2Symbol,
+    int? player1Color,
+    int? player2Color,
     int? kingdomAttackThreshold,
     bool? musicEnabled,
     double? musicVolume,
@@ -53,6 +59,8 @@ class GameSettings {
       player2Name: player2Name ?? this.player2Name,
       player1Symbol: player1Symbol ?? this.player1Symbol,
       player2Symbol: player2Symbol ?? this.player2Symbol,
+      player1Color: player1Color ?? this.player1Color,
+      player2Color: player2Color ?? this.player2Color,
       kingdomAttackThreshold: kingdomAttackThreshold ?? this.kingdomAttackThreshold,
       musicEnabled: musicEnabled ?? this.musicEnabled,
       musicVolume: musicVolume ?? this.musicVolume,
@@ -128,12 +136,22 @@ class GameSettingsNotifier extends Notifier<GameSettings> {
     state = state.copyWith(player1Name: p1, player2Name: p2);
   }
 
+  Future<void> setPlayer1Name(String name) async {
+    state = state.copyWith(player1Name: name);
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.setString(_keyKingdomName, name);
+  }
+
   void setKingdomAttackThreshold(int threshold) {
     state = state.copyWith(kingdomAttackThreshold: threshold);
   }
 
   void setPlayerSymbols(String s1, String s2) {
     state = state.copyWith(player1Symbol: s1, player2Symbol: s2);
+  }
+
+  void setPlayerColors(int c1, int c2) {
+    state = state.copyWith(player1Color: c1, player2Color: c2);
   }
 }
 

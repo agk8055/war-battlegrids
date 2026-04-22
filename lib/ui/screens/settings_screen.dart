@@ -23,6 +23,18 @@ class SettingsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildSectionHeader(context, 'GENERAL'),
+            const SizedBox(height: 16),
+            _buildSettingTile(
+              context,
+              title: 'KINGDOM NAME',
+              subtitle: settings.player1Name,
+              trailing: IconButton(
+                icon: Icon(Icons.edit_rounded, color: Theme.of(context).colorScheme.primary),
+                onPressed: () => _showNameDialog(context, ref, settings.player1Name),
+              ),
+            ),
+            const SizedBox(height: 32),
             _buildSectionHeader(context, 'AUDIO'),
             const SizedBox(height: 16),
             _buildSettingTile(
@@ -166,6 +178,40 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           trailing,
+        ],
+      ),
+    );
+  }
+
+  void _showNameDialog(BuildContext context, WidgetRef ref, String currentName) {
+    final controller = TextEditingController(text: currentName);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text('EDIT KINGDOM NAME', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 16)),
+        content: TextField(
+          controller: controller,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Theme.of(context).colorScheme.primary)),
+          ),
+          maxLength: 15,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                ref.read(gameSettingsProvider.notifier).setPlayer1Name(controller.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: Text('SAVE', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+          ),
         ],
       ),
     );

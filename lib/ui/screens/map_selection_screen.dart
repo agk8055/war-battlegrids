@@ -6,7 +6,8 @@ import '../../core/enums/game_mode.dart';
 import 'multiplayer_setup_screen.dart';
 
 class MapSelectionScreen extends ConsumerWidget {
-  const MapSelectionScreen({super.key});
+  final bool isBluetoothMode;
+  const MapSelectionScreen({super.key, this.isBluetoothMode = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -64,13 +65,17 @@ class MapSelectionScreen extends ConsumerWidget {
                       ref.read(gameSettingsProvider.notifier).setMode(GameMode.multiplayer);
                       ref.read(gameSettingsProvider.notifier).setSelectedMap(map['path']!);
                       
-                      // 2. Navigate to Setup
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MultiplayerSetupScreen(),
-                        ),
-                      );
+                      if (isBluetoothMode) {
+                        Navigator.pop(context, map);
+                      } else {
+                        // 2. Navigate to Setup
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MultiplayerSetupScreen(),
+                          ),
+                        );
+                      }
                     },
                     child: Container(
                       decoration: BoxDecoration(

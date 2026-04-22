@@ -29,8 +29,9 @@ class MultiplayerModeNotifier extends Notifier<bool> {
   @override
   bool build() => false;
 
-  @override
-  set state(bool value) => super.state = value;
+  void setMultiplayer(bool value) {
+    state = value;
+  }
 }
 
 /// Helper function that runs inside the Dart Isolate.
