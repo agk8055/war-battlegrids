@@ -279,12 +279,14 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
           _buildSigilSelector(
             label: isHost ? 'YOUR SIGIL' : '${state.peerKingdomName ?? 'HOST'}\'S SIGIL',
             currentSigil: state.player1Symbol,
+            unavailableSigil: state.player2Symbol,
             isEditable: isHost,
             onSigilSelected: (sigil) => ref.read(bluetoothProvider.notifier).updateSettings(p1Symbol: sigil),
           ),
           const SizedBox(height: 12),
           _buildColorSelector(
             currentColor: Color(state.player1Color),
+            unavailableColor: Color(state.player2Color),
             isEditable: isHost,
             onColorSelected: (color) => ref.read(bluetoothProvider.notifier).updateSettings(p1Color: color.toARGB32()),
           ),
@@ -292,12 +294,14 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
           _buildSigilSelector(
             label: isHost ? '${state.peerKingdomName ?? 'PEER'}\'S SIGIL' : 'YOUR SIGIL',
             currentSigil: state.player2Symbol,
+            unavailableSigil: state.player1Symbol,
             isEditable: isHost,
             onSigilSelected: (sigil) => ref.read(bluetoothProvider.notifier).updateSettings(p2Symbol: sigil),
           ),
           const SizedBox(height: 12),
           _buildColorSelector(
             currentColor: Color(state.player2Color),
+            unavailableColor: Color(state.player1Color),
             isEditable: isHost,
             onColorSelected: (color) => ref.read(bluetoothProvider.notifier).updateSettings(p2Color: color.toARGB32()),
           ),
@@ -348,6 +352,7 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
   Widget _buildSigilSelector({
     required String label,
     required String currentSigil,
+    required String unavailableSigil,
     required bool isEditable,
     required Function(String) onSigilSelected,
   }) {
@@ -365,18 +370,22 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
               itemBuilder: (context, index) {
                 final sigil = _availableSigils[index];
                 final isSelected = sigil == currentSigil;
+                final isUnavailable = sigil == unavailableSigil;
                 return GestureDetector(
-                  onTap: () => onSigilSelected(sigil),
-                  child: Container(
-                    width: 50,
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2) : Colors.black26,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: isSelected ? Theme.of(context).colorScheme.primary : Colors.white12),
+                  onTap: isUnavailable ? null : () => onSigilSelected(sigil),
+                  child: Opacity(
+                    opacity: isUnavailable ? 0.2 : 1.0,
+                    child: Container(
+                      width: 50,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2) : Colors.black26,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: isSelected ? Theme.of(context).colorScheme.primary : (isUnavailable ? Colors.transparent : Colors.white12)),
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      child: Image.asset(sigil, color: isSelected ? null : Colors.white54),
                     ),
-                    padding: const EdgeInsets.all(8),
-                    child: Image.asset(sigil, color: isSelected ? null : Colors.white54),
                   ),
                 );
               },
@@ -399,6 +408,7 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
 
   Widget _buildColorSelector({
     required Color currentColor,
+    required Color unavailableColor,
     required bool isEditable,
     required Function(Color) onColorSelected,
   }) {
@@ -414,21 +424,25 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
               itemBuilder: (context, index) {
                 final color = _availableColors[index];
                 final isSelected = color.toARGB32() == currentColor.toARGB32();
+                final isUnavailable = color.toARGB32() == unavailableColor.toARGB32();
                 return GestureDetector(
-                  onTap: () => onColorSelected(color),
-                  child: Container(
-                    width: 30,
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected ? Colors.white : Colors.transparent,
-                        width: 2,
+                  onTap: isUnavailable ? null : () => onColorSelected(color),
+                  child: Opacity(
+                    opacity: isUnavailable ? 0.2 : 1.0,
+                    child: Container(
+                      width: 30,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? Colors.white : Colors.transparent,
+                          width: 2,
+                        ),
+                        boxShadow: isSelected ? [
+                          BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)
+                        ] : [],
                       ),
-                      boxShadow: isSelected ? [
-                        BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)
-                      ] : [],
                     ),
                   ),
                 );

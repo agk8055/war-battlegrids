@@ -14,11 +14,9 @@ import '../../core/enums/game_phase.dart';
 import '../../core/enums/turn.dart';
 import '../../campaign/campaign_manager.dart';
 import '../../core/services/audio_service.dart';
-
 import '../widgets/hud/battle_hud_header.dart';
-import '../widgets/overlays/ai_thinking_overlay.dart';
-import '../widgets/overlays/capture_toast.dart';
 import '../widgets/overlays/game_over_overlay.dart';
+import '../widgets/overlays/capture_toast.dart';
 import '../widgets/overlays/pause_overlay.dart';
 import 'settings_screen.dart';
 
@@ -31,43 +29,46 @@ class GameScreen extends ConsumerStatefulWidget {
 
 class _GameScreenState extends ConsumerState<GameScreen> {
   KingdomGame? _game;
-  late AudioService _audioService;
   bool _isPaused = false;
 
   @override
   void initState() {
     super.initState();
     _game = KingdomGame(ref);
-    _audioService = ref.read(audioServiceProvider);
-    
-    // Stop main theme music during match
-    Future.microtask(() {
-      if (!mounted) return;
-      _audioService.stopMusicForMatch();
-    });
-  }
-
-  @override
-  void dispose() {
-    // Resume main theme music when leaving match
-    _audioService.resumeMusicAfterMatch();
-    super.dispose();
+    // Ensure music is playing
+    ref.read(audioServiceProvider).playMainTheme();
   }
 
   void _togglePause() {
+    final settings = ref.read(gameSettingsProvider);
+    final isMultiplayer = settings.mode == GameMode.multiplayer;
+
     setState(() {
       _isPaused = !_isPaused;
       if (_isPaused) {
         _game?.pauseEngine();
+        if (isMultiplayer) {
+          ref.read(bluetoothProvider.notifier).sendPause(true);
+        }
       } else {
         _game?.resumeEngine();
+        if (isMultiplayer) {
+          ref.read(bluetoothProvider.notifier).sendPause(false);
+        }
       }
     });
   }
 
-  void _quitBattle(GameMode mode) {
-    _game?.resumeEngine(); // Ensure engine is not frozen
-    if (mode == GameMode.story) {
+  void _handleAbandon() {
+    final settings = ref.read(gameSettingsProvider);
+    final isMultiplayer = settings.mode == GameMode.multiplayer;
+
+    if (isMultiplayer) {
+      ref.read(bluetoothProvider.notifier).sendAbandon();
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const BluetoothLobbyScreen()),
+      );
+    } else if (settings.mode == GameMode.story) {
       Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
     } else {
       Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
@@ -79,31 +80,27 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     final simulationState = ref.watch(simulationProvider);
     final aiState = ref.watch(aiStateProvider);
     final settings = ref.watch(gameSettingsProvider);
+    final bluetoothState = ref.watch(bluetoothProvider);
 
-    // Listen for Bluetooth disconnection
+    // Shared Pause Logic: if peer paused, we show pause too
+    final effectivePaused = _isPaused || (settings.mode == GameMode.multiplayer && bluetoothState.isPeerPaused);
+
+    // Listen for peer abandonment
     ref.listen(bluetoothProvider, (previous, next) {
-      if (settings.mode == GameMode.multiplayer && 
-          next.status == BluetoothStatus.idle && 
-          previous?.status == BluetoothStatus.connected) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: const Text('DISCONNECTED'),
-            content: const Text('The Bluetooth connection was lost.'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection' || route.isFirst);
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => const MultiplayerModeSelectionScreen()),
-                  );
-                },
-                child: const Text('RETURN TO MENU'),
-              ),
-            ],
-          ),
+      if (settings.mode == GameMode.multiplayer && previous?.gameStarted == true && !next.gameStarted) {
+        // Peer abandoned or something triggered game end
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const BluetoothLobbyScreen()),
         );
+      }
+      
+      // Update engine pause state based on peer
+      if (settings.mode == GameMode.multiplayer) {
+         if (next.isPeerPaused && !(previous?.isPeerPaused ?? false)) {
+           _game?.pauseEngine();
+         } else if (!next.isPeerPaused && (previous?.isPeerPaused ?? false) && !_isPaused) {
+           _game?.resumeEngine();
+         }
       }
     });
 
@@ -123,7 +120,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       if (next.playerScore > previous.playerScore) {
         // Turn.player (Host) captured
         final name = (isMultiplayer && !isHost) ? p2Name : p1Name;
-        final color = (isMultiplayer && !isHost) ? Colors.redAccent : Colors.blue;
+        final color = (isMultiplayer && !isHost) ? Color(settings.player2Color) : Color(settings.player1Color);
         CaptureToast.show(
           context,
           "${name.toUpperCase()} CAPTURE! +${next.playerScore - previous.playerScore}",
@@ -132,7 +129,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       } else if (next.aiScore > previous.aiScore) {
         // Turn.ai (Joiner/AI) captured
         final name = (isMultiplayer && !isHost) ? p1Name : p2Name;
-        final color = (isMultiplayer && !isHost) ? Colors.blue : Colors.redAccent;
+        final color = (isMultiplayer && !isHost) ? Color(settings.player1Color) : Color(settings.player2Color);
         CaptureToast.show(
           context,
           "${name.toUpperCase()} CAPTURE! +${next.aiScore - previous.aiScore}",
@@ -145,12 +142,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // 1. The Game Layer (Full Screen)
-          Positioned.fill(
-            child: GameWidget(game: _game!),
-          ),
+          // The Game World
+          if (_game != null) GameWidget(game: _game!),
 
-          // 2. HUD Layer (Top Aligned)
+          // HUD Header
           Positioned(
             top: 0,
             left: 0,
@@ -160,22 +155,43 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             ),
           ),
 
-          // 3. Overlays (Full Screen - Outside SafeArea)
-          if (aiState == AIState.thinking && !_isPaused) 
-            const Positioned.fill(child: AiThinkingOverlay()),
+          // Loading/Thinking Overlay
+          if (aiState == AIState.thinking && !effectivePaused)
+            const Positioned(
+              bottom: 120,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(color: Colors.white70),
+                    SizedBox(height: 12),
+                    Text(
+                      "AI IS THINKING...",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
-          if (_isPaused)
+          // Pause Overlay
+          if (effectivePaused)
             PauseOverlay(
-              onResume: _togglePause,
+              onResume: _isPaused ? _togglePause : () {}, // Only local can resume if they paused it
+              onQuit: _handleAbandon,
               onSettings: () {
-                Navigator.push(
-                  context,
+                Navigator.of(context).push(
                   MaterialPageRoute(builder: (context) => const SettingsScreen()),
                 );
               },
-              onQuit: () => _quitBattle(settings.mode),
             ),
 
+          // Game Over Overlay
           if (simulationState.currentPhase == GamePhase.gameOver)
             Positioned.fill(
               child: GameOverOverlay(

@@ -22,6 +22,7 @@ class BluetoothState {
   final DiscoveredDevice? connectedDevice;
   final bool isHost;
   final bool gameStarted;
+  final bool isPeerPaused;
   final String? peerKingdomName;
   final String? selectedMapPath;
   final String? selectedMapName;
@@ -37,6 +38,7 @@ class BluetoothState {
     this.connectedDevice,
     this.isHost = false,
     this.gameStarted = false,
+    this.isPeerPaused = false,
     this.peerKingdomName,
     this.selectedMapPath,
     this.selectedMapName,
@@ -53,6 +55,7 @@ class BluetoothState {
     DiscoveredDevice? connectedDevice,
     bool? isHost,
     bool? gameStarted,
+    bool? isPeerPaused,
     String? peerKingdomName,
     String? selectedMapPath,
     String? selectedMapName,
@@ -68,6 +71,7 @@ class BluetoothState {
       connectedDevice: connectedDevice ?? this.connectedDevice,
       isHost: isHost ?? this.isHost,
       gameStarted: gameStarted ?? this.gameStarted,
+      isPeerPaused: isPeerPaused ?? this.isPeerPaused,
       peerKingdomName: peerKingdomName ?? this.peerKingdomName,
       selectedMapPath: selectedMapPath ?? this.selectedMapPath,
       selectedMapName: selectedMapName ?? this.selectedMapName,
@@ -207,7 +211,7 @@ class BluetoothNotifier extends Notifier<BluetoothState> {
       final y = message['y'] as int;
       ref.read(simulationProvider.notifier).placeUnitFromPeer(x, y);
     } else if (message['type'] == 'start_game') {
-      state = state.copyWith(gameStarted: true);
+      state = state.copyWith(gameStarted: true, isPeerPaused: false);
     } else if (message['type'] == 'kingdom_name') {
       state = state.copyWith(peerKingdomName: message['name']);
       ref.read(gameSettingsProvider.notifier).setPlayerNames(
@@ -238,15 +242,28 @@ class BluetoothNotifier extends Notifier<BluetoothState> {
         message['p1Color'],
       );
       ref.read(gameSettingsProvider.notifier).setKingdomAttackThreshold(message['threshold']);
+    } else if (message['type'] == 'pause') {
+      state = state.copyWith(isPeerPaused: message['paused']);
+    } else if (message['type'] == 'abandon') {
+      state = state.copyWith(gameStarted: false, isPeerPaused: false);
     }
   }
 
   void updateSettings({String? p1Symbol, String? p2Symbol, int? p1Color, int? p2Color, int? threshold}) {
+    // Validation: Host cannot select same sigil or color
+    String finalP1Symbol = p1Symbol ?? state.player1Symbol;
+    String finalP2Symbol = p2Symbol ?? state.player2Symbol;
+    int finalP1Color = p1Color ?? state.player1Color;
+    int finalP2Color = p2Color ?? state.player2Color;
+
+    if (finalP1Symbol == finalP2Symbol) return;
+    if (finalP1Color == finalP2Color) return;
+
     state = state.copyWith(
-      player1Symbol: p1Symbol,
-      player2Symbol: p2Symbol,
-      player1Color: p1Color,
-      player2Color: p2Color,
+      player1Symbol: finalP1Symbol,
+      player2Symbol: finalP2Symbol,
+      player1Color: finalP1Color,
+      player2Color: finalP2Color,
       kingdomAttackThreshold: threshold,
     );
     
@@ -282,7 +299,33 @@ class BluetoothNotifier extends Notifier<BluetoothState> {
   }
 
   void setGameStarted(bool value) {
-    state = state.copyWith(gameStarted: value);
+    state = state.copyWith(gameStarted: value, isPeerPaused: false);
+  }
+
+  Future<void> sendPause(bool paused) async {
+    if (state.status == BluetoothStatus.connected && state.connectedDevice != null) {
+      final message = jsonEncode({
+        'type': 'pause',
+        'paused': paused,
+      });
+      await Nearby().sendBytesPayload(
+        state.connectedDevice!.id,
+        Uint8List.fromList(message.codeUnits),
+      );
+    }
+  }
+
+  Future<void> sendAbandon() async {
+    if (state.status == BluetoothStatus.connected && state.connectedDevice != null) {
+      final message = jsonEncode({
+        'type': 'abandon',
+      });
+      await Nearby().sendBytesPayload(
+        state.connectedDevice!.id,
+        Uint8List.fromList(message.codeUnits),
+      );
+      state = state.copyWith(gameStarted: false, isPeerPaused: false);
+    }
   }
 
   Future<void> connectToDevice(DiscoveredDevice device) async {

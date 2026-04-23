@@ -142,6 +142,12 @@ class GameSettingsNotifier extends Notifier<GameSettings> {
     await prefs.setString(_keyKingdomName, name);
   }
 
+  Future<void> setPlayer1Symbol(String symbol) async {
+    state = state.copyWith(player1Symbol: symbol);
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs.setString(_keyKingdomSymbol, symbol);
+  }
+
   void setKingdomAttackThreshold(int threshold) {
     state = state.copyWith(kingdomAttackThreshold: threshold);
   }
