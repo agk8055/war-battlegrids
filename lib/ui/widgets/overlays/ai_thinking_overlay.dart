@@ -4,10 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 class AiThinkingOverlay extends StatelessWidget {
   final Color color;
 
-  const AiThinkingOverlay({
-    super.key,
-    required this.color,
-  });
+  const AiThinkingOverlay({super.key, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -22,19 +19,15 @@ class AiThinkingOverlay extends StatelessWidget {
             SizedBox(
               width: 28,
               height: 28,
-              child: CircularProgressIndicator(
-                color: color,
-                strokeWidth: 2.5,
-              ),
+              child: CircularProgressIndicator(color: color, strokeWidth: 2.5),
             ),
             const SizedBox(height: 16),
             Text(
               "OPPONENT IS PLANNING...",
               style: GoogleFonts.sairaStencilOne(
                 color: Colors.white,
-                fontSize: 12,
+                fontSize: 12, // Small but readable size
                 letterSpacing: 2.0,
-                decoration: TextDecoration.none,
               ),
               textAlign: TextAlign.center,
             ),
