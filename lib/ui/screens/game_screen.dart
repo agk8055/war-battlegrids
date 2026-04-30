@@ -195,11 +195,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           if (simulationState.currentPhase == GamePhase.gameOver)
             Positioned.fill(
               child: GameOverOverlay(
-                winner: simulationState.currentTurn,
+                winner: simulationState.winner ?? Turn.player,
                 mode: settings.mode,
                 onReturnToMap: () {
                   if (settings.mode == GameMode.story) {
-                    if (simulationState.currentTurn == Turn.player) {
+                    if (simulationState.winner == Turn.player) {
                       final campaignState = ref.read(campaignProvider);
                       if (campaignState.selectedKingdomId != null) {
                         ref.read(campaignProvider.notifier).conquerKingdom(
@@ -209,15 +209,21 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     }
                     Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
                   } else if (settings.mode == GameMode.multiplayer) {
-                    // Reset gameStarted flag so we can start again
-                    ref.read(bluetoothProvider.notifier).setGameStarted(false);
-                    
-                    // Return to lobby
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => const BluetoothLobbyScreen(),
-                      ),
-                    );
+                    final bluetoothState = ref.read(bluetoothProvider);
+                    if (bluetoothState.status == BluetoothStatus.connected) {
+                      // Reset gameStarted flag so we can start again
+                      ref.read(bluetoothProvider.notifier).setGameStarted(false);
+                      
+                      // Return to lobby
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (context) => const BluetoothLobbyScreen(),
+                        ),
+                      );
+                    } else {
+                      // Same-device multiplayer: return to mode selection
+                      Navigator.of(context).popUntil((route) => route.settings.name == '/multiplayer_mode');
+                    }
                   } else {
                     Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
                   }

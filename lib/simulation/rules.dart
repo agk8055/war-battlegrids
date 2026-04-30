@@ -115,11 +115,11 @@ class GameRules {
   ) {
     final attackerState = currentTurn == Turn.player ? CellState.player : CellState.ai;
     final attackerZone = currentTurn == Turn.player ? CellState.playerZone : CellState.aiZone;
-    final isTargetingAI = currentTurn == Turn.player;
+    final isAttackingAI = currentTurn == Turn.player;
 
-    final leftPalaceX = isTargetingAI ? board.aiPalaceStartX : board.playerPalaceStartX;
-    final rightPalaceX = isTargetingAI ? board.aiPalaceEndX : board.playerPalaceEndX;
-    final palaceY = isTargetingAI ? board.playableMinY : board.playableMaxY;
+    final leftPalaceX = isAttackingAI ? board.aiPalaceStartX : board.playerPalaceStartX;
+    final rightPalaceX = isAttackingAI ? board.aiPalaceEndX : board.playerPalaceEndX;
+    final palaceY = isAttackingAI ? board.playableMinY : board.playableMaxY;
 
     AnchorType? getAnchorType(int x, int y) {
       if (x == board.playableMinX) return AnchorType.leftEdge;

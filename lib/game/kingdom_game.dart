@@ -42,7 +42,10 @@ class KingdomGame extends FlameGame with ScaleDetector {
     final campaignState = ref.read(campaignProvider);
     final bluetoothState = ref.read(bluetoothProvider);
     final isMultiplayer = settings.mode == GameMode.multiplayer;
-    final isHost = bluetoothState.isHost;
+    final isBluetooth = bluetoothState.status == BluetoothStatus.connected;
+    
+    // In same-device multiplayer, we treat it like 'Host' so P1 is bottom, P2 is top.
+    final bool effectiveIsHost = isMultiplayer ? (!isBluetooth || bluetoothState.isHost) : true;
 
     final selectedKingdom = campaignState.selectedKingdomId != null 
         ? kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId)
@@ -52,36 +55,21 @@ class KingdomGame extends FlameGame with ScaleDetector {
     // Bottom (y >= height/2) is Turn.player
     // Top (y < height/2) is Turn.ai
     
-    // For Bluetooth Multiplayer:
-    // Host is Turn.player, Joiner is Turn.ai
-    // We want Bottom = Host, Top = Joiner on BOTH devices.
-    
     final String bottomSymbol;
     final String topSymbol;
     final Color bottomColor;
     final Color topColor;
 
     if (isMultiplayer) {
-      if (isHost) {
-        // Host device: Local is Player1 (Bottom), Peer is Player2 (Top)
+      if (effectiveIsHost) {
+        // Host device or Same-device: Local P1 is Bottom (Turn.player), Peer/P2 is Top (Turn.ai)
         bottomSymbol = settings.player1Symbol;
         topSymbol = settings.player2Symbol;
         bottomColor = Color(settings.player1Color);
         topColor = Color(settings.player2Color);
       } else {
-        // Joiner device: Local is Player1 (mapped to Turn.ai = Top)
-        // Peer is Player2 (mapped to Turn.player = Bottom)
-        // Wait, check sync_settings in BluetoothNotifier:
-        // p1Symbol (Host) is mapped to Joiner's p2Symbol (Peer)
-        // p2Symbol (Joiner) is mapped to Joiner's p1Symbol (Local)
-        
-        // Actually, let's keep it simple:
-        // In GameSettings on Joiner device:
-        // player1Name = Joiner, player2Name = Host
-        // player1Symbol = Joiner, player2Symbol = Host
-        // player1Color = Joiner, player2Color = Host
-        
-        // We want Host at Bottom (Turn.player), Joiner at Top (Turn.ai).
+        // Joiner device: Local P1 is mapped to Top (Turn.ai)
+        // Peer P2 (Host) is mapped to Bottom (Turn.player)
         bottomSymbol = settings.player2Symbol; // Host symbol on joiner device
         topSymbol = settings.player1Symbol;    // Joiner symbol on joiner device
         bottomColor = Color(settings.player2Color);

@@ -25,7 +25,10 @@ class BattleHudHeader extends ConsumerWidget {
     final bluetoothState = ref.watch(bluetoothProvider);
 
     final isMultiplayer = settings.mode == GameMode.multiplayer;
-    final isHost = bluetoothState.isHost;
+    final isBluetooth = bluetoothState.status == BluetoothStatus.connected;
+    
+    // In same-device multiplayer, we treat it like 'Host' so P1 is Left (Turn.player), P2 is Right (Turn.ai)
+    final bool effectiveIsHost = isMultiplayer ? (!isBluetooth || bluetoothState.isHost) : true;
 
     final selectedKingdom = campaignState.selectedKingdomId != null 
         ? kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId)
@@ -40,8 +43,7 @@ class BattleHudHeader extends ConsumerWidget {
     final int p2ColorVal;
 
     if (isMultiplayer) {
-      // Always Host on Left, Joiner on Right
-      if (isHost) {
+      if (effectiveIsHost) {
         p1Name = settings.player1Name;
         p1Symbol = settings.player1Symbol;
         p1ColorVal = settings.player1Color;
@@ -51,6 +53,7 @@ class BattleHudHeader extends ConsumerWidget {
         p2ColorVal = settings.player2Color;
       } else {
         // Joiner device: player1 in settings is Me (Joiner), player2 is Peer (Host)
+        // We want Host on Left (Turn.player), Joiner on Right (Turn.ai)
         p1Name = settings.player2Name; // Host
         p1Symbol = settings.player2Symbol;
         p1ColorVal = settings.player2Color;

@@ -20,31 +20,47 @@ class GameOverOverlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(gameSettingsProvider);
+    final bluetoothState = ref.watch(bluetoothProvider);
     final isMultiplayer = mode == GameMode.multiplayer;
-    final isHost = ref.watch(bluetoothProvider).isHost;
+    final isBluetooth = bluetoothState.status == BluetoothStatus.connected;
+    final isHost = bluetoothState.isHost;
     
-    // In multiplayer: Turn.player is Host, Turn.ai is Joiner
+    // Determine if it's same-device multiplayer
+    final isSameDevice = isMultiplayer && !isBluetooth;
+
+    // In Bluetooth multiplayer: Turn.player is Host, Turn.ai is Joiner
+    // In Story mode: Turn.player is User, Turn.ai is AI
     final isLocalPlayerWin = isMultiplayer 
         ? (isHost ? winner == Turn.player : winner == Turn.ai)
         : (winner == Turn.player);
 
     String title;
     String subtitle;
+    Color accentColor;
 
-    if (isMultiplayer) {
-      title = isLocalPlayerWin ? "VICTORY" : "DEFEAT";
-      subtitle = isLocalPlayerWin 
-          ? "You have claimed dominance over the battlefield." 
-          : "Your kingdom's siege defenses have been breached.";
+    if (isSameDevice) {
+      final winnerName = winner == Turn.player ? settings.player1Name : settings.player2Name;
+      title = "${winnerName.toUpperCase()} WINS";
+      subtitle = winner == Turn.player 
+          ? "The realm of ${settings.player1Name} has triumphed." 
+          : "The realm of ${settings.player2Name} has triumphed.";
+      accentColor = winner == Turn.player ? Color(settings.player1Color) : Color(settings.player2Color);
     } else {
       title = isLocalPlayerWin ? "VICTORY" : "DEFEAT";
-      subtitle = isLocalPlayerWin 
-          ? "The enemy kingdom has fallen to your blockade." 
-          : "Your kingdom's siege defenses have been breached.";
+      accentColor = isLocalPlayerWin ? Color(settings.player1Color) : Color(settings.player2Color);
+      
+      if (isMultiplayer) {
+        subtitle = isLocalPlayerWin 
+            ? "You have claimed dominance over the battlefield." 
+            : "Your kingdom's siege defenses have been breached.";
+      } else {
+        subtitle = isLocalPlayerWin 
+            ? "The enemy kingdom has fallen to your blockade." 
+            : "Your kingdom's siege defenses have been breached.";
+      }
     }
     
-    final settings = ref.watch(gameSettingsProvider);
-    final accentColor = isLocalPlayerWin ? Color(settings.player1Color) : Color(settings.player2Color);
     final glowColor = accentColor.withValues(alpha: 0.5);
 
     return Positioned.fill(
