@@ -88,6 +88,24 @@ class GameSimulation {
     return (true, captureOccurred);
   }
 
+  /// Skips the current turn and switches to the other player.
+  /// Returns true if the game continues, false if it results in a draw.
+  bool skipTurn() {
+    if (currentPhase == GamePhase.gameOver || currentPhase == GamePhase.draw) return false;
+
+    currentTurn = (currentTurn == Turn.player) ? Turn.ai : Turn.player;
+
+    // After skipping, check if the NEW current player also has no moves.
+    // If neither can move, it's a draw.
+    if (GameRules.checkDraw(board, playerKingdomAttackUnlocked, aiKingdomAttackUnlocked)) {
+      currentPhase = GamePhase.draw;
+      winner = null;
+      return false;
+    }
+
+    return true;
+  }
+
   void _updateActiveWinConditions() {
     // Player
     if (playerActiveWinCondition == WinConditionType.uShape) {

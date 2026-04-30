@@ -181,8 +181,6 @@ class KingdomGame extends FlameGame with ScaleDetector {
       // Add a slight artificial delay so the AI doesn't feel instantaneous, giving the player a moment to process the board.
       await Future.delayed(const Duration(milliseconds: 600));
 
-      ref.read(aiStateProvider.notifier).setIdle();
-
       if (bestMove != null) {
         final notifier = ref.read(simulationProvider.notifier);
         final result = notifier.placeUnit(bestMove.$1, bestMove.$2);
@@ -194,7 +192,12 @@ class KingdomGame extends FlameGame with ScaleDetector {
           }
           boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
         }
+      } else {
+        // AI has no moves, skip turn to prevent game from getting stuck
+        ref.read(simulationProvider.notifier).skipTurn();
       }
+
+      ref.read(aiStateProvider.notifier).setIdle();
     }
   }
 

@@ -83,6 +83,12 @@ class SimulationNotifier extends Notifier<GameSimulation> {
     return result;
   }
 
+  /// Skips the current turn and updates state.
+  void skipTurn() {
+    state.skipTurn();
+    state = state.clone();
+  }
+
   /// Places a unit from a peer without sending it back.
   (bool, bool) placeUnitFromPeer(int x, int y) {
     final bluetoothState = ref.read(bluetoothProvider);

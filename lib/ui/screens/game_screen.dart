@@ -7,18 +7,20 @@ import '../../providers/turn_provider.dart';
 import '../../providers/game_settings_provider.dart';
 import '../../providers/bluetooth_provider.dart';
 import '../../core/enums/game_mode.dart';
-import 'multiplayer_mode_selection_screen.dart';
 import 'bluetooth_lobby_screen.dart';
 
 import '../../core/enums/game_phase.dart';
 import '../../core/enums/turn.dart';
 import '../../campaign/campaign_manager.dart';
+import '../../campaign/data/kingdoms_data.dart';
 import '../../core/services/audio_service.dart';
 import '../widgets/hud/battle_hud_header.dart';
 import '../widgets/overlays/game_over_overlay.dart';
 import '../widgets/overlays/capture_toast.dart';
 import '../widgets/overlays/pause_overlay.dart';
+import '../widgets/overlays/ai_thinking_overlay.dart';
 import 'settings_screen.dart';
+import '../../simulation/game_simulation.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
   const GameScreen({super.key});
@@ -138,6 +140,34 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       }
     });
 
+    // Loading/Thinking Overlay
+    if (aiState == AIState.thinking && !effectivePaused) {
+      final campaignState = ref.watch(campaignProvider);
+      final isMultiplayer = settings.mode == GameMode.multiplayer;
+      
+      Color aiColor = Colors.redAccent;
+
+      if (isMultiplayer) {
+        aiColor = Color(settings.player2Color);
+      } else if (campaignState.selectedKingdomId != null) {
+        final kingdom = kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId);
+        aiColor = kingdom.primaryColor;
+      }
+
+      return Stack(
+        children: [
+          _buildBaseGame(context, simulationState, settings, effectivePaused),
+          AiThinkingOverlay(
+            color: aiColor,
+          ),
+        ],
+      );
+    }
+
+    return _buildBaseGame(context, simulationState, settings, effectivePaused);
+  }
+
+  Widget _buildBaseGame(BuildContext context, GameSimulation simulationState, GameSettings settings, bool effectivePaused) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -154,30 +184,6 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               onPausePressed: _togglePause,
             ),
           ),
-
-          // Loading/Thinking Overlay
-          if (aiState == AIState.thinking && !effectivePaused)
-            const Positioned(
-              bottom: 120,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Column(
-                  children: [
-                    CircularProgressIndicator(color: Colors.white70),
-                    SizedBox(height: 12),
-                    Text(
-                      "AI IS THINKING...",
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
 
           // Pause Overlay
           if (effectivePaused)
