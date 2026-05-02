@@ -28,35 +28,6 @@ class _HatchPainter extends CustomPainter {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Corner Ornament Painter – draws a decorative corner flourish
-// ─────────────────────────────────────────────────────────────────────────────
-class _CornerOrnamentPainter extends CustomPainter {
-  final Color color;
-  const _CornerOrnamentPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.4
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final s = size.width;
-    // Inner L-bracket lines
-    canvas.drawLine(Offset(0, s * 0.4), Offset(0, 0), paint);
-    canvas.drawLine(Offset(0, 0), Offset(s * 0.4, 0), paint);
-    // Short tick midway
-    canvas.drawLine(Offset(0, s * 0.18), Offset(s * 0.18, 0.18 * s), paint);
-    // Dot
-    canvas.drawCircle(Offset(s * 0.06, s * 0.06), 1.5, paint..style = PaintingStyle.fill);
-  }
-
-  @override
-  bool shouldRepaint(_CornerOrnamentPainter old) => old.color != color;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 //  Reusable Widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -85,7 +56,6 @@ class _StonePanel extends StatelessWidget {
             const Color(0xFF0F0D0A),
           ],
         ),
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: accentColor.withValues(alpha: 0.28), width: 1.2),
         boxShadow: [
           BoxShadow(
@@ -100,58 +70,64 @@ class _StonePanel extends StatelessWidget {
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Stack(
-          children: [
-            // Parchment hatch texture
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _HatchPainter(
-                  color: Colors.white.withValues(alpha: 0.018),
-                ),
+      child: Stack(
+        children: [
+          // Parchment hatch texture
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _HatchPainter(
+                color: Colors.white.withValues(alpha: 0.018),
               ),
             ),
-            // Corner ornaments
-            ..._corners(ornamentColor),
-            Padding(padding: padding, child: child),
-          ],
-        ),
+          ),
+          // Corner ornaments
+          ..._corners(ornamentColor),
+          Padding(padding: padding, child: child),
+        ],
       ),
     );
   }
 
   List<Widget> _corners(Color color) {
-    const sz = 28.0;
+    const sz = 24.0;
     return [
       Positioned(
-        top: 6, left: 6,
-        child: SizedBox(width: sz, height: sz, child: CustomPaint(painter: _CornerOrnamentPainter(color: color))),
-      ),
+          top: 0,
+          left: 0,
+          child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationZ(math.pi / 2),
+              child: SizedBox(
+                  width: sz,
+                  height: sz,
+                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
       Positioned(
-        top: 6, right: 6,
-        child: Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.rotationY(math.pi),
-          child: SizedBox(width: sz, height: sz, child: CustomPaint(painter: _CornerOrnamentPainter(color: color))),
-        ),
-      ),
+          top: 0,
+          right: 0,
+          child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationZ(math.pi),
+              child: SizedBox(
+                  width: sz,
+                  height: sz,
+                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
       Positioned(
-        bottom: 6, left: 6,
-        child: Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.rotationX(math.pi),
-          child: SizedBox(width: sz, height: sz, child: CustomPaint(painter: _CornerOrnamentPainter(color: color))),
-        ),
-      ),
+          bottom: 0,
+          left: 0,
+          child: SizedBox(
+              width: sz,
+              height: sz,
+              child: Image.asset('assets/icons/border-edge.png', color: color))),
       Positioned(
-        bottom: 6, right: 6,
-        child: Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.rotationZ(math.pi),
-          child: SizedBox(width: sz, height: sz, child: CustomPaint(painter: _CornerOrnamentPainter(color: color))),
-        ),
-      ),
+          bottom: 0,
+          right: 0,
+          child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationZ(-math.pi / 2),
+              child: SizedBox(
+                  width: sz,
+                  height: sz,
+                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
     ];
   }
 }
@@ -224,7 +200,7 @@ class _MultiplayerSetupScreenState
   final TextEditingController _p2Controller =
       TextEditingController(text: 'PLAYER 2');
   final TextEditingController _thresholdController =
-      TextEditingController(text: '100');
+      TextEditingController(text: '10');
 
   final List<String> _availableSigils = [
     'assets/symbols/fire.png',
@@ -481,7 +457,6 @@ class _MultiplayerSetupScreenState
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: playerColor.withValues(alpha: 0.12),
