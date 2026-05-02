@@ -26,28 +26,6 @@ class _HatchPainter extends CustomPainter {
   bool shouldRepaint(_HatchPainter old) => old.color != color;
 }
 
-class _CornerOrnamentPainter extends CustomPainter {
-  final Color color;
-  const _CornerOrnamentPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.4
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final s = size.width;
-    canvas.drawLine(Offset(0, s * 0.4), Offset(0, 0), paint);
-    canvas.drawLine(Offset(0, 0), Offset(s * 0.4, 0), paint);
-    canvas.drawLine(Offset(0, s * 0.18), Offset(s * 0.18, 0.18 * s), paint);
-    canvas.drawCircle(Offset(s * 0.06, s * 0.06), 1.5, paint..style = PaintingStyle.fill);
-  }
-
-  @override
-  bool shouldRepaint(_CornerOrnamentPainter old) => old.color != color;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 //  _StonePanel
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,42 +50,64 @@ class _StonePanel extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF1A1510), Color(0xFF0F0D0A)],
         ),
-        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accentColor.withValues(alpha: 0.28), width: 1.2),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 18, offset: const Offset(0, 6)),
           BoxShadow(color: accentColor.withValues(alpha: 0.06), blurRadius: 24, spreadRadius: 2),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: CustomPaint(painter: _HatchPainter(color: Colors.white.withValues(alpha: 0.018))),
-            ),
-            ..._corners(ornamentColor),
-            Padding(padding: padding, child: child),
-          ],
-        ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(painter: _HatchPainter(color: Colors.white.withValues(alpha: 0.018))),
+          ),
+          ..._corners(ornamentColor),
+          Padding(padding: padding, child: child),
+        ],
       ),
     );
   }
 
   List<Widget> _corners(Color color) {
-    const sz = 28.0;
+    const sz = 24.0;
     return [
-      Positioned(top: 6, left: 6,
-        child: SizedBox(width: sz, height: sz, child: CustomPaint(painter: _CornerOrnamentPainter(color: color)))),
-      Positioned(top: 6, right: 6,
-        child: Transform(alignment: Alignment.center, transform: Matrix4.rotationY(math.pi),
-          child: SizedBox(width: sz, height: sz, child: CustomPaint(painter: _CornerOrnamentPainter(color: color))))),
-      Positioned(bottom: 6, left: 6,
-        child: Transform(alignment: Alignment.center, transform: Matrix4.rotationX(math.pi),
-          child: SizedBox(width: sz, height: sz, child: CustomPaint(painter: _CornerOrnamentPainter(color: color))))),
-      Positioned(bottom: 6, right: 6,
-        child: Transform(alignment: Alignment.center, transform: Matrix4.rotationZ(math.pi),
-          child: SizedBox(width: sz, height: sz, child: CustomPaint(painter: _CornerOrnamentPainter(color: color))))),
+      Positioned(
+          top: 0,
+          left: 0,
+          child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationZ(math.pi / 2),
+              child: SizedBox(
+                  width: sz,
+                  height: sz,
+                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+      Positioned(
+          top: 0,
+          right: 0,
+          child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationZ(math.pi),
+              child: SizedBox(
+                  width: sz,
+                  height: sz,
+                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+      Positioned(
+          bottom: 0,
+          left: 0,
+          child: SizedBox(
+              width: sz,
+              height: sz,
+              child: Image.asset('assets/icons/border-edge.png', color: color))),
+      Positioned(
+          bottom: 0,
+          right: 0,
+          child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationZ(-math.pi / 2),
+              child: SizedBox(
+                  width: sz,
+                  height: sz,
+                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
     ];
   }
 }
@@ -203,10 +203,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 position: _slideAnim,
                 child: Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      child: _buildTopBar(primary),
-                    ),
+                    const SizedBox(height: 16),
+                    _buildTopBar(primary),
                     Expanded(
                       child: Center(
                         child: SingleChildScrollView(
@@ -288,9 +286,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   Widget _buildTopBar(Color primary) {
-    return Row(
-      children: [
-        GestureDetector(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: [
+          GestureDetector(
           onTap: () => Navigator.pop(context),
           child: Container(
             width: 40,
@@ -329,19 +329,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ],
           ),
         ),
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: primary.withValues(alpha: 0.25), width: 1),
-          ),
-          child: Icon(Icons.tune_rounded, color: primary.withValues(alpha: 0.7), size: 18),
-        ),
       ],
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSettingTile(
     BuildContext context, {
