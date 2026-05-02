@@ -3,12 +3,24 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'ui/screens/splash_screen.dart';
 import 'providers/game_settings_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Initialize Supabase
+  try {
+    await Supabase.initialize(
+      url: 'https://fyawjvkagtykmrwpuzhu.supabase.co',
+      anonKey: 'sb_publishable_msT8OhyDMcU75iaApiKB8w_QicRmQGA',
+    );
+    debugPrint('✅ Supabase initialized successfully!');
+  } catch (e) {
+    debugPrint('❌ Failed to initialize Supabase: $e');
+  }
+
   final prefs = await SharedPreferences.getInstance();
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
