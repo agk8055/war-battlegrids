@@ -5,6 +5,12 @@ import '../core/constants/game_constants.dart';
 import '../core/constants/board_constants.dart';
 import 'board.dart';
 
+class WinResult {
+  final bool isWin;
+  final List<(int, int)>? blockage;
+  WinResult(this.isWin, [this.blockage]);
+}
+
 class GameRules {
   /// Checks if an attempted placement is structurally valid on the board.
   static bool isValidPlacement(
@@ -60,7 +66,7 @@ class GameRules {
       );
       board.setCell(x, y, originalState);
 
-      if (wouldCompleteBlockage) {
+      if (wouldCompleteBlockage.isWin) {
         return false;
       }
     }
@@ -75,39 +81,34 @@ class GameRules {
 
   /// Checks if the win condition has been met.
   /// Checks if the win condition has been met by entirely surrounding the opponent's palace.
-  static bool checkWinCondition(
+  static WinResult checkWinCondition(
     Board board,
     Turn currentTurn, {
     required bool kingdomAttackUnlocked,
   }) {
-    if (!kingdomAttackUnlocked) return false;
-
-    // Use Topological Blockade Logic with strict fallback hierarchy:
-    // 1. U-shaped Blockade (Top-Left to Top-Right)
-    // 2. Parallel Blockade (Left Edge to Right Edge)
-    // 3. Kingdom-assisted Blockade (Last resort)
+    if (!kingdomAttackUnlocked) return WinResult(false);
 
     // Check for actual U-shaped win
-    bool uWon = _findBlockade(board, currentTurn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: false);
-    if (uWon) return true;
+    final uWon = _findBlockade(board, currentTurn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: false);
+    if (uWon.isWin) return uWon;
 
     // If not won by U-shape, is a U-shape STILL POSSIBLE?
-    bool uPossible = _findBlockade(board, currentTurn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: true);
-    if (uPossible) return false; // If a U-shape is possible, you MUST win that way.
+    final uPossible = _findBlockade(board, currentTurn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: true);
+    if (uPossible.isWin) return WinResult(false); // If a U-shape is possible, you MUST win that way.
 
     // U-shape is impossible. Check for actual Parallel win.
-    bool pWon = _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: false);
-    if (pWon) return true;
+    final pWon = _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: false);
+    if (pWon.isWin) return pWon;
 
     // If not won by Parallel, is a Parallel STILL POSSIBLE?
-    bool pPossible = _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: true);
-    if (pPossible) return false; // If a Parallel is possible, you MUST win that way.
+    final pPossible = _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: true);
+    if (pPossible.isWin) return WinResult(false); // If a Parallel is possible, you MUST win that way.
 
     // Both U-shape and Parallel are impossible. Check for Kingdom-assisted win.
     return _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge, AnchorType.topLeft, AnchorType.topRight}, includeKingdom: true, includeEmpty: false, requireKingdom: true);
   }
 
-  static bool _findBlockade(
+  static WinResult _findBlockade(
     Board board, 
     Turn currentTurn, 
     Set<AnchorType> requiredAnchors, 
@@ -141,8 +142,10 @@ class GameRules {
         if (includeEmpty && state == CellState.empty) isWallPart = true;
 
         if (isWallPart && !visited.contains((x, y))) {
+          final groupVisited = <(int, int)>{};
           final queue = <(int, int)>[(x, y)];
           visited.add((x, y));
+          groupVisited.add((x, y));
 
           final foundAnchors = <AnchorType>{};
           bool usesKingdom = false;
@@ -172,6 +175,7 @@ class GameRules {
 
                 if (isNeighborWall && !visited.contains(dir)) {
                   visited.add(dir);
+                  groupVisited.add(dir);
                   queue.add(dir);
                 }
               }
@@ -182,18 +186,18 @@ class GameRules {
 
           // Check if the connected group satisfies the required anchor combination
           if (requiredAnchors.every((a) => foundAnchors.contains(a))) {
-            return true;
+            return WinResult(true, groupVisited.toList());
           }
           
           // Special case for Kingdom-assisted: any TWO distinct anchors from the set
           if (requireKingdom && foundAnchors.length >= 2) {
-            return true;
+            return WinResult(true, groupVisited.toList());
           }
         }
       }
     }
 
-    return false;
+    return WinResult(false);
   }
 
   /// Checks if the board is full and no moves are possible.
@@ -211,11 +215,11 @@ class GameRules {
   static bool isWinConditionPossible(Board board, Turn turn, WinConditionType type) {
     switch (type) {
       case WinConditionType.uShape:
-        return _findBlockade(board, turn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: true);
+        return _findBlockade(board, turn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: true).isWin;
       case WinConditionType.parallel:
-        return _findBlockade(board, turn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: true);
+        return _findBlockade(board, turn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: true).isWin;
       case WinConditionType.kingdomAssisted:
-        return _findBlockade(board, turn, {AnchorType.leftEdge, AnchorType.rightEdge, AnchorType.topLeft, AnchorType.topRight}, includeKingdom: true, includeEmpty: true, requireKingdom: true);
+        return _findBlockade(board, turn, {AnchorType.leftEdge, AnchorType.rightEdge, AnchorType.topLeft, AnchorType.topRight}, includeKingdom: true, includeEmpty: true, requireKingdom: true).isWin;
     }
   }
 }

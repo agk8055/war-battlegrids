@@ -185,12 +185,13 @@ class MinimaxAI {
       // Temporarily place to check for immediate captures
       sim.board.setCell(move.$1, move.$2, attackerState);
       try {
-        final captures = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
-        if (captures.isNotEmpty) {
+        final captureResult = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
+        if (captureResult.capturedCells.isNotEmpty) {
           int enemyCount = 0;
-          for (final c in captures) {
+          for (final c in captureResult.capturedCells) {
             if (sim.board.getCell(c.$1, c.$2) == defenderState) enemyCount++;
           }
+
           severity += 100 + (enemyCount * 10);
           
           // Double Threat Logic (Immediate)
@@ -223,11 +224,11 @@ class MinimaxAI {
       // Defense Threat: Would the opponent capture if they moved here?
       sim.board.setCell(move.$1, move.$2, defenderState);
       try {
-        final enemyCaptures = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn);
-        if (enemyCaptures.isNotEmpty) {
+        final enemyCaptureResult = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn);
+        if (enemyCaptureResult.capturedCells.isNotEmpty) {
           int oppEnemyCount = 0;
           final myState = currentTurn == Turn.player ? CellState.player : CellState.ai;
-          for (final c in enemyCaptures) {
+          for (final c in enemyCaptureResult.capturedCells) {
              if (sim.board.getCell(c.$1, c.$2) == myState) oppEnemyCount++;
           }
           severity += 80 + (oppEnemyCount * 5);
@@ -308,7 +309,7 @@ class MinimaxAI {
       board.setCell(move.$1, move.$2, state);
       final wins = GameRules.checkWinCondition(board, turn, kingdomAttackUnlocked: true);
       board.setCell(move.$1, move.$2, original);
-      if (wins) return true;
+      if (wins.isWin) return true;
     }
 
     // 3. Defensive Blocking (Anti-Blockade)

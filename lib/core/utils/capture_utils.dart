@@ -3,16 +3,21 @@ import '../enums/turn.dart';
 import '../../simulation/board.dart';
 import 'board_utils.dart';
 
+class CaptureResult {
+  final List<(int, int)> capturedCells;
+  final Set<((int, int), (int, int))> linkages;
+  CaptureResult(this.capturedCells, this.linkages);
+}
+
 class CaptureUtils {
   /// Evaluates if placing a piece at [placedCoord] by [turn] results in any enemy
-  /// unit or territory captures. Returns a list of coordinates of captured cells.
-  /// 
-  /// A region (enemy units + empty cells) is captured if it is fully enclosed by 
-  /// the attacker's pieces or the playable battlefield boundaries.
-  static List<(int, int)> getCapturedUnits(Board board, (int, int) placedCoord, Turn turn) {
+  /// unit or territory captures. Returns a CaptureResult containing 
+  /// captured cells and blockage linkages.
+  static CaptureResult getCapturedUnits(Board board, (int, int) placedCoord, Turn turn) {
     final CellState attackerState = turn == Turn.player ? CellState.player : CellState.ai;
     final CellState attackerZone = turn == Turn.player ? CellState.playerZone : CellState.aiZone;
     final List<(int, int)> captured = [];
+    final Set<((int, int), (int, int))> linkages = {};
 
     // Check adjacent cells
     final allNeighbors = [
@@ -31,15 +36,17 @@ class CaptureUtils {
       // and NOT already captured, check if it's enclosed.
       if (cell != attackerState && cell != attackerZone && cell != CellState.obstacle) {
         if (!captured.any((c) => c.$1 == neighbor.$1 && c.$2 == neighbor.$2)) {
-          final groupResult = _checkGroupCapture(board, neighbor, attackerState, attackerZone);
-          if (groupResult != null) {
-            captured.addAll(groupResult);
+          final group = _checkGroupCapture(board, neighbor, attackerState, attackerZone);
+          if (group != null) {
+            captured.addAll(group);
+            // Identify blockage for this group
+            _addBlockageLinkages(board, group, attackerState, attackerZone, linkages);
           }
         }
       }
     }
 
-    return captured;
+    return CaptureResult(captured, linkages);
   }
 
   /// Finds the contiguous group of non-attacker units starting at [startCoord].
@@ -51,11 +58,6 @@ class CaptureUtils {
     bool hasLiberty = false;
 
     // The owner of the starting cell is the one who needs to reach their own zone
-    // If starting cell is empty, the "owner" zone that grants liberty is the enemy's zone
-    // Wait, if it's empty space, it should be captured if it can't reach EITHER palace?
-    // No, if it's empty, it can be captured by anyone.
-    // If it reaches AI Palace, Player can't capture it. If it reaches Player Palace, AI can't capture it.
-    
     final aiZone = CellState.aiZone;
     final playerZone = CellState.playerZone;
 
@@ -87,10 +89,6 @@ class CaptureUtils {
         }
 
         if (cell == aiZone || cell == playerZone) {
-          // Touching ANY kingdom zone provides liberty for the territory?
-          // No, only the "friendly" zone.
-          // If the attacker is Player, then touching AI Palace grants liberty (AI protects it).
-          // If the attacker is AI, then touching Player Palace grants liberty (Player protects it).
           final enemyZone = attackerState == CellState.player ? CellState.aiZone : CellState.playerZone;
           if (cell == enemyZone) {
             hasLiberty = true;
@@ -115,7 +113,6 @@ class CaptureUtils {
     }
 
     // A captured group MUST contain at least one enemy unit. 
-    // Capturing purely empty space without enemy units is not allowed.
     final defenderState = attackerState == CellState.player ? CellState.ai : CellState.player;
     bool containsEnemy = false;
     for (final coord in group) {
@@ -130,6 +127,57 @@ class CaptureUtils {
     }
 
     return group.toList();
+  }
+
+  /// Generates linkages between 8-way adjacent cells in the provided set.
+  static Set<((int, int), (int, int))> getLinkagesFromBlockage(List<(int, int)> blockageCells) {
+    final Set<((int, int), (int, int))> linkages = {};
+    for (int i = 0; i < blockageCells.length; i++) {
+      for (int j = i + 1; j < blockageCells.length; j++) {
+        final b1 = blockageCells[i];
+        final b2 = blockageCells[j];
+        
+        final dx = (b1.$1 - b2.$1).abs();
+        final dy = (b1.$2 - b2.$2).abs();
+        
+        if (dx <= 1 && dy <= 1) {
+          if (b1.$1 < b2.$1 || (b1.$1 == b2.$1 && b1.$2 < b2.$2)) {
+            linkages.add((b1, b2));
+          } else {
+            linkages.add((b2, b1));
+          }
+        }
+      }
+    }
+    return linkages;
+  }
+
+  /// Adds linkages between adjacent attacker pieces that form the blockage for the given group.
+  static void _addBlockageLinkages(
+    Board board, 
+    List<(int, int)> group, 
+    CellState attackerState, 
+    CellState attackerZone,
+    Set<((int, int), (int, int))> linkages,
+  ) {
+    final Set<(int, int)> blockage = {};
+    for (final coord in group) {
+      final neighbors = [
+        (coord.$1, coord.$2 - 1),
+        (coord.$1, coord.$2 + 1),
+        (coord.$1 - 1, coord.$2),
+        (coord.$1 + 1, coord.$2),
+      ];
+      for (final n in neighbors) {
+        if (!board.isWithinPlayableArea(n.$1, n.$2)) continue;
+        final state = board.getCell(n.$1, n.$2);
+        if (state == attackerState || state == attackerZone) {
+          blockage.add(n);
+        }
+      }
+    }
+
+    linkages.addAll(getLinkagesFromBlockage(blockage.toList()));
   }
 
   static bool _isOutOfBounds((int, int) coord, int width, int height) {

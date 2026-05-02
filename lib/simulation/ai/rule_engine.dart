@@ -65,7 +65,7 @@ class RuleEngine {
       final wins = GameRules.checkWinCondition(sim.board, currentTurn, kingdomAttackUnlocked: true);
       sim.board.setCell(move.$1, move.$2, original);
 
-      if (wins) return move;
+      if (wins.isWin) return move;
     }
     return null;
   }
@@ -87,11 +87,11 @@ class RuleEngine {
 
       sim.board.setCell(move.$1, move.$2, attackerState);
       try {
-        final captures = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
-        if (captures.isNotEmpty) {
+        final result = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
+        if (result.capturedCells.isNotEmpty) {
            int enemyCount = 0;
            final defState = currentTurn == Turn.player ? CellState.ai : CellState.player;
-           for (final c in captures) {
+           for (final c in result.capturedCells) {
               if (sim.board.getCell(c.$1, c.$2) == defState) enemyCount++;
            }
            if (enemyCount > maxCaptures) {
@@ -130,8 +130,8 @@ class RuleEngine {
       sim.board.setCell(move.$1, move.$2, defenderState);
       int potentialCaptures = 0;
       try {
-        final cList = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn);
-        for(final c in cList) {
+        final result = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn);
+        for(final c in result.capturedCells) {
             if (sim.board.getCell(c.$1, c.$2) == defenderState) {
                 potentialCaptures++;
             }
@@ -158,9 +158,9 @@ class RuleEngine {
                 if (!GameRules.isValidPlacement(sim.board, oppMove.$1, oppMove.$2, opponentTurn, opponentAttackUnlocked)) continue;
                 
                 sim.board.setCell(oppMove.$1, oppMove.$2, defenderState);
-                final oppCaptures = CaptureUtils.getCapturedUnits(sim.board, oppMove, opponentTurn);
+                final oppResult = CaptureUtils.getCapturedUnits(sim.board, oppMove, opponentTurn);
                 sim.board.setCell(oppMove.$1, oppMove.$2, CellState.empty);
-                if (oppCaptures.contains(move)) {
+                if (oppResult.capturedCells.contains(move)) {
                     getsCaptured = true;
                     break;
                 }
@@ -204,10 +204,10 @@ class RuleEngine {
            if (!GameRules.isValidPlacement(sim.board, nextMove.$1, nextMove.$2, currentTurn, attackUnlocked)) continue;
            
            sim.board.setCell(nextMove.$1, nextMove.$2, attackerState);
-           final nextCaptures = CaptureUtils.getCapturedUnits(sim.board, nextMove, currentTurn);
+           final nextResult = CaptureUtils.getCapturedUnits(sim.board, nextMove, currentTurn);
            sim.board.setCell(nextMove.$1, nextMove.$2, CellState.empty);
            
-           if (nextCaptures.isNotEmpty) {
+           if (nextResult.capturedCells.isNotEmpty) {
              capturingNextMovesCount++;
            }
         }

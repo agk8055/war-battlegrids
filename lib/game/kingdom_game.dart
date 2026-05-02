@@ -12,6 +12,7 @@ import '../../simulation/ai/ai_strategy.dart';
 import '../../campaign/data/kingdoms_data.dart';
 import '../../campaign/models/kingdom_model.dart';
 import '../../core/services/audio_service.dart';
+import '../../simulation/board.dart';
 
 import '../core/enums/turn.dart';
 import '../core/enums/game_mode.dart';
@@ -21,6 +22,8 @@ import 'board/board_component.dart';
 class KingdomGame extends FlameGame with ScaleDetector {
   final WidgetRef ref;
   late BoardComponent boardComponent;
+
+  Board get simulationBoard => ref.read(simulationProvider).board;
 
   double _startScale = 1.0;
 

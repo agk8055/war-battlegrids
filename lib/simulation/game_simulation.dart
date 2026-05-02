@@ -50,23 +50,29 @@ class GameSimulation {
     board.setCell(x, y, pieceState);
 
     // Evaluate Captures
-    final capturedCoords = CaptureUtils.getCapturedUnits(board, (
+    final captureResult = CaptureUtils.getCapturedUnits(board, (
       x,
       y,
     ), currentTurn);
     
     bool captureOccurred = false;
-    if (capturedCoords.isNotEmpty) {
-      _handleCaptures(capturedCoords);
+    if (captureResult.capturedCells.isNotEmpty) {
+      _handleCaptures(captureResult.capturedCells);
+      board.linkages.addAll(captureResult.linkages);
       captureOccurred = true;
     }
 
     // Evaluate Win Condition
-    if (GameRules.checkWinCondition(
+    final winResult = GameRules.checkWinCondition(
       board,
       currentTurn,
       kingdomAttackUnlocked: attackUnlocked,
-    )) {
+    );
+    
+    if (winResult.isWin) {
+      if (winResult.blockage != null) {
+        board.linkages.addAll(CaptureUtils.getLinkagesFromBlockage(winResult.blockage!));
+      }
       currentPhase = GamePhase.gameOver;
       winner = currentTurn;
       // Do NOT switch turns if game is over

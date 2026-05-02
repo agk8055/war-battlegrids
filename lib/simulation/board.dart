@@ -25,6 +25,10 @@ class Board {
   int playerPalaceStartY = 0;
   int playerPalaceEndY = 0;
 
+  /// Connections between cells that form a blockage.
+  /// Each entry is a pair of adjacent coordinates.
+  Set<((int, int), (int, int))> linkages = {};
+
   Board({
     this.width = kDefaultBoardWidth,
     this.height = kDefaultBoardHeight,
@@ -35,6 +39,7 @@ class Board {
     playableMaxY = height - 1 - kPlayableBoundary;
     ZobristHash.initialize(width, height);
     _initializeGrid();
+    linkages = {};
   }
 
   void _initializeGrid() {
@@ -46,6 +51,7 @@ class Board {
         (x) => CellState.empty,
       ),
     );
+    linkages = {};
   }
 
   /// Resizes the board and clears the grid.
@@ -176,6 +182,9 @@ class Board {
     clonedBoard.playerPalaceEndX = playerPalaceEndX;
     clonedBoard.playerPalaceStartY = playerPalaceStartY;
     clonedBoard.playerPalaceEndY = playerPalaceEndY;
+
+    // Copy linkages
+    clonedBoard.linkages = Set.from(linkages);
 
     for (int y = 0; y < height; y++) {
       clonedBoard._grid[y] = List<CellState>.from(_grid[y]);
