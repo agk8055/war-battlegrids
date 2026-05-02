@@ -1,8 +1,12 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'map_selection_screen.dart';
 import 'bluetooth_lobby_screen.dart';
+import 'online_lobby_screen.dart';
+import '../../core/enums/connection_type.dart';
+import '../../providers/turn_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Painters (shared aesthetic from profile screen)
@@ -171,11 +175,11 @@ class _AnimatedPressButtonState extends State<_AnimatedPressButton>
 // ─────────────────────────────────────────────────────────────────────────────
 //  Multiplayer Mode Selection Screen
 // ─────────────────────────────────────────────────────────────────────────────
-class MultiplayerModeSelectionScreen extends StatelessWidget {
+class MultiplayerModeSelectionScreen extends ConsumerWidget {
   const MultiplayerModeSelectionScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final primary = Theme.of(context).colorScheme.primary;
 
     final List<Map<String, dynamic>> modes = [
@@ -185,6 +189,7 @@ class MultiplayerModeSelectionScreen extends StatelessWidget {
         'icon': Icons.phonelink_setup_rounded,
         'enabled': true,
         'onTap': () {
+          ref.read(connectionTypeProvider.notifier).setConnectionType(ConnectionType.local);
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -213,10 +218,14 @@ class MultiplayerModeSelectionScreen extends StatelessWidget {
         'title': 'ONLINE',
         'subtitle': 'Global battlefield',
         'icon': Icons.public_rounded,
-        'enabled': false,
+        'enabled': true,
         'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Online Multiplayer coming soon!')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              settings: const RouteSettings(name: '/online_lobby'),
+              builder: (context) => const OnlineLobbyScreen(),
+            ),
           );
         },
       },

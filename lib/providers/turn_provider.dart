@@ -4,6 +4,8 @@ import '../simulation/game_simulation.dart';
 import '../simulation/ai/rule_engine.dart';
 import '../simulation/ai/ai_strategy.dart';
 
+import '../core/enums/connection_type.dart';
+
 /// Represents the state of the AI's internal thinking process.
 enum AIState { idle, thinking, error }
 
@@ -20,16 +22,16 @@ class AIStateNotifier extends Notifier<AIState> {
   void setIdle() => state = AIState.idle;
 }
 
-/// Provider to track if we are in multiplayer mode.
-final multiplayerModeProvider = NotifierProvider<MultiplayerModeNotifier, bool>(() {
-  return MultiplayerModeNotifier();
+/// Provider to track the current connection type (local, bluetooth, online).
+final connectionTypeProvider = NotifierProvider<ConnectionTypeNotifier, ConnectionType>(() {
+  return ConnectionTypeNotifier();
 });
 
-class MultiplayerModeNotifier extends Notifier<bool> {
+class ConnectionTypeNotifier extends Notifier<ConnectionType> {
   @override
-  bool build() => false;
+  ConnectionType build() => ConnectionType.none;
 
-  void setMultiplayer(bool value) {
+  void setConnectionType(ConnectionType value) {
     state = value;
   }
 }

@@ -19,6 +19,11 @@ import '../core/enums/game_mode.dart';
 import '../core/enums/game_phase.dart';
 import 'board/board_component.dart';
 
+import '../../providers/online_provider.dart';
+import '../../core/enums/connection_type.dart';
+
+// ... (other imports)
+
 class KingdomGame extends FlameGame with ScaleDetector {
   final WidgetRef ref;
   late BoardComponent boardComponent;
@@ -44,11 +49,18 @@ class KingdomGame extends FlameGame with ScaleDetector {
     final settings = ref.read(gameSettingsProvider);
     final campaignState = ref.read(campaignProvider);
     final bluetoothState = ref.read(bluetoothProvider);
+    final onlineState = ref.read(onlineProvider);
+    final connectionType = ref.read(connectionTypeProvider);
+
     final isMultiplayer = settings.mode == GameMode.multiplayer;
-    final isBluetooth = bluetoothState.status == BluetoothStatus.connected;
     
     // In same-device multiplayer, we treat it like 'Host' so P1 is bottom, P2 is top.
-    final bool effectiveIsHost = isMultiplayer ? (!isBluetooth || bluetoothState.isHost) : true;
+    bool effectiveIsHost = true;
+    if (connectionType == ConnectionType.bluetooth) {
+      effectiveIsHost = bluetoothState.isHost;
+    } else if (connectionType == ConnectionType.online) {
+      effectiveIsHost = onlineState.isHost;
+    }
 
     final selectedKingdom = campaignState.selectedKingdomId != null 
         ? kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId)
@@ -126,8 +138,9 @@ class KingdomGame extends FlameGame with ScaleDetector {
     final notifier = ref.read(simulationProvider.notifier);
     final simulationState = ref.read(simulationProvider);
     final settings = ref.read(gameSettingsProvider);
-    final multiplayerMode = ref.read(multiplayerModeProvider);
+    final connectionType = ref.read(connectionTypeProvider);
     final bluetoothState = ref.read(bluetoothProvider);
+    final onlineState = ref.read(onlineProvider);
 
     // Prevent tap if game is over or AI is thinking
     if (simulationState.currentPhase == GamePhase.gameOver) return;
@@ -137,10 +150,16 @@ class KingdomGame extends FlameGame with ScaleDetector {
       return;
     }
 
-    // In multiplayer mode, prevent tap if it's not our turn
-    if (multiplayerMode) {
-      final isOurTurn = (bluetoothState.isHost && simulationState.currentTurn == Turn.player) ||
-                       (!bluetoothState.isHost && simulationState.currentTurn == Turn.ai);
+    // In remote multiplayer mode, prevent tap if it's not our turn
+    if (connectionType == ConnectionType.bluetooth || connectionType == ConnectionType.online) {
+      bool isOurTurn = false;
+      if (connectionType == ConnectionType.bluetooth) {
+        isOurTurn = (bluetoothState.isHost && simulationState.currentTurn == Turn.player) ||
+                     (!bluetoothState.isHost && simulationState.currentTurn == Turn.ai);
+      } else {
+        isOurTurn = (onlineState.isHost && simulationState.currentTurn == Turn.player) ||
+                     (!onlineState.isHost && simulationState.currentTurn == Turn.ai);
+      }
       if (!isOurTurn) return;
     }
 
@@ -154,10 +173,7 @@ class KingdomGame extends FlameGame with ScaleDetector {
       }
       boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
       
-      if (multiplayerMode) {
-        // Send move to peer
-        ref.read(bluetoothProvider.notifier).sendMove(x, y);
-      } else if (settings.mode == GameMode.story) {
+      if (settings.mode == GameMode.story) {
         _checkAITurn();
       }
     }

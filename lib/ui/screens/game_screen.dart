@@ -6,8 +6,12 @@ import '../../providers/simulation_provider.dart';
 import '../../providers/turn_provider.dart';
 import '../../providers/game_settings_provider.dart';
 import '../../providers/bluetooth_provider.dart';
+import '../../providers/online_provider.dart';
+import '../../core/enums/connection_type.dart';
 import '../../core/enums/game_mode.dart';
 import 'bluetooth_lobby_screen.dart';
+import 'online_lobby_screen.dart';
+import 'settings_screen.dart';
 
 import '../../core/enums/game_phase.dart';
 import '../../core/enums/turn.dart';
@@ -19,7 +23,6 @@ import '../widgets/overlays/game_over_overlay.dart';
 import '../widgets/overlays/capture_toast.dart';
 import '../widgets/overlays/pause_overlay.dart';
 import '../widgets/overlays/ai_thinking_overlay.dart';
-import 'settings_screen.dart';
 import '../../simulation/game_simulation.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
@@ -42,20 +45,23 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   }
 
   void _togglePause() {
-    final settings = ref.read(gameSettingsProvider);
-    final isMultiplayer = settings.mode == GameMode.multiplayer;
+    final connectionType = ref.read(connectionTypeProvider);
 
     setState(() {
       _isPaused = !_isPaused;
       if (_isPaused) {
         _game?.pauseEngine();
-        if (isMultiplayer) {
+        if (connectionType == ConnectionType.bluetooth) {
           ref.read(bluetoothProvider.notifier).sendPause(true);
+        } else if (connectionType == ConnectionType.online) {
+          ref.read(onlineProvider.notifier).sendPause(true);
         }
       } else {
         _game?.resumeEngine();
-        if (isMultiplayer) {
+        if (connectionType == ConnectionType.bluetooth) {
           ref.read(bluetoothProvider.notifier).sendPause(false);
+        } else if (connectionType == ConnectionType.online) {
+          ref.read(onlineProvider.notifier).sendPause(false);
         }
       }
     });
@@ -63,12 +69,17 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
   void _handleAbandon() {
     final settings = ref.read(gameSettingsProvider);
-    final isMultiplayer = settings.mode == GameMode.multiplayer;
+    final connectionType = ref.read(connectionTypeProvider);
 
-    if (isMultiplayer) {
+    if (connectionType == ConnectionType.bluetooth) {
       ref.read(bluetoothProvider.notifier).sendAbandon();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const BluetoothLobbyScreen()),
+      );
+    } else if (connectionType == ConnectionType.online) {
+      ref.read(onlineProvider.notifier).sendAbandon();
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const OnlineLobbyScreen()),
       );
     } else if (settings.mode == GameMode.story) {
       Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
@@ -83,21 +94,44 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     final aiState = ref.watch(aiStateProvider);
     final settings = ref.watch(gameSettingsProvider);
     final bluetoothState = ref.watch(bluetoothProvider);
+    final onlineState = ref.watch(onlineProvider);
+    final connectionType = ref.watch(connectionTypeProvider);
 
     // Shared Pause Logic: if peer paused, we show pause too
-    final effectivePaused = _isPaused || (settings.mode == GameMode.multiplayer && bluetoothState.isPeerPaused);
+    bool peerPaused = false;
+    if (connectionType == ConnectionType.bluetooth) {
+      peerPaused = bluetoothState.isPeerPaused;
+    } else if (connectionType == ConnectionType.online) {
+      peerPaused = onlineState.isPeerPaused;
+    }
+
+    final effectivePaused = _isPaused || peerPaused;
 
     // Listen for peer abandonment
     ref.listen(bluetoothProvider, (previous, next) {
-      if (settings.mode == GameMode.multiplayer && previous?.gameStarted == true && !next.gameStarted) {
-        // Peer abandoned or something triggered game end
+      if (connectionType == ConnectionType.bluetooth && previous?.gameStarted == true && !next.gameStarted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const BluetoothLobbyScreen()),
         );
       }
       
-      // Update engine pause state based on peer
-      if (settings.mode == GameMode.multiplayer) {
+      if (connectionType == ConnectionType.bluetooth) {
+         if (next.isPeerPaused && !(previous?.isPeerPaused ?? false)) {
+           _game?.pauseEngine();
+         } else if (!next.isPeerPaused && (previous?.isPeerPaused ?? false) && !_isPaused) {
+           _game?.resumeEngine();
+         }
+      }
+    });
+
+    ref.listen(onlineProvider, (previous, next) {
+      if (connectionType == ConnectionType.online && previous?.gameStarted == true && !next.gameStarted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const OnlineLobbyScreen()),
+        );
+      }
+      
+      if (connectionType == ConnectionType.online) {
          if (next.isPeerPaused && !(previous?.isPeerPaused ?? false)) {
            _game?.pauseEngine();
          } else if (!next.isPeerPaused && (previous?.isPeerPaused ?? false) && !_isPaused) {
@@ -115,7 +149,13 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       
       // Determine Player names for toast messages
       final isMultiplayer = settings.mode == GameMode.multiplayer;
-      final isHost = ref.read(bluetoothProvider).isHost;
+      bool isHost = true;
+      if (connectionType == ConnectionType.bluetooth) {
+        isHost = bluetoothState.isHost;
+      } else if (connectionType == ConnectionType.online) {
+        isHost = onlineState.isHost;
+      }
+
       final p1Name = settings.player1Name;
       final p2Name = isMultiplayer ? settings.player2Name : "AI";
 
@@ -215,8 +255,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     }
                     Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
                   } else if (settings.mode == GameMode.multiplayer) {
-                    final bluetoothState = ref.read(bluetoothProvider);
-                    if (bluetoothState.status == BluetoothStatus.connected) {
+                    final connectionType = ref.read(connectionTypeProvider);
+                    if (connectionType == ConnectionType.bluetooth) {
                       // Reset gameStarted flag so we can start again
                       ref.read(bluetoothProvider.notifier).setGameStarted(false);
                       
@@ -224,6 +264,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
                           builder: (context) => const BluetoothLobbyScreen(),
+                        ),
+                      );
+                    } else if (connectionType == ConnectionType.online) {
+                      // Reset gameStarted flag so we can start again
+                      ref.read(onlineProvider.notifier).setGameStarted(false);
+                      
+                      // Return to lobby
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (context) => const OnlineLobbyScreen(),
                         ),
                       );
                     } else {

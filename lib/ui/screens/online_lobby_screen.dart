@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/bluetooth_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../providers/online_provider.dart';
 import '../../providers/turn_provider.dart';
 import '../../providers/game_settings_provider.dart';
 import '../../providers/simulation_provider.dart';
@@ -9,17 +10,18 @@ import '../../core/enums/connection_type.dart';
 import 'game_screen.dart';
 import 'map_selection_screen.dart';
 
-class BluetoothLobbyScreen extends ConsumerStatefulWidget {
-  const BluetoothLobbyScreen({super.key});
+class OnlineLobbyScreen extends ConsumerStatefulWidget {
+  const OnlineLobbyScreen({super.key});
 
   @override
-  ConsumerState<BluetoothLobbyScreen> createState() => _BluetoothLobbyScreenState();
+  ConsumerState<OnlineLobbyScreen> createState() => _OnlineLobbyScreenState();
 }
 
-class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
+class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen> {
   bool _isHosting = false;
   bool _isJoining = false;
-  late TextEditingController _thresholdController;
+  final TextEditingController _codeController = TextEditingController();
+  final TextEditingController _thresholdController = TextEditingController();
 
   final List<String> _availableSigils = [
     'assets/symbols/fire.png',
@@ -46,14 +48,15 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
   @override
   void initState() {
     super.initState();
-    final bluetoothState = ref.read(bluetoothProvider);
-    _isHosting = bluetoothState.isHost && bluetoothState.status != BluetoothStatus.idle;
-    _isJoining = !bluetoothState.isHost && bluetoothState.status != BluetoothStatus.idle;
-    _thresholdController = TextEditingController(text: '${bluetoothState.kingdomAttackThreshold}');
+    final onlineState = ref.read(onlineProvider);
+    _isHosting = onlineState.isHost && onlineState.status != OnlineStatus.idle;
+    _isJoining = !onlineState.isHost && onlineState.status != OnlineStatus.idle;
+    _thresholdController.text = '${onlineState.kingdomAttackThreshold}';
   }
 
   @override
   void dispose() {
+    _codeController.dispose();
     _thresholdController.dispose();
     super.dispose();
   }
@@ -63,7 +66,7 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
       _isHosting = true;
       _isJoining = false;
     });
-    ref.read(bluetoothProvider.notifier).startHosting();
+    ref.read(onlineProvider.notifier).createRoom();
   }
 
   void _handleJoin() {
@@ -71,24 +74,23 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
       _isJoining = true;
       _isHosting = false;
     });
-    ref.read(bluetoothProvider.notifier).startScanning();
+  }
+
+  void _submitJoinCode() {
+    if (_codeController.text.length == 5) {
+      ref.read(onlineProvider.notifier).joinRoom(_codeController.text);
+    }
   }
 
   void _startGame() {
     if (!mounted) return;
 
-    // Set connection type
-    ref.read(connectionTypeProvider.notifier).setConnectionType(ConnectionType.bluetooth);
-    
-    // Update game mode in settings
+    ref.read(connectionTypeProvider.notifier).setConnectionType(ConnectionType.online);
     ref.read(gameSettingsProvider.notifier).setMode(GameMode.multiplayer);
-
-    // Reset simulation for a fresh game
     ref.read(simulationProvider.notifier).reset();
 
-    // If host, send start game message to peer
-    if (ref.read(bluetoothProvider).isHost) {
-      ref.read(bluetoothProvider.notifier).sendStartGame();
+    if (ref.read(onlineProvider).isHost) {
+      ref.read(onlineProvider.notifier).sendStartGame();
     }
 
     Navigator.of(context).pushReplacement(
@@ -101,30 +103,25 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bluetoothState = ref.watch(bluetoothProvider);
+    final onlineState = ref.watch(onlineProvider);
+    final settings = ref.watch(gameSettingsProvider);
     final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
 
-    // Listen for peer starting game or connection drops
-    ref.listen(bluetoothProvider, (previous, next) {
+    ref.listen(onlineProvider, (previous, next) {
       if (!mounted) return;
+      debugPrint('🌐 OnlineState Update: Status=${next.status}, GameStarted=${next.gameStarted}');
 
-      if (next.status == BluetoothStatus.idle && previous?.status == BluetoothStatus.connected) {
-        // Disconnected mid-lobby
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Peer disconnected')),
-        );
-        setState(() {
-          _isHosting = false;
-          _isJoining = false;
-        });
+      if (next.status == OnlineStatus.idle && previous?.status == OnlineStatus.connected) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Disconnected from room')));
+        setState(() { _isHosting = false; _isJoining = false; });
       }
       
       if (next.gameStarted && !(previous?.gameStarted ?? false) && !next.isHost) {
-        // Host started game, navigate for joiner
+        debugPrint('🌐 Host started game, navigating...');
         _startGame();
       }
 
-      // Sync controller if threshold changed from outside (sync message)
       if (next.kingdomAttackThreshold != previous?.kingdomAttackThreshold) {
         if (_thresholdController.text != '${next.kingdomAttackThreshold}') {
           _thresholdController.text = '${next.kingdomAttackThreshold}';
@@ -135,9 +132,9 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('BLUETOOTH MULTIPLAYER', style: TextStyle(letterSpacing: 2)),
+        title: const Text('ONLINE MULTIPLAYER', style: TextStyle(letterSpacing: 2)),
         backgroundColor: Colors.transparent,
-        foregroundColor: theme.colorScheme.primary,
+        foregroundColor: primary,
         elevation: 0,
       ),
       body: Padding(
@@ -145,41 +142,54 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
+              // Display Local Player Name
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: primary.withValues(alpha: 0.3)),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'YOUR KINGDOM: ${settings.player1Name.toUpperCase()}',
+                  style: TextStyle(color: primary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                ),
+              ),
+              const SizedBox(height: 16),
+
               if (!_isHosting && !_isJoining) ...[
                 const SizedBox(height: 100),
                 _buildModeButton(
                   title: 'HOST ROOM',
-                  subtitle: 'Create a room for others to join',
-                  icon: Icons.wifi_tethering_rounded,
+                  subtitle: 'Get a code and invite a friend',
+                  icon: Icons.add_to_home_screen_rounded,
                   onTap: _handleHost,
                 ),
                 const SizedBox(height: 24),
                 _buildModeButton(
                   title: 'JOIN ROOM',
-                  subtitle: 'Search for nearby rooms',
-                  icon: Icons.search_rounded,
+                  subtitle: 'Enter a code to join a battle',
+                  icon: Icons.login_rounded,
                   onTap: _handleJoin,
                 ),
+              ] else if (_isJoining && onlineState.status == OnlineStatus.idle) ...[
+                const SizedBox(height: 100),
+                _buildJoinInput(theme),
               ] else ...[
-                _buildStatusHeader(bluetoothState),
+                _buildStatusHeader(onlineState),
                 const SizedBox(height: 12),
-                if (_isJoining && bluetoothState.status != BluetoothStatus.connected) 
-                   _buildDeviceList(bluetoothState),
-                if (_isHosting && bluetoothState.status != BluetoothStatus.connected) 
-                   _buildHostWaiting(bluetoothState),
                 
-                if (bluetoothState.status == BluetoothStatus.connected) ...[
+                if (onlineState.status == OnlineStatus.connected) ...[
                   const SizedBox(height: 24),
-                  _buildBattleSettings(bluetoothState, theme),
+                  _buildBattleSettings(onlineState, theme),
                 ],
 
                 const SizedBox(height: 32),
-                if (bluetoothState.status == BluetoothStatus.connected && bluetoothState.isHost) ...[
-                  if (bluetoothState.selectedMapName != null)
+                if (onlineState.status == OnlineStatus.connected && onlineState.isHost) ...[
+                  if (onlineState.selectedMapName != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
                       child: Text(
-                        'SELECTED MAP: ${bluetoothState.selectedMapName}',
+                        'SELECTED MAP: ${onlineState.selectedMapName}',
                         style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -187,11 +197,11 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
                     onPressed: () async {
                       final result = await Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => const MapSelectionScreen(isBluetoothMode: true),
+                          builder: (context) => const MapSelectionScreen(isBluetoothMode: true), // reuse bluetooth mode logic for map selection
                         ),
                       );
                       if (result != null && result is Map<String, String>) {
-                        ref.read(bluetoothProvider.notifier).sendMapSelection(result['path']!, result['name']!);
+                        ref.read(onlineProvider.notifier).sendMapSelection(result['path']!, result['name']!);
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -204,7 +214,7 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: bluetoothState.selectedMapPath != null ? _startGame : null,
+                    onPressed: onlineState.selectedMapPath != null ? _startGame : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.colorScheme.primary,
                       foregroundColor: Colors.black,
@@ -214,14 +224,14 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
                     child: const Text('START GAME', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                   ),
                 ],
-                if (bluetoothState.status == BluetoothStatus.connected && !bluetoothState.isHost)
+                if (onlineState.status == OnlineStatus.connected && !onlineState.isHost)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: Column(
                       children: [
-                        if (bluetoothState.selectedMapName != null)
+                        if (onlineState.selectedMapName != null)
                           Text(
-                            'MAP: ${bluetoothState.selectedMapName}',
+                            'MAP: ${onlineState.selectedMapName}',
                             style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
                           ),
                         const SizedBox(height: 8),
@@ -235,11 +245,12 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: () {
-                    ref.read(bluetoothProvider.notifier).disconnect();
+                    ref.read(onlineProvider.notifier).disconnect();
                     if (mounted) {
                       setState(() {
                         _isHosting = false;
                         _isJoining = false;
+                        _codeController.clear();
                       });
                     }
                   },
@@ -254,7 +265,102 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
     );
   }
 
-  Widget _buildBattleSettings(BluetoothState state, ThemeData theme) {
+  Widget _buildJoinInput(ThemeData theme) {
+    return Center(
+      child: Container(
+        width: 320,
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Column(
+          children: [
+            Text('ENTER ROOM CODE', style: GoogleFonts.sairaStencilOne(color: Colors.white, fontSize: 20, letterSpacing: 2)),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _codeController,
+              textAlign: TextAlign.center,
+              maxLength: 5,
+              style: GoogleFonts.sairaStencilOne(color: theme.colorScheme.primary, fontSize: 32, letterSpacing: 8),
+              decoration: InputDecoration(
+                counterText: '',
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: theme.colorScheme.primary)),
+              ),
+              onChanged: (val) {
+                if (val.length == 5) _submitJoinCode();
+              },
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: _submitJoinCode,
+              child: const Text('JOIN BATTLE'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusHeader(OnlineState state) {
+    String statusText = '';
+    Color statusColor = Colors.white54;
+    final theme = Theme.of(context);
+    
+    switch (state.status) {
+      case OnlineStatus.idle:
+        statusText = 'IDLE';
+        break;
+      case OnlineStatus.connecting:
+        statusText = 'CONNECTING...';
+        statusColor = Colors.orange;
+        break;
+      case OnlineStatus.connected:
+        if (state.peerKingdomName != null) {
+          statusText = 'CONNECTED TO ${state.peerKingdomName}';
+          statusColor = Colors.green;
+        } else {
+          statusText = 'WAITING FOR PEER...';
+          statusColor = theme.colorScheme.primary;
+        }
+        break;
+      case OnlineStatus.failed:
+        statusText = 'CONNECTION FAILED';
+        statusColor = Colors.red;
+        break;
+      case OnlineStatus.disconnected:
+        statusText = 'DISCONNECTED';
+        statusColor = Colors.red;
+        break;
+    }
+
+    return Column(
+      children: [
+        if (state.roomCode != null) ...[
+          Text('ROOM CODE', style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 2)),
+          const SizedBox(height: 4),
+          Text(state.roomCode!, style: GoogleFonts.sairaStencilOne(color: theme.colorScheme.primary, fontSize: 36, letterSpacing: 4)),
+          const SizedBox(height: 24),
+        ],
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+          ),
+          child: Text(
+            statusText,
+            style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBattleSettings(OnlineState state, ThemeData theme) {
     final isHost = state.isHost;
     
     return Container(
@@ -282,14 +388,14 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
             currentSigil: state.player1Symbol,
             unavailableSigil: state.player2Symbol,
             isEditable: isHost,
-            onSigilSelected: (sigil) => ref.read(bluetoothProvider.notifier).updateSettings(p1Symbol: sigil),
+            onSigilSelected: (sigil) => ref.read(onlineProvider.notifier).updateSettings(p1Symbol: sigil),
           ),
           const SizedBox(height: 12),
           _buildColorSelector(
             currentColor: Color(state.player1Color),
             unavailableColor: Color(state.player2Color),
             isEditable: isHost,
-            onColorSelected: (color) => ref.read(bluetoothProvider.notifier).updateSettings(p1Color: color.toARGB32()),
+            onColorSelected: (color) => ref.read(onlineProvider.notifier).updateSettings(p1Color: color.toARGB32()),
           ),
           const SizedBox(height: 24),
           _buildSigilSelector(
@@ -297,14 +403,14 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
             currentSigil: state.player2Symbol,
             unavailableSigil: state.player1Symbol,
             isEditable: isHost,
-            onSigilSelected: (sigil) => ref.read(bluetoothProvider.notifier).updateSettings(p2Symbol: sigil),
+            onSigilSelected: (sigil) => ref.read(onlineProvider.notifier).updateSettings(p2Symbol: sigil),
           ),
           const SizedBox(height: 12),
           _buildColorSelector(
             currentColor: Color(state.player2Color),
             unavailableColor: Color(state.player1Color),
             isEditable: isHost,
-            onColorSelected: (color) => ref.read(bluetoothProvider.notifier).updateSettings(p2Color: color.toARGB32()),
+            onColorSelected: (color) => ref.read(onlineProvider.notifier).updateSettings(p2Color: color.toARGB32()),
           ),
           const SizedBox(height: 32),
           Row(
@@ -334,7 +440,7 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
                     ),
                     onChanged: (value) {
                       final val = int.tryParse(value) ?? 100;
-                      ref.read(bluetoothProvider.notifier).updateSettings(threshold: val);
+                      ref.read(onlineProvider.notifier).updateSettings(threshold: val);
                     },
                   ),
                 )
@@ -497,104 +603,6 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildStatusHeader(BluetoothState state) {
-    String statusText = '';
-    Color statusColor = Colors.white54;
-    
-    switch (state.status) {
-      case BluetoothStatus.idle:
-        statusText = 'IDLE';
-        break;
-      case BluetoothStatus.scanning:
-        statusText = state.isHost ? 'ADVERTISING...' : 'SCANNING...';
-        statusColor = Theme.of(context).colorScheme.primary;
-        break;
-      case BluetoothStatus.connecting:
-        statusText = 'CONNECTING...';
-        statusColor = Colors.orange;
-        break;
-      case BluetoothStatus.connected:
-        final peerName = state.peerKingdomName ?? state.connectedDevice?.name ?? 'PEER';
-        statusText = 'CONNECTED TO $peerName';
-        statusColor = Colors.green;
-        break;
-      case BluetoothStatus.failed:
-        statusText = 'CONNECTION FAILED';
-        statusColor = Colors.red;
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        statusText,
-        style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12),
-      ),
-    );
-  }
-
-  Widget _buildDeviceList(BluetoothState state) {
-    final devices = state.discoveredDevices;
-
-    if (devices.isEmpty && state.status == BluetoothStatus.scanning) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(40.0),
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: devices.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final device = devices[index];
-        return ListTile(
-          tileColor: Colors.grey[900],
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: Text(device.name, style: const TextStyle(color: Colors.white)),
-          subtitle: const Text('Tap to connect', style: TextStyle(color: Colors.white38, fontSize: 11)),
-          trailing: const Icon(Icons.chevron_right, color: Colors.white24),
-          onTap: () => ref.read(bluetoothProvider.notifier).connectToDevice(device),
-        );
-      },
-    );
-  }
-
-  Widget _buildHostWaiting(BluetoothState state) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.wifi_tethering_rounded, size: 64, color: Colors.white10),
-          const SizedBox(height: 16),
-          Text(
-            state.status == BluetoothStatus.connected 
-                ? 'PEER CONNECTED!' 
-                : 'WAITING FOR PLAYERS...',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            state.status == BluetoothStatus.connected
-                ? 'You can now start the battle'
-                : 'Make sure your opponent is scanning for rooms',
-            style: const TextStyle(color: Colors.white38, fontSize: 12),
-            textAlign: TextAlign.center,
-          ),
-        ],
       ),
     );
   }

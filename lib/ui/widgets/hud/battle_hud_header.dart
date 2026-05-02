@@ -5,6 +5,9 @@ import '../../../core/enums/turn.dart';
 import '../../../providers/simulation_provider.dart';
 import '../../../providers/game_settings_provider.dart';
 import '../../../providers/bluetooth_provider.dart';
+import '../../../providers/online_provider.dart';
+import '../../../providers/turn_provider.dart';
+import '../../../core/enums/connection_type.dart';
 import '../../../campaign/campaign_manager.dart';
 import '../../../campaign/data/kingdoms_data.dart';
 import 'score_panel.dart';
@@ -23,13 +26,18 @@ class BattleHudHeader extends ConsumerWidget {
     final settings = ref.watch(gameSettingsProvider);
     final campaignState = ref.watch(campaignProvider);
     final bluetoothState = ref.watch(bluetoothProvider);
+    final onlineState = ref.watch(onlineProvider);
+    final connectionType = ref.watch(connectionTypeProvider);
 
     final isMultiplayer = settings.mode == GameMode.multiplayer;
-    final isBluetooth = bluetoothState.status == BluetoothStatus.connected;
-
-    // In same-device multiplayer, treat it like 'Host' so P1 is Left, P2 is Right
-    final bool effectiveIsHost =
-        isMultiplayer ? (!isBluetooth || bluetoothState.isHost) : true;
+    
+    // Determine if we are 'host' for visual mapping purposes
+    bool effectiveIsHost = true;
+    if (connectionType == ConnectionType.bluetooth) {
+      effectiveIsHost = bluetoothState.isHost;
+    } else if (connectionType == ConnectionType.online) {
+      effectiveIsHost = onlineState.isHost;
+    }
 
     final selectedKingdom = campaignState.selectedKingdomId != null
         ? kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId)

@@ -5,6 +5,9 @@ import '../../../core/enums/turn.dart';
 import '../../../core/enums/game_mode.dart';
 import '../../../providers/game_settings_provider.dart';
 import '../../../providers/bluetooth_provider.dart';
+import '../../../providers/online_provider.dart';
+import '../../../core/enums/connection_type.dart';
+import '../../../providers/turn_provider.dart';
 
 class GameOverOverlay extends ConsumerStatefulWidget {
   final Turn winner;
@@ -98,11 +101,22 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
   Widget build(BuildContext context) {
     final settings = ref.watch(gameSettingsProvider);
     final bluetoothState = ref.watch(bluetoothProvider);
-    final isMultiplayer = widget.mode == GameMode.multiplayer;
-    final isBluetooth = bluetoothState.status == BluetoothStatus.connected;
-    final isHost = bluetoothState.isHost;
+    final onlineState = ref.watch(onlineProvider);
+    final connectionType = ref.watch(connectionTypeProvider);
 
-    final isSameDevice = isMultiplayer && !isBluetooth;
+    final isMultiplayer = widget.mode == GameMode.multiplayer;
+    
+    // Determine if we are 'host' for visual mapping purposes
+    bool isHost = true;
+    if (connectionType == ConnectionType.bluetooth) {
+      isHost = bluetoothState.isHost;
+    } else if (connectionType == ConnectionType.online) {
+      isHost = onlineState.isHost;
+    }
+
+    final isBluetooth = connectionType == ConnectionType.bluetooth;
+    final isOnline = connectionType == ConnectionType.online;
+    final isSameDevice = isMultiplayer && !isBluetooth && !isOnline;
 
     final isLocalPlayerWin = isMultiplayer
         ? (isHost ? widget.winner == Turn.player : widget.winner == Turn.ai)
