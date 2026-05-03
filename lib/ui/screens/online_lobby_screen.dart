@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/online_provider.dart';
@@ -789,53 +790,56 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen>
 
   Widget _buildJoinInput(Color primary) {
     return Center(
-      child: _StonePanel(
-        accentColor: primary,
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'ENTER ROOM CODE',
-              style: TextStyle(
-                color: primary,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 3,
-              ),
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _codeController,
-              textAlign: TextAlign.center,
-              maxLength: 5,
-              style: GoogleFonts.sairaStencilOne(
-                color: Colors.white,
-                fontSize: 32,
-                letterSpacing: 8,
-              ),
-              decoration: InputDecoration(
-                counterText: '',
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: primary.withValues(alpha: 0.3)),
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: primary),
+      child: SizedBox(
+        width: 300,
+        child: _StonePanel(
+          accentColor: primary,
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'ENTER ROOM CODE',
+                style: TextStyle(
+                  color: primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 3,
                 ),
               ),
-              onChanged: (val) {
-                if (val.length == 5) _submitJoinCode();
-              },
-            ),
-            const SizedBox(height: 32),
-            _buildThemedButton(
-              onTap: _submitJoinCode,
-              label: 'JOIN BATTLE',
-              icon: Icons.login_rounded,
-              accentColor: primary,
-              isPrimary: true,
-            ),
-          ],
+              const SizedBox(height: 24),
+              TextField(
+                controller: _codeController,
+                textAlign: TextAlign.center,
+                maxLength: 5,
+                style: GoogleFonts.sairaStencilOne(
+                  color: Colors.white,
+                  fontSize: 32,
+                  letterSpacing: 8,
+                ),
+                decoration: InputDecoration(
+                  counterText: '',
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: primary.withValues(alpha: 0.3)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: primary),
+                  ),
+                ),
+                onChanged: (val) {
+                  if (val.length == 5) _submitJoinCode();
+                },
+              ),
+              const SizedBox(height: 32),
+              _buildThemedButton(
+                onTap: _submitJoinCode,
+                label: 'JOIN BATTLE',
+                icon: Icons.login_rounded,
+                accentColor: primary,
+                isPrimary: true,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -894,13 +898,32 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  state.roomCode!,
-                  style: GoogleFonts.sairaStencilOne(
-                    color: primary,
-                    fontSize: 42,
-                    letterSpacing: 6,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      state.roomCode!,
+                      style: GoogleFonts.sairaStencilOne(
+                        color: primary,
+                        fontSize: 42,
+                        letterSpacing: 6,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      icon: Icon(Icons.copy, color: primary.withValues(alpha: 0.6), size: 20),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: state.roomCode!));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Room code copied to clipboard'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      tooltip: 'Copy Room Code',
+                    ),
+                  ],
                 ),
               ],
             ),
