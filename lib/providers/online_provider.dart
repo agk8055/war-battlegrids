@@ -7,7 +7,7 @@ import 'simulation_provider.dart';
 import 'game_settings_provider.dart';
 import '../core/enums/game_mode.dart';
 
-enum OnlineStatus { idle, connecting, connected, failed, disconnected }
+enum OnlineStatus { idle, connecting, connected, failed, disconnected, roomNotFound }
 
 class OnlineState {
   final OnlineStatus status;
@@ -15,6 +15,7 @@ class OnlineState {
   final bool isHost;
   final bool gameStarted;
   final bool isPeerPaused;
+  final bool wasPeerConnected;
   final String? peerKingdomName;
   final String? selectedMapPath;
   final String? selectedMapName;
@@ -30,6 +31,7 @@ class OnlineState {
     this.isHost = false,
     this.gameStarted = false,
     this.isPeerPaused = false,
+    this.wasPeerConnected = false,
     this.peerKingdomName,
     this.selectedMapPath,
     this.selectedMapName,
@@ -46,9 +48,13 @@ class OnlineState {
     bool? isHost,
     bool? gameStarted,
     bool? isPeerPaused,
+    bool? wasPeerConnected,
     String? peerKingdomName,
+    bool clearPeerKingdomName = false,
     String? selectedMapPath,
+    bool clearSelectedMapPath = false,
     String? selectedMapName,
+    bool clearSelectedMapName = false,
     String? player1Symbol,
     String? player2Symbol,
     int? player1Color,
@@ -61,9 +67,10 @@ class OnlineState {
       isHost: isHost ?? this.isHost,
       gameStarted: gameStarted ?? this.gameStarted,
       isPeerPaused: isPeerPaused ?? this.isPeerPaused,
-      peerKingdomName: peerKingdomName ?? this.peerKingdomName,
-      selectedMapPath: selectedMapPath ?? this.selectedMapPath,
-      selectedMapName: selectedMapName ?? this.selectedMapName,
+      wasPeerConnected: wasPeerConnected ?? this.wasPeerConnected,
+      peerKingdomName: clearPeerKingdomName ? null : (peerKingdomName ?? this.peerKingdomName),
+      selectedMapPath: clearSelectedMapPath ? null : (selectedMapPath ?? this.selectedMapPath),
+      selectedMapName: clearSelectedMapName ? null : (selectedMapName ?? this.selectedMapName),
       player1Symbol: player1Symbol ?? this.player1Symbol,
       player2Symbol: player2Symbol ?? this.player2Symbol,
       player1Color: player1Color ?? this.player1Color,
@@ -94,84 +101,171 @@ class OnlineNotifier extends Notifier<OnlineState> {
   }
 
   Future<void> createRoom() async {
+    await disconnect();
     final code = _generateRoomCode();
     state = state.copyWith(
       status: OnlineStatus.connecting,
       roomCode: code,
       isHost: true,
+      wasPeerConnected: false,
     );
     await _joinChannel(code);
   }
 
   Future<void> joinRoom(String code) async {
+    await disconnect();
     state = state.copyWith(
       status: OnlineStatus.connecting,
       roomCode: code.toUpperCase(),
       isHost: false,
+      wasPeerConnected: false,
     );
+    
+    // Validation: Check if a host exists in this room before joining
+    final hostFound = await _validateRoomExists(code.toUpperCase());
+    
+    if (!hostFound) {
+      debugPrint('🌐 Room $code not found or no host present');
+      state = state.copyWith(status: OnlineStatus.roomNotFound);
+      return;
+    }
+
+    // Brief delay to let the validation channel cleanup settle
+    await Future.delayed(const Duration(milliseconds: 500));
+
     await _joinChannel(code.toUpperCase());
+  }
+
+  Future<bool> _validateRoomExists(String code) async {
+    // IMPORTANT: Must use the SAME channel name as the Host ('room_$code')
+    final validationChannel = Supabase.instance.client.channel('room_$code');
+    final completer = Completer<bool>();
+    
+    debugPrint('🌐 Validating room existence: $code');
+
+    // We do NOT call track() here. We only want to see if OTHERS (the Host) are there.
+    validationChannel.onPresenceSync((payload) {
+      final presence = validationChannel.presenceState();
+      debugPrint('🌐 Validation Sync Event: ${presence.length} peers found');
+      if (presence.isNotEmpty && !completer.isCompleted) {
+        completer.complete(true);
+      }
+    });
+
+    validationChannel.subscribe((status, [error]) async {
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        debugPrint('🌐 Validation Subscribed, waiting for presence sync...');
+        
+        // Wait for presence to sync. If a Host is there, they will show up.
+        await Future.delayed(const Duration(milliseconds: 1500));
+        
+        if (!completer.isCompleted) {
+          final presence = validationChannel.presenceState();
+          debugPrint('🌐 Validation Final Check: ${presence.length} peers');
+          completer.complete(presence.isNotEmpty);
+        }
+      } else if (status == RealtimeSubscribeStatus.channelError || status == RealtimeSubscribeStatus.timedOut) {
+        debugPrint('🌐 Validation Error: $status');
+        if (!completer.isCompleted) completer.complete(false);
+      }
+    });
+
+    final result = await completer.future.timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => false,
+    );
+
+    // Clean up the validation channel before starting the real connection
+    await Supabase.instance.client.removeChannel(validationChannel);
+    return result;
   }
 
   Future<void> _joinChannel(String code) async {
     try {
       debugPrint('🌐 Attempting to join channel: room_$code');
       
-      // Ensure we are signed in anonymously for Realtime to work best
       if (Supabase.instance.client.auth.currentSession == null) {
         debugPrint('🌐 No session found, signing in anonymously...');
         await Supabase.instance.client.auth.signInAnonymously();
-        debugPrint('🌐 Anonymous sign-in successful: ${Supabase.instance.client.auth.currentUser?.id}');
-      } else {
-        debugPrint('🌐 Using existing session: ${Supabase.instance.client.auth.currentUser?.id}');
       }
 
       final channelName = 'room_$code';
       _channel = Supabase.instance.client.channel(channelName);
 
-      debugPrint('🌐 Subscribing to channel...');
+      debugPrint('🌐 Subscribing to channel with Presence...');
       _channel!.onBroadcast(
         event: 'game_event',
         callback: (payload) {
-          debugPrint('🌐 Received broadcast: $payload');
           _handleMessage(payload);
         },
-      ).subscribe((status, [error]) {
-        debugPrint('🌐 Subscription status: $status');
-        if (error != null) {
-          debugPrint('🌐 Subscription error details: $error');
+      ).onPresenceSync((payload) {
+        final currentPresence = _channel!.presenceState();
+        final totalConnected = currentPresence.length;
+        debugPrint('🌐 Presence Sync: $totalConnected users connected');
+        
+        // We only trigger "Peer Left" if there WAS a peer (2 people) and now it's just us (1 person) or less.
+        if (state.wasPeerConnected && totalConnected < 2) {
+          debugPrint('🌐 PEER LEFT: Presence dropped below 2');
+          _handlePeerLeft();
+        } else if (!state.wasPeerConnected && totalConnected >= 2) {
+          debugPrint('🌐 PEER JOINED: Presence reached 2');
+          state = state.copyWith(wasPeerConnected: true);
         }
-
+      }).subscribe((status, [error]) async {
+        debugPrint('🌐 Subscription status: $status');
         if (status == RealtimeSubscribeStatus.subscribed) {
           debugPrint('✅ Successfully joined room: $code');
           state = state.copyWith(status: OnlineStatus.connected);
+          
+          // ALWAYS track immediately so Presence reflects the user
+          await _channel!.track({
+            'user_id': Supabase.instance.client.auth.currentUser?.id,
+            'kingdom_name': ref.read(gameSettingsProvider).player1Name,
+            'online_at': DateTime.now().toIso8601String(),
+          });
+
           sendKingdomName(ref.read(gameSettingsProvider).player1Name);
-        } else if (status == RealtimeSubscribeStatus.channelError) {
-          debugPrint('❌ Channel error joining room: $code');
-          state = state.copyWith(status: OnlineStatus.failed);
-        } else if (status == RealtimeSubscribeStatus.timedOut) {
-          debugPrint('❌ Timeout joining room: $code');
+        } else if (status == RealtimeSubscribeStatus.channelError || status == RealtimeSubscribeStatus.timedOut) {
+          debugPrint('❌ Subscription failed: $status');
           state = state.copyWith(status: OnlineStatus.failed);
         }
       });
     } catch (e, stack) {
       debugPrint('❌ General exception in _joinChannel: $e');
-      debugPrint('Stack: $stack');
       state = state.copyWith(status: OnlineStatus.failed);
     }
   }
 
-  void _handleMessage(Map<String, dynamic> rawPayload) {
-    // Supabase Realtime 'broadcast' event structure:
-    // The data we sent is usually inside 'payload'
-    final data = rawPayload['payload'] as Map<String, dynamic>?;
-    
-    if (data == null) {
-      debugPrint('🌐 Received broadcast but payload was null: $rawPayload');
-      return;
+  void _handlePeerLeft() {
+    if (state.gameStarted) {
+      debugPrint('🌐 Game in progress: Peer left. Forcing game end.');
+      state = state.copyWith(gameStarted: false, isPeerPaused: false);
     }
 
+    if (state.isHost) {
+      // Host stays in room, just reset peer info
+      debugPrint('🌐 Client left. Host remains in room.');
+      state = state.copyWith(
+        status: OnlineStatus.connected, 
+        clearPeerKingdomName: true, 
+        wasPeerConnected: false
+      );
+    } else {
+      // Client sees host left, room is effectively gone
+      debugPrint('🌐 Host left. Client disconnecting.');
+      state = state.copyWith(
+        status: OnlineStatus.disconnected, 
+        clearPeerKingdomName: true, 
+        wasPeerConnected: false
+      );
+    }
+  }
+
+  void _handleMessage(Map<String, dynamic> rawPayload) {
+    final data = rawPayload['payload'] as Map<String, dynamic>?;
+    if (data == null) return;
+
     final type = data['type'];
-    debugPrint('🌐 Parsing Game Event: $type');
     
     switch (type) {
       case 'move':
@@ -198,7 +292,6 @@ class OnlineNotifier extends Notifier<OnlineState> {
         }
         break;
       case 'map_selection':
-        debugPrint('🌐 ACTION: Map Selection received: ${data['name']}');
         state = state.copyWith(
           selectedMapPath: data['path'],
           selectedMapName: data['name'],
@@ -206,7 +299,6 @@ class OnlineNotifier extends Notifier<OnlineState> {
         ref.read(gameSettingsProvider.notifier).setSelectedMap(data['path']);
         break;
       case 'sync_settings':
-        debugPrint('🌐 ACTION: Settings Sync received');
         state = state.copyWith(
           player1Symbol: data['p1Symbol'],
           player2Symbol: data['p2Symbol'],
@@ -235,9 +327,6 @@ class OnlineNotifier extends Notifier<OnlineState> {
 
   Future<void> _sendMessage(Map<String, dynamic> message) async {
     if (_channel != null && state.status == OnlineStatus.connected) {
-      debugPrint('🌐 Broadcasting Game Event: ${message['type']}');
-      // We MUST explicitly put our data inside a 'payload' map 
-      // to avoid Supabase merging our 'type' with its internal 'type: broadcast'
       await _channel!.sendBroadcastMessage(
         event: 'game_event',
         payload: { 'payload': message },

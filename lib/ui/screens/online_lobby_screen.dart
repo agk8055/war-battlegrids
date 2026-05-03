@@ -50,6 +50,7 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen> {
     super.initState();
     final onlineState = ref.read(onlineProvider);
     _isHosting = onlineState.isHost && onlineState.status != OnlineStatus.idle;
+    // Joiner should only be "joining" if they have a code and are connected
     _isJoining = !onlineState.isHost && onlineState.status != OnlineStatus.idle;
     _thresholdController.text = '${onlineState.kingdomAttackThreshold}';
   }
@@ -73,7 +74,10 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen> {
     setState(() {
       _isJoining = true;
       _isHosting = false;
+      _codeController.clear();
     });
+    // Disconnect any existing session when choosing to join fresh
+    ref.read(onlineProvider.notifier).disconnect();
   }
 
   void _submitJoinCode() {
@@ -89,6 +93,9 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen> {
     ref.read(gameSettingsProvider.notifier).setMode(GameMode.multiplayer);
     ref.read(simulationProvider.notifier).reset();
 
+    // Ensure state is ready for a potential return to lobby later
+    ref.read(onlineProvider.notifier).setGameStarted(true);
+
     if (ref.read(onlineProvider).isHost) {
       ref.read(onlineProvider.notifier).sendStartGame();
     }
@@ -101,6 +108,41 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen> {
     );
   }
 
+  Future<bool> _onWillPop() async {
+    final onlineState = ref.read(onlineProvider);
+    if (onlineState.status == OnlineStatus.connected || onlineState.status == OnlineStatus.connecting) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF161410),
+          title: const Text('ABANDON ROOM?', style: TextStyle(color: Colors.redAccent, letterSpacing: 2)),
+          content: const Text('Leaving now will close the room and disconnect you from your opponent.', style: TextStyle(color: Colors.white70)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('STAY', style: TextStyle(color: Colors.white38)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('LEAVE', style: TextStyle(color: Colors.redAccent)),
+            ),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        ref.read(onlineProvider.notifier).disconnect();
+        return true;
+      }
+      return false;
+    }
+    
+    // If failed, disconnected or idle, just clean up and allow pop
+    if (onlineState.status != OnlineStatus.idle) {
+      ref.read(onlineProvider.notifier).disconnect();
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final onlineState = ref.watch(onlineProvider);
@@ -110,15 +152,42 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen> {
 
     ref.listen(onlineProvider, (previous, next) {
       if (!mounted) return;
-      debugPrint('🌐 OnlineState Update: Status=${next.status}, GameStarted=${next.gameStarted}');
+
+      if (next.status == OnlineStatus.roomNotFound) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Room not found or no host present'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        setState(() { _isJoining = false; _isHosting = false; });
+      }
+
+      if (next.status == OnlineStatus.disconnected && previous?.status == OnlineStatus.connected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your opponent has left the room'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        setState(() { _isHosting = false; _isJoining = false; });
+      }
+
+      // Notify host when client leaves (status stays connected)
+      if (next.peerKingdomName == null && previous?.peerKingdomName != null && next.status == OnlineStatus.connected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your opponent has left the room'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
 
       if (next.status == OnlineStatus.idle && previous?.status == OnlineStatus.connected) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Disconnected from room')));
         setState(() { _isHosting = false; _isJoining = false; });
       }
       
       if (next.gameStarted && !(previous?.gameStarted ?? false) && !next.isHost) {
-        debugPrint('🌐 Host started game, navigating...');
         _startGame();
       }
 
@@ -129,136 +198,152 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen> {
       }
     });
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('ONLINE MULTIPLAYER', style: TextStyle(letterSpacing: 2)),
-        backgroundColor: Colors.transparent,
-        foregroundColor: primary,
-        elevation: 0,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // Display Local Player Name
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: primary.withValues(alpha: 0.3)),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'YOUR KINGDOM: ${settings.player1Name.toUpperCase()}',
-                  style: TextStyle(color: primary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              if (!_isHosting && !_isJoining) ...[
-                const SizedBox(height: 100),
-                _buildModeButton(
-                  title: 'HOST ROOM',
-                  subtitle: 'Get a code and invite a friend',
-                  icon: Icons.add_to_home_screen_rounded,
-                  onTap: _handleHost,
-                ),
-                const SizedBox(height: 24),
-                _buildModeButton(
-                  title: 'JOIN ROOM',
-                  subtitle: 'Enter a code to join a battle',
-                  icon: Icons.login_rounded,
-                  onTap: _handleJoin,
-                ),
-              ] else if (_isJoining && onlineState.status == OnlineStatus.idle) ...[
-                const SizedBox(height: 100),
-                _buildJoinInput(theme),
-              ] else ...[
-                _buildStatusHeader(onlineState),
-                const SizedBox(height: 12),
-                
-                if (onlineState.status == OnlineStatus.connected) ...[
-                  const SizedBox(height: 24),
-                  _buildBattleSettings(onlineState, theme),
-                ],
-
-                const SizedBox(height: 32),
-                if (onlineState.status == OnlineStatus.connected && onlineState.isHost) ...[
-                  if (onlineState.selectedMapName != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Text(
-                        'SELECTED MAP: ${onlineState.selectedMapName}',
-                        style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final result = await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const MapSelectionScreen(isBluetoothMode: true), // reuse bluetooth mode logic for map selection
-                        ),
-                      );
-                      if (result != null && result is Map<String, String>) {
-                        ref.read(onlineProvider.notifier).sendMapSelection(result['path']!, result['name']!);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[900],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('SELECT MAP', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          title: const Text('ONLINE MULTIPLAYER', style: TextStyle(letterSpacing: 2)),
+          backgroundColor: Colors.transparent,
+          foregroundColor: primary,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () async {
+              if (await _onWillPop()) {
+                if (mounted) Navigator.of(context).pop();
+              }
+            },
+          ),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: primary.withValues(alpha: 0.3)),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: onlineState.selectedMapPath != null ? _startGame : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('START GAME', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  child: Text(
+                    'YOUR KINGDOM: ${settings.player1Name.toUpperCase()}',
+                    style: TextStyle(color: primary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5),
                   ),
-                ],
-                if (onlineState.status == OnlineStatus.connected && !onlineState.isHost)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    child: Column(
-                      children: [
-                        if (onlineState.selectedMapName != null)
-                          Text(
-                            'MAP: ${onlineState.selectedMapName}',
-                            style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
-                          ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'WAITING FOR HOST TO START...',
-                          style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {
-                    ref.read(onlineProvider.notifier).disconnect();
-                    if (mounted) {
-                      setState(() {
-                        _isHosting = false;
-                        _isJoining = false;
-                        _codeController.clear();
-                      });
-                    }
-                  },
-                  child: const Text('CANCEL / LEAVE', style: TextStyle(color: Colors.white38)),
                 ),
                 const SizedBox(height: 16),
+
+                if (!_isHosting && !_isJoining) ...[
+                  const SizedBox(height: 100),
+                  _buildModeButton(
+                    title: 'HOST ROOM',
+                    subtitle: 'Get a code and invite a friend',
+                    icon: Icons.add_to_home_screen_rounded,
+                    onTap: _handleHost,
+                  ),
+                  const SizedBox(height: 24),
+                  _buildModeButton(
+                    title: 'JOIN ROOM',
+                    subtitle: 'Enter a code to join a battle',
+                    icon: Icons.login_rounded,
+                    onTap: _handleJoin,
+                  ),
+                ] else if (_isJoining && onlineState.status == OnlineStatus.idle) ...[
+                  const SizedBox(height: 100),
+                  _buildJoinInput(theme),
+                ] else ...[
+                  _buildStatusHeader(onlineState),
+                  const SizedBox(height: 12),
+                  
+                  if (onlineState.status == OnlineStatus.connected) ...[
+                    const SizedBox(height: 24),
+                    _buildBattleSettings(onlineState, theme),
+                  ],
+
+                  const SizedBox(height: 32),
+                  if (onlineState.status == OnlineStatus.connected && onlineState.isHost) ...[
+                    if (onlineState.selectedMapName != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: Text(
+                          'SELECTED MAP: ${onlineState.selectedMapName}',
+                          style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final result = await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const MapSelectionScreen(isBluetoothMode: true),
+                          ),
+                        );
+                        if (result != null && result is Map<String, String>) {
+                          ref.read(onlineProvider.notifier).sendMapSelection(result['path']!, result['name']!);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[900],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('SELECT MAP', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: onlineState.selectedMapPath != null ? _startGame : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('START GAME', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                    ),
+                  ],
+                  if (onlineState.status == OnlineStatus.connected && !onlineState.isHost)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: Column(
+                        children: [
+                          if (onlineState.selectedMapName != null)
+                            Text(
+                              'MAP: ${onlineState.selectedMapName}',
+                              style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
+                            ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'WAITING FOR HOST TO START...',
+                            style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () async {
+                      if (await _onWillPop()) {
+                        setState(() {
+                          _isHosting = false;
+                          _isJoining = false;
+                          _codeController.clear();
+                        });
+                      }
+                    },
+                    child: const Text('CANCEL / LEAVE', style: TextStyle(color: Colors.white38)),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -329,6 +414,10 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen> {
       case OnlineStatus.failed:
         statusText = 'CONNECTION FAILED';
         statusColor = Colors.red;
+        break;
+      case OnlineStatus.roomNotFound:
+        statusText = 'ROOM NOT FOUND';
+        statusColor = Colors.orange;
         break;
       case OnlineStatus.disconnected:
         statusText = 'DISCONNECTED';

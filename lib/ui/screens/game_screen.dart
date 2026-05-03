@@ -67,6 +67,31 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     });
   }
 
+  void _showDisconnectionDialog() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF161410),
+        title: const Text('BATTLE DISRUPTED', style: TextStyle(color: Colors.redAccent, letterSpacing: 2)),
+        content: const Text('Your opponent has abandoned the battlefield or lost connection.', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Return to lobby, but don't disconnect (Host keeps room)
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => const OnlineLobbyScreen()),
+              );
+            },
+            child: const Text('RETURN TO LOBBY', style: TextStyle(color: Colors.blue)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _handleAbandon() {
     final settings = ref.read(gameSettingsProvider);
     final connectionType = ref.read(connectionTypeProvider);
@@ -77,7 +102,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         MaterialPageRoute(builder: (context) => const BluetoothLobbyScreen()),
       );
     } else if (connectionType == ConnectionType.online) {
+      // Send abandonment to peer so they get the disrupted dialog
       ref.read(onlineProvider.notifier).sendAbandon();
+      // Host stays in room, Client will see "Host Left" presence event
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const OnlineLobbyScreen()),
       );
@@ -126,9 +153,13 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
     ref.listen(onlineProvider, (previous, next) {
       if (connectionType == ConnectionType.online && previous?.gameStarted == true && !next.gameStarted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const OnlineLobbyScreen()),
-        );
+        if (next.status == OnlineStatus.disconnected) {
+           _showDisconnectionDialog();
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const OnlineLobbyScreen()),
+          );
+        }
       }
       
       if (connectionType == ConnectionType.online) {

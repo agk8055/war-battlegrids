@@ -53,12 +53,16 @@ class BluetoothState {
     BluetoothStatus? status,
     List<DiscoveredDevice>? discoveredDevices,
     DiscoveredDevice? connectedDevice,
+    bool clearConnectedDevice = false,
     bool? isHost,
     bool? gameStarted,
     bool? isPeerPaused,
     String? peerKingdomName,
+    bool clearPeerKingdomName = false,
     String? selectedMapPath,
+    bool clearSelectedMapPath = false,
     String? selectedMapName,
+    bool clearSelectedMapName = false,
     String? player1Symbol,
     String? player2Symbol,
     int? player1Color,
@@ -68,13 +72,13 @@ class BluetoothState {
     return BluetoothState(
       status: status ?? this.status,
       discoveredDevices: discoveredDevices ?? this.discoveredDevices,
-      connectedDevice: connectedDevice ?? this.connectedDevice,
+      connectedDevice: clearConnectedDevice ? null : (connectedDevice ?? this.connectedDevice),
       isHost: isHost ?? this.isHost,
       gameStarted: gameStarted ?? this.gameStarted,
       isPeerPaused: isPeerPaused ?? this.isPeerPaused,
-      peerKingdomName: peerKingdomName ?? this.peerKingdomName,
-      selectedMapPath: selectedMapPath ?? this.selectedMapPath,
-      selectedMapName: selectedMapName ?? this.selectedMapName,
+      peerKingdomName: clearPeerKingdomName ? null : (peerKingdomName ?? this.peerKingdomName),
+      selectedMapPath: clearSelectedMapPath ? null : (selectedMapPath ?? this.selectedMapPath),
+      selectedMapName: clearSelectedMapName ? null : (selectedMapName ?? this.selectedMapName),
       player1Symbol: player1Symbol ?? this.player1Symbol,
       player2Symbol: player2Symbol ?? this.player2Symbol,
       player1Color: player1Color ?? this.player1Color,
@@ -200,7 +204,8 @@ class BluetoothNotifier extends Notifier<BluetoothState> {
     if (state.connectedDevice?.id == id) {
       state = state.copyWith(
         status: BluetoothStatus.idle,
-        connectedDevice: null,
+        clearConnectedDevice: true,
+        clearPeerKingdomName: true,
       );
     }
   }
