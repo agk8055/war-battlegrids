@@ -211,8 +211,25 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       }
     });
 
+    // Determine if it's opponent's turn in remote multiplayer
+    bool isOpponentWaiting = false;
+    if (settings.mode == GameMode.multiplayer && 
+        (connectionType == ConnectionType.bluetooth || connectionType == ConnectionType.online)) {
+      final isHost = (connectionType == ConnectionType.bluetooth) 
+          ? bluetoothState.isHost 
+          : onlineState.isHost;
+      final myTurn = isHost ? Turn.player : Turn.ai;
+      isOpponentWaiting = simulationState.currentTurn != myTurn;
+    }
+
+    final isGameOver = simulationState.currentPhase == GamePhase.gameOver || 
+                       simulationState.currentPhase == GamePhase.draw;
+
+    final showAiThinking = (settings.mode == GameMode.story && aiState == AIState.thinking);
+    final showOpponentWaiting = isOpponentWaiting;
+
     // Loading/Thinking Overlay
-    if (aiState == AIState.thinking && !effectivePaused) {
+    if ((showAiThinking || showOpponentWaiting) && !effectivePaused && !isGameOver) {
       final campaignState = ref.watch(campaignProvider);
       final isMultiplayer = settings.mode == GameMode.multiplayer;
       
@@ -230,6 +247,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           _buildBaseGame(context, simulationState, settings, effectivePaused),
           AiThinkingOverlay(
             color: aiColor,
+            label: showAiThinking ? "AI IS THINKING" : "OPPONENT IS PLANNING",
           ),
         ],
       );

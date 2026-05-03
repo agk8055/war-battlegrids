@@ -77,7 +77,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
   ),
   'oriental_pagoda': BattleConfig(
     kingdomId: 'oriental_pagoda',
-    mapPath: '25x25_map.tmx',
+    mapPath: '15x15_northern_forest_map.tmx',
     levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,
@@ -89,7 +89,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
   ),
   'southern_city': BattleConfig(
     kingdomId: 'southern_city',
-    mapPath: '25x25_map.tmx',
+    mapPath: '15x15_northern_forest_map.tmx',
     levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,

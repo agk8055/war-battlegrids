@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/game_settings_provider.dart';
+import '../../campaign/campaign_manager.dart';
+import '../../campaign/data/kingdoms_data.dart';
 import 'splash_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -196,6 +198,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   // ── Logic (unchanged) ──────────────────────────────────────────────────────
   Future<void> _resetProfile(BuildContext context) async {
+    await ref.read(campaignProvider.notifier).resetProgress();
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs.remove('is_first_run');
     await prefs.remove('kingdom_name');
@@ -323,6 +326,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(gameSettingsProvider);
+    final campaign = ref.watch(campaignProvider);
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
@@ -362,7 +366,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                 const SizedBox(height: 8),
                                 _buildCrestSection(context, settings, primary),
                                 const SizedBox(height: 32),
-                                _buildStatsPanel(primary),
+                                _buildStatsPanel(primary, campaign),
                                 const SizedBox(height: 24),
                                 _buildDangerZone(context, primary),
                                 const SizedBox(height: 40),
@@ -567,7 +571,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   // ── Stats / Info Panel ─────────────────────────────────────────────────────
-  Widget _buildStatsPanel(Color primary) {
+  Widget _buildStatsPanel(Color primary, CampaignState campaign) {
+    final conqueredCount = campaign.conqueredKingdomIds.length;
+    final totalCount = kKingdoms.length;
+    final progressPercent = totalCount > 0 ? conqueredCount / totalCount : 0.0;
+    
+    String title = 'Rising Warlord';
+    if (progressPercent >= 1.0) {
+      title = 'Eternal Emperor';
+    } else if (progressPercent >= 0.75) {
+      title = 'Grand Conqueror';
+    } else if (progressPercent >= 0.5) {
+      title = 'Venerable King';
+    } else if (progressPercent >= 0.25) {
+      title = 'Noble Duke';
+    }
+
+    // Find last conquered kingdom name
+    String lastConquest = 'None';
+    if (campaign.conqueredKingdomIds.isNotEmpty) {
+      for (final k in kKingdoms.reversed) {
+        if (campaign.conqueredKingdomIds.contains(k.id)) {
+          lastConquest = k.name;
+          break;
+        }
+      }
+    }
+
     return _StonePanel(
       accentColor: primary,
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
@@ -578,22 +608,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           const SizedBox(height: 18),
           _buildStatRow(
             icon: Icons.military_tech,
-            label: 'STATUS',
-            value: 'Active Sovereign',
+            label: 'ROYAL TITLE',
+            value: title,
             primary: primary,
           ),
           const SizedBox(height: 14),
           _buildStatRow(
             icon: Icons.castle_outlined,
-            label: 'SEAT OF POWER',
-            value: 'The Capital Keep',
+            label: 'CONQUEST PROGRESS',
+            value: '$conqueredCount / $totalCount Kingdoms',
             primary: primary,
           ),
           const SizedBox(height: 14),
           _buildStatRow(
             icon: Icons.star_border_rounded,
-            label: 'LEGACY',
-            value: 'Eternal Conqueror',
+            label: 'LATEST VICTORY',
+            value: lastConquest,
             primary: primary,
           ),
         ],

@@ -4,8 +4,13 @@ import 'dart:math' as math;
 
 class AiThinkingOverlay extends StatefulWidget {
   final Color color;
+  final String label;
 
-  const AiThinkingOverlay({super.key, required this.color});
+  const AiThinkingOverlay({
+    super.key,
+    required this.color,
+    this.label = "OPPONENT IS PLANNING",
+  });
 
   @override
   State<AiThinkingOverlay> createState() => _AiThinkingOverlayState();
@@ -206,7 +211,7 @@ class _AiThinkingOverlayState extends State<AiThinkingOverlay>
 
   Widget _buildLabel() {
     return Text(
-      "OPPONENT IS PLANNING",
+      widget.label,
       style: GoogleFonts.sairaStencilOne(
         color: Colors.white.withValues(alpha: 0.92),
         fontSize: 12,

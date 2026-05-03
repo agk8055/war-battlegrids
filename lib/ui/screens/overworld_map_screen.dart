@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
@@ -95,6 +96,7 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
     final selectedKingdom = selectedKingdomId != null 
         ? kKingdoms.firstWhere((k) => k.id == selectedKingdomId)
         : null;
+    final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -169,6 +171,21 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
                 ),
               ),
 
+              // Ambient radial glow overlay
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(0, 0),
+                        radius: 1.0,
+                        colors: [primary.withValues(alpha: 0.05), Colors.transparent],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
               // Sidebar Overlay
               if (selectedKingdom != null) ...[
                 // Darken the area NOT covered by the sidebar slightly? 
@@ -183,9 +200,9 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
                           end: Alignment.centerRight,
                           colors: [
                             Colors.black.withValues(alpha: 0.0),
-                            Colors.black.withValues(alpha: 0.4),
+                            const Color(0xFF0A0804).withValues(alpha: 0.8),
                           ],
-                          stops: const [0.65, 1.0],
+                          stops: const [0.5, 1.0],
                         ),
                       ),
                     ),
@@ -219,13 +236,19 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
               // HUD / Back Button
               if (selectedKingdom == null)
                 Positioned(
-                  top: 40,
-                  left: 20,
-                  child: CircleAvatar(
-                    backgroundColor: Colors.black54,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 16,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: primary.withValues(alpha: 0.3), width: 1),
+                      ),
+                      child: Icon(Icons.chevron_left, color: primary, size: 22),
                     ),
                   ),
                 ),
@@ -233,16 +256,12 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
               // Campaign Info Overlay
               if (selectedKingdom == null)
                 Positioned(
-                  bottom: 20,
-                  left: 20,
-                  right: 20,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white24),
-                    ),
+                  bottom: 24,
+                  left: 24,
+                  right: 24,
+                  child: _StonePanel(
+                    accentColor: primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -250,21 +269,31 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text("CAMPAIGN PROGRESS", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                            Text("CAMPAIGN PROGRESS", style: TextStyle(color: primary.withValues(alpha: 0.7), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                            const SizedBox(height: 4),
                             Text(
                               "${campaignState.conqueredKingdomIds.length} / ${kKingdoms.length} KINGDOMS CONQUERED",
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.0),
                             ),
                           ],
                         ),
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.only(left: 24.0),
-                            child: LinearProgressIndicator(
-                              value: kKingdoms.isEmpty ? 0 : campaignState.conqueredKingdomIds.length / kKingdoms.length,
-                              backgroundColor: Colors.white12,
-                              color: Colors.blueAccent,
-                              minHeight: 8,
+                            child: Container(
+                              height: 8,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: primary.withValues(alpha: 0.3), width: 1),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(3),
+                                child: LinearProgressIndicator(
+                                  value: kKingdoms.isEmpty ? 0 : campaignState.conqueredKingdomIds.length / kKingdoms.length,
+                                  backgroundColor: Colors.transparent,
+                                  color: primary,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -386,9 +415,12 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.black87,
+                  color: const Color(0xFF1A1510).withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.white24, width: 1),
+                  border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3), width: 1),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 4, offset: const Offset(0, 2)),
+                  ],
                 ),
                 child: Text(
                   kingdom.name.toUpperCase(),
@@ -396,7 +428,7 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
                     color: isUnlocked ? Colors.white : Colors.white38, 
                     fontSize: 10, 
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.5,
                   ),
                 ),
               ),
@@ -447,4 +479,106 @@ class PathPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class _HatchPainter extends CustomPainter {
+  final Color color;
+  const _HatchPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 0.6;
+    const spacing = 22.0;
+    for (double i = -size.height; i < size.width + size.height; i += spacing) {
+      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_HatchPainter old) => old.color != color;
+}
+
+class _StonePanel extends StatelessWidget {
+  final Widget child;
+  final Color accentColor;
+  final EdgeInsetsGeometry padding;
+
+  const _StonePanel({
+    required this.child,
+    required this.accentColor,
+    this.padding = const EdgeInsets.all(20),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ornamentColor = accentColor.withValues(alpha: 0.5);
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1A1510), Color(0xFF0F0D0A)],
+        ),
+        border: Border.all(color: accentColor.withValues(alpha: 0.28), width: 1.2),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 18, offset: const Offset(0, 6)),
+          BoxShadow(color: accentColor.withValues(alpha: 0.06), blurRadius: 24, spreadRadius: 2),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(painter: _HatchPainter(color: Colors.white.withValues(alpha: 0.018))),
+          ),
+          ..._corners(ornamentColor),
+          Padding(padding: padding, child: child),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _corners(Color color) {
+    const sz = 24.0;
+    return [
+      Positioned(
+          top: 0,
+          left: 0,
+          child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationZ(math.pi / 2),
+              child: SizedBox(
+                  width: sz,
+                  height: sz,
+                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+      Positioned(
+          top: 0,
+          right: 0,
+          child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationZ(math.pi),
+              child: SizedBox(
+                  width: sz,
+                  height: sz,
+                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+      Positioned(
+          bottom: 0,
+          left: 0,
+          child: SizedBox(
+              width: sz,
+              height: sz,
+              child: Image.asset('assets/icons/border-edge.png', color: color))),
+      Positioned(
+          bottom: 0,
+          right: 0,
+          child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.rotationZ(-math.pi / 2),
+              child: SizedBox(
+                  width: sz,
+                  height: sz,
+                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+    ];
+  }
 }

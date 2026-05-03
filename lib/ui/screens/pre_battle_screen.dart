@@ -84,57 +84,25 @@ class _PreBattleScreenState extends ConsumerState<PreBattleScreen> {
 
           // Bottom Loading Area & Insight
           Positioned(
-            bottom: 40,
-            left: 60,
-            right: 60,
+            bottom: 60,
+            left: 40,
+            right: 40,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (battleConfig?.insight != null) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          "TACTICAL INSIGHT",
-                          style: TextStyle(
-                            color: Colors.blueAccent[100],
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          battleConfig!.insight!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                            fontStyle: FontStyle.italic,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
+                  Text(
+                    battleConfig!.insight!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                      fontStyle: FontStyle.italic,
+                      height: 1.5,
                     ),
                   ),
                   const SizedBox(height: 40),
                 ],
-                Text(
-                  "ESTABLISHING FRONT LINES...",
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 4,
-                  ),
-                ),
-                const SizedBox(height: 16),
                 const SizedBox(
                   width: 300,
                   child: LinearProgressIndicator(
