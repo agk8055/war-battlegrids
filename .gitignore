@@ -50,4 +50,5 @@ assets/
 # Environment
 .env
 
-
+# Local planning docs
+plan.md

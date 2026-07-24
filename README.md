@@ -1,52 +1,100 @@
-# ⚔️ WAR : BATTLEGRIDS
+<div align="center">
 
-**WAR: BATTLEGRIDS** is a high-octane, turn-based strategy game built with Flutter and the Flame engine. Command your kingdom, conquer vast territories, and outsmart your opponents in tactical grid-based combat. Whether you're reclaiming lands in the Story Mode or challenging friends across the globe, the battlefield awaits.
+  <img src=".github/assets/banner.png" alt="WAR: Battlegrids Banner" width="100%" />
+
+  # ⚔️ WAR: BATTLEGRIDS ⚔️
+
+  **A high-octane, grid-based tactical strategy game built with Flutter & Flame Engine.**
+
+  Command your kingdom, conquer vast territories, and outsmart your opponents in tactical grid combat.
+
+  <br/>
+
+  <a href="https://agk8055.itch.io/war">
+    <img src="https://static.itch.io/images/badge-color.svg" height="36" alt="Download on itch.io" />
+  </a>
+
+  <br/><br/>
+
+  [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
+  [![Flame](https://img.shields.io/badge/Flame_Engine-1.x-FF6F00?style=for-the-badge&logo=flame&logoColor=white)](https://flame-engine.org)
+  [![Riverpod](https://img.shields.io/badge/Riverpod-State_Management-00599C?style=for-the-badge)](https://riverpod.dev)
+  [![Supabase](https://img.shields.io/badge/Supabase-Realtime_P2P-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+
+</div>
+
+---
+
+## 📖 About the Game
+
+**WAR: BATTLEGRIDS** brings classic tactical turn-based conquest into a modern cross-platform experience. Reclaim lands across an extensive story campaign or challenge rivals worldwide in low-latency multiplayer matches.
+
+### 🎮 Play Now
+Download the latest build directly on [itch.io](https://agk8055.itch.io/war):
+
+<a href="https://agk8055.itch.io/war">
+  <img src="https://static.itch.io/images/badge-color.svg" height="36" alt="Available on itch.io" />
+</a>
+
 
 ---
 
 ## 🚀 Features
 
 ### 🗺️ Conquest & Story Mode
-- **Campaign Progression**: Journey through diverse landscapes—from the northern forests to coastal forts.
-- **Kingdom Conquest**: Defeat rival factions to unlock new kingdoms and sigils.
-- **Dynamic AI**: Face off against strategic AI that adapts to your moves.
+- **Campaign Progression**: Journey through diverse landscapes — from northern pine forests to ancient coastal forts.
+- **Kingdom Conquest**: Defeat rival factions to unlock new kingdoms, territories, and house sigils.
+- **Dynamic AI**: Battle strategic AI opponents that analyze the grid and adapt to your tactical moves.
 
 ### 👥 Multiplayer Warfare
-- **Online Rooms**: Powered by **Supabase Realtime**, join or host rooms with simple 5-character codes. Experience low-latency P2P-style gameplay.
-- **Local Bluetooth**: Battle friends nearby using Google's **Nearby Connections**.
-- **Same-Device Duel**: Classic local multiplayer for two players on a single device.
+- **Online Rooms**: Powered by **Supabase Realtime**, host or join matches instantly using simple 5-character room codes.
+- **Local Bluetooth**: Duel friends nearby without internet using Google **Nearby Connections**.
+- **Same-Device Duel**: Pass-and-play local multiplayer mode on a single screen.
 
-### 🎨 Immersive Aesthetics
-- **Flame Engine**: Smooth 60FPS tactical gameplay driven by the Flame game engine.
-- **Thematic Sigils**: Choose your identity from a wide array of factions—Romans, Vikings, Ottomans, Pharaohs, and more.
-- **Tiled Maps**: High-fidelity environments designed in Tiled, ranging from 15x15 skirmishes to 25x25 epic battles.
-- **Dynamic Audio**: Immersive soundtracks and tactical sound effects powered by `audioplayers`.
+### 🎨 Immersive Aesthetics & Audio
+- **Flame Engine Canvas**: Smooth 60 FPS tactical grid rendering powered by the Flame game engine.
+- **Thematic Factions**: Customize your house identity — Roman Empire, Viking Clans, Ottoman Dynasty, Pharaohs, and more.
+- **Tiled Map Support**: High-fidelity battlefield maps crafted in Tiled, supporting 15x15 skirmishes up to 25x25 grand scale battles.
+- **Dynamic Audio**: Immersive soundtrack and sound effects powered by `audioplayers`.
 
 ---
 
 ## 🛠️ Technical Stack
 
-- **Framework**: [Flutter](https://flutter.dev) (Dart)
-- **Game Engine**: [Flame Engine](https://flame-engine.org) & `flame_tiled`
-- **State Management**: [Riverpod](https://riverpod.dev)
-- **Multiplayer Backend**: [Supabase](https://supabase.com) (Realtime Broadcast & Presence)
-- **Local Connectivity**: [Nearby Connections](https://pub.dev/packages/nearby_connections)
-- **Local Storage**: `shared_preferences`
-- **Typography**: [Google Fonts](https://fonts.google.com/specimen/Saira+Stencil+One) (Saira Stencil One)
+| Category | Technology / Package | Purpose |
+| :--- | :--- | :--- |
+| **Framework** | [Flutter](https://flutter.dev) (Dart) | Cross-platform UI & application core |
+| **Game Engine** | [Flame Engine](https://flame-engine.org) + `flame_tiled` | High-performance 2D canvas & Tiled maps |
+| **State Management** | [Riverpod](https://riverpod.dev) | Reactive state management & dependency injection |
+| **Multiplayer Backend** | [Supabase Realtime](https://supabase.com) | Low-latency P2P broadcast & presence tracking |
+| **Local Connectivity** | [Nearby Connections](https://pub.dev/packages/nearby_connections) | Offline local Bluetooth/Wi-Fi Direct P2P battles |
+| **Typography** | [Google Fonts](https://fonts.google.com/specimen/Saira+Stencil+One) | Custom game typography (*Saira Stencil One*) |
 
 ---
 
 ## 🏗️ Architecture Overview
 
-The game follows a **Simulation-First** architecture. The core game logic resides in a pure Dart `SimulationProvider`, which is completely decoupled from the Flame rendering layer. This allows for:
-- **Instant Synchronization**: Moves are processed identically on both devices in multiplayer.
-- **AI Simulation**: The AI uses the same simulation logic as the player to evaluate moves.
-- **Deterministic Outcomes**: Ensuring consistency across online and local sessions.
+The codebase is built around a **Simulation-First Architecture**. The game logic runs inside a pure Dart `SimulationProvider` completely decoupled from the Flame rendering engine.
+
+```
+       ┌────────────────────────┐
+       │   SimulationProvider   │  <-- Pure Dart Game Logic
+       └───────────┬────────────┘
+                   │ State Updates
+       ┌───────────▼────────────┐
+       │  Flame Game Canvas     │  <-- 60 FPS Tactical Rendering
+       └────────────────────────┘
+```
+
+### Key Advantages
+- ⚡ **Instant Synchronization**: Multiplayer game actions are executed identically across all client state engines.
+- 🤖 **AI Evaluation**: The AI uses the exact same simulation logic as human players to compute optimal grid strategies.
+- 🎯 **Deterministic State**: Prevents desync issues during online or offline Bluetooth play.
 
 ### Multiplayer Protocol
-The online system uses a **Pure Realtime Broadcast** approach via Supabase, bypassing traditional database tables for maximum performance and privacy.
-- **Presence Tracking**: Real-time detection of player connections/disconnections.
-- **Double-Wrapped Payloads**: Secure and structured event routing for game moves and sync events.
+Using **Supabase Realtime Broadcast**, player actions bypass database tables completely to minimize latency and protect privacy:
+- **Presence Tracking**: Instant peer detection for connection and disconnection events.
+- **Double-Wrapped Payloads**: Structured, secure event routing for game turns, pass events, and state syncs.
 
 ---
 
@@ -56,49 +104,52 @@ The online system uses a **Pure Realtime Broadcast** approach via Supabase, bypa
 > **Notice on Game Assets & Fallback Support**: 
 > The `assets/` directory (containing custom graphics, audio files, icons, and Tiled `.tmx` maps) is excluded from this public repository (`.gitignore`).
 > 
-> **You can still build and run the game without adding any asset files!** The application includes a global fallback system so the app runs smoothly out-of-the-box. However, the following visual/auditory elements will be absent or replaced:
-> - **UI Banners & Images**: Replaced with stylized dark stone-textured placeholder panels.
-> - **House Sigils & Icons**: Replaced with clean placeholder icon containers.
-> - **In-Game Unit & Link Sprites**: Replaced with procedural vector graphics (colored circles, rings, and unit paths rendered directly on the Flame canvas).
-> - **Tiled Map Graphics (`.tmx`)**: Replaced with procedurally generated grid boundaries.
-> - **Music & SFX**: Sound effects and background music are safely muted.
->
-> *To experience full custom artwork, audio, and tilemaps, populate the `assets/` directory matching the paths defined in `pubspec.yaml`.*
+> **You can still build and run the game without adding any asset files!** The application includes a global fallback system so the app runs out-of-the-box:
+> - **UI Banners & Images**: Rendered as stylized dark stone-textured fallback panels.
+> - **House Sigils & Icons**: Rendered using crisp procedural vector containers.
+> - **In-Game Unit Sprites**: Rendered as procedural vector graphics on the Flame canvas.
+> - **Tiled Maps**: Rendered as procedurally generated grid boundaries.
+> - **Audio**: Sound effects and music are safely muted when files are absent.
 
 ### Prerequisites
-- Flutter SDK (latest stable)
-- Android Studio / VS Code with Flutter extension
-- A Supabase project (for online multiplayer functionality)
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (latest stable release)
+- Android Studio / VS Code with Flutter extensions
+- A [Supabase](https://supabase.com) project (for online multiplayer)
 
-### Installation
-1. Clone the repository:
+### Quick Setup
+
+1. **Clone the Repository**
    ```bash
-   git clone https://github.com/your-username/war.git
+   git clone https://github.com/agk8055/war.git
+   cd war
    ```
-2. Install dependencies:
+
+2. **Install Dependencies**
    ```bash
    flutter pub get
    ```
-3. Add required assets to the `assets/` directory (`assets/images/`, `assets/audio/`, `assets/icons/`, `assets/tiles/`).
-4. Configure Supabase credentials:
-   Copy `.env.example` to `.env` and enter your Supabase URL and anon key:
+
+3. **Configure Environment Variables**
+   Copy `.env.example` to `.env` and fill in your Supabase details:
    ```bash
    cp .env.example .env
    ```
-5. Run the app:
+
+4. **Run the Application**
    ```bash
    flutter run
    ```
 
 ---
 
-## 📸 Screenshots
-
-*(Screenshots will be visible once assets or preview images are uploaded)*
-
----
-
 ## 📜 License
 
-This project is for educational and portfolio purposes. Source code is released open-source, while proprietary game assets are excluded from version control.
+**WAR: BATTLEGRIDS** is not open source. All rights are reserved by Alan Geo Kurian.
+
+This repository is made available for viewing and evaluation purposes only. You may not copy, modify, distribute, or use this source code for personal or commercial projects. See the [LICENSE](LICENSE) file for full terms and restrictions.
+
+<div align="center">
+  <sub>Built with ❤️ using Flutter & Flame Engine</sub>
+</div>
+
 
