@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/app_assets.dart';
 import '../../campaign/models/kingdom_model.dart';
 import '../../campaign/data/battle_configs.dart';
 import '../../campaign/campaign_manager.dart';
@@ -51,10 +52,12 @@ class PreBattleSidebar extends ConsumerWidget {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: Image.asset(
-                    kingdom.bannerAsset,
-                    fit: BoxFit.cover,
-                    opacity: const AlwaysStoppedAnimation(0.3),
+                  child: Opacity(
+                    opacity: 0.3,
+                    child: AppAssetImage(
+                      kingdom.bannerAsset,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 Container(

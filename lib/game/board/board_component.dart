@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame_tiled/flame_tiled.dart';
+import 'package:flutter/foundation.dart';
+import '../../core/constants/app_assets.dart';
 import '../../simulation/board.dart';
 import '../../core/enums/cell_state.dart';
 import '../../core/constants/board_constants.dart';
@@ -17,8 +19,8 @@ class BoardComponent extends PositionComponent {
   final Color playerColor;
   final Color opponentColor;
 
-  late List<List<CellComponent>> _cellGrid;
-  late TiledComponent tiledComponent;
+  List<List<CellComponent>> _cellGrid = [];
+  TiledComponent? tiledComponent;
 
   BoardComponent({
     required this.simulationBoard,
@@ -39,37 +41,43 @@ class BoardComponent extends PositionComponent {
 
   @override
   Future<void> onLoad() async {
-    // 1. Load the Tiled Map
-    // Setting destTileSize to cellSize (40.0) automatically handles scaling
-    // from the native 64x64 to our 40x40 grid.
-    // Custom Images instance with assets/tiles/ prefix allows loading images 
-    // from assets/tiles/images/ as referenced in the .tsx files.
-    tiledComponent = await TiledComponent.load(
-      mapPath,
-      Vector2.all(cellSize),
-      images: Images(prefix: 'assets/tiles/'),
-    );
+    // 1. Load the Tiled Map with Try-Catch Fallback
+    try {
+      final loadedTiledComponent = await TiledComponent.load(
+        mapPath,
+        Vector2.all(cellSize),
+        images: Images(prefix: 'assets/tiles/'),
+      );
+      tiledComponent = loadedTiledComponent;
+      add(loadedTiledComponent);
+      size = loadedTiledComponent.size; // Ensure our size matches the loaded map content
 
-    add(tiledComponent);
-    size = tiledComponent.size; // Ensure our size matches the loaded map content
+      final tileMap = loadedTiledComponent.tileMap.map;
+      
+      // Ensure simulation board matches map size
+      if (simulationBoard.width != tileMap.width || simulationBoard.height != tileMap.height) {
+        simulationBoard.resize(tileMap.width, tileMap.height);
+      }
+      
+      // Set Playable Area: 3 rows/cols from EACH side
+      simulationBoard.setPlayableArea(
+        kPlayableBoundary, 
+        kPlayableBoundary, 
+        tileMap.width - 1 - kPlayableBoundary, 
+        tileMap.height - 1 - kPlayableBoundary
+      );
 
-    final tileMap = tiledComponent.tileMap.map;
-    
-    // Ensure simulation board matches map size
-    if (simulationBoard.width != tileMap.width || simulationBoard.height != tileMap.height) {
-      simulationBoard.resize(tileMap.width, tileMap.height);
+      // 2. Parse Map Properties to Simulation Board
+      _parseMapProperties();
+    } catch (e) {
+      debugPrint('BoardComponent Warning: Could not load map "$mapPath": $e');
+      simulationBoard.setPlayableArea(
+        kPlayableBoundary,
+        kPlayableBoundary,
+        simulationBoard.width - 1 - kPlayableBoundary,
+        simulationBoard.height - 1 - kPlayableBoundary,
+      );
     }
-    
-    // Set Playable Area: 3 rows/cols from EACH side
-    simulationBoard.setPlayableArea(
-      kPlayableBoundary, 
-      kPlayableBoundary, 
-      tileMap.width - 1 - kPlayableBoundary, 
-      tileMap.height - 1 - kPlayableBoundary
-    );
-
-    // 2. Parse Map Properties to Simulation Board
-    _parseMapProperties();
 
     // 3. Generate Interaction Grid (CellComponents)
     // ONLY add interactive cells within the playable boundaries
@@ -141,7 +149,8 @@ class BoardComponent extends PositionComponent {
   }
 
   void _parseMapProperties() {
-    final tileMap = tiledComponent.tileMap.map;
+    if (tiledComponent == null) return;
+    final tileMap = tiledComponent!.tileMap.map;
 
     List<(int, int)> aiKingdomTiles = [];
     List<(int, int)> playerKingdomTiles = [];
@@ -221,9 +230,12 @@ class BoardComponent extends PositionComponent {
 
   /// Syncs the Flame visual board with the Simulation board data.
   void syncWithSimulation(Board currentBoard) {
+    if (_cellGrid.isEmpty) return;
     for (int y = 0; y < currentBoard.height; y++) {
       for (int x = 0; x < currentBoard.width; x++) {
-        _cellGrid[y][x].updateState(currentBoard.getCell(x, y));
+        if (y < _cellGrid.length && x < _cellGrid[y].length) {
+          _cellGrid[y][x].updateState(currentBoard.getCell(x, y));
+        }
       }
     }
   }
@@ -330,16 +342,17 @@ class PalaceOverlayComponent extends PositionComponent {
         ..strokeWidth = 2.0,
     ));
 
-    // Add the Symbol in the center
-    final sprite = await Sprite.load(symbolAsset);
-    // Scale symbol to fit nicely (e.g., 60% of palace height)
-    final symbolSize = size.y * 0.6;
-    add(SpriteComponent(
-      sprite: sprite,
-      size: Vector2.all(symbolSize),
-      position: size / 2,
-      anchor: Anchor.center,
-      paint: Paint()..colorFilter = ColorFilter.mode(color, BlendMode.srcIn),
-    ));
+    // Add the Symbol in the center using safe sprite loader
+    final sprite = await AppAssets.loadSpriteSafely(symbolAsset);
+    if (sprite != null) {
+      final symbolSize = size.y * 0.6;
+      add(SpriteComponent(
+        sprite: sprite,
+        size: Vector2.all(symbolSize),
+        position: size / 2,
+        anchor: Anchor.center,
+        paint: Paint()..colorFilter = ColorFilter.mode(color, BlendMode.srcIn),
+      ));
+    }
   }
 }

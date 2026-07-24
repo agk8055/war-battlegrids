@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/constants/app_assets.dart';
 import 'simulation_provider.dart';
 import 'game_settings_provider.dart';
 import '../core/enums/game_mode.dart';
@@ -35,8 +36,8 @@ class OnlineState {
     this.peerKingdomName,
     this.selectedMapPath,
     this.selectedMapName,
-    this.player1Symbol = 'assets/symbols/fire.png',
-    this.player2Symbol = 'assets/icons/eagle.png',
+    this.player1Symbol = AppAssets.fire,
+    this.player2Symbol = AppAssets.eagle,
     this.player1Color = 0xFF2196F3, // Colors.blue
     this.player2Color = 0xFFF44336, // Colors.red
     this.kingdomAttackThreshold = 100,
@@ -276,7 +277,7 @@ class OnlineNotifier extends Notifier<OnlineState> {
       case 'start_game':
         debugPrint('🌐 ACTION: Start Game received');
         ref.read(gameSettingsProvider.notifier).setMode(GameMode.multiplayer);
-        ref.read(gameSettingsProvider.notifier).setSelectedMap(state.selectedMapPath ?? '25x25_map.tmx');
+        ref.read(gameSettingsProvider.notifier).setSelectedMap(state.selectedMapPath ?? AppAssets.defaultMap);
         state = state.copyWith(gameStarted: true, isPeerPaused: false);
         break;
       case 'kingdom_name':

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/app_assets.dart';
 import '../../../core/enums/game_mode.dart';
 import '../../../core/enums/turn.dart';
 import '../../../providers/simulation_provider.dart';
@@ -76,7 +77,7 @@ class BattleHudHeader extends ConsumerWidget {
       p1ColorVal = settings.player1Color;
 
       p2Name = selectedKingdom?.name ?? "AI";
-      p2Symbol = selectedKingdom?.symbolAsset ?? 'assets/icons/eagle.png';
+      p2Symbol = selectedKingdom?.symbolAsset ?? AppAssets.eagle;
       p2ColorVal =
           selectedKingdom?.primaryColor.toARGB32() ?? Colors.red.toARGB32();
     }

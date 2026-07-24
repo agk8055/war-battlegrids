@@ -2,6 +2,7 @@ import 'package:flame/game.dart';
 import 'package:flame/events.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import '../core/constants/app_assets.dart';
 import '../../campaign/campaign_manager.dart';
 import '../../campaign/data/battle_configs.dart';
 import '../../providers/turn_provider.dart';
@@ -40,10 +41,7 @@ class KingdomGame extends FlameGame with ScaleDetector {
     super.onLoad();
 
     // Start preloading SFX in background so we don't block the map rendering
-    ref.read(audioServiceProvider).preloadSfx([
-      'audio/sfx/capture.mp3',
-      'audio/sfx/click.mp3',
-    ]);
+    ref.read(audioServiceProvider).preloadSfx(AppAssets.defaultSfxList);
 
     final simulation = ref.read(simulationProvider);
     final settings = ref.read(gameSettingsProvider);
@@ -93,7 +91,7 @@ class KingdomGame extends FlameGame with ScaleDetector {
     } else {
       // Single player
       bottomSymbol = settings.player1Symbol;
-      topSymbol = selectedKingdom?.symbolAsset ?? 'assets/icons/eagle.png';
+      topSymbol = selectedKingdom?.symbolAsset ?? AppAssets.eagle;
       bottomColor = Colors.blue;
       topColor = selectedKingdom?.primaryColor ?? Colors.red;
     }
@@ -167,9 +165,9 @@ class KingdomGame extends FlameGame with ScaleDetector {
 
     if (result.$1) {
       if (result.$2) {
-        ref.read(audioServiceProvider).playSfx('audio/sfx/capture.mp3');
+        ref.read(audioServiceProvider).playSfx(AppAssets.sfxCapture);
       } else {
-        ref.read(audioServiceProvider).playSfx('audio/sfx/click.mp3');
+        ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
       }
       boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
       
@@ -205,9 +203,9 @@ class KingdomGame extends FlameGame with ScaleDetector {
         final result = notifier.placeUnit(bestMove.$1, bestMove.$2);
         if (result.$1) {
           if (result.$2) {
-            ref.read(audioServiceProvider).playSfx('audio/sfx/capture.mp3');
+            ref.read(audioServiceProvider).playSfx(AppAssets.sfxCapture);
           } else {
-            ref.read(audioServiceProvider).playSfx('audio/sfx/click.mp3');
+            ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
           }
           boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
         }

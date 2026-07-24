@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/app_assets.dart';
 import '../../providers/game_settings_provider.dart';
 import 'main_menu_screen.dart';
 
@@ -81,7 +82,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           top: 0,
           right: 0,
@@ -91,14 +92,14 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           bottom: 0,
           left: 0,
           child: SizedBox(
               width: sz,
               height: sz,
-              child: Image.asset('assets/icons/border-edge.png', color: color))),
+              child: AppAssetImage(AppAssets.borderEdge, color: color))),
       Positioned(
           bottom: 0,
           right: 0,
@@ -108,7 +109,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
     ];
   }
 }
@@ -141,17 +142,8 @@ class WelcomeScreen extends ConsumerStatefulWidget {
 
 class _WelcomeScreenState extends ConsumerState<WelcomeScreen> with TickerProviderStateMixin {
   final TextEditingController _nameController = TextEditingController();
-  String _selectedSymbol = 'assets/symbols/fire.png';
-  final List<String> _symbols = [
-    'assets/symbols/fire.png',
-    'assets/symbols/tiger.png',
-    'assets/symbols/flash.png',
-    'assets/icons/hacker.png',
-    'assets/icons/lion.png',
-    'assets/icons/wolf.png',
-    'assets/icons/bull.png',
-    'assets/icons/shuriken.png',
-  ];
+  String _selectedSymbol = AppAssets.fire;
+  final List<String> _symbols = AppAssets.availableSymbols;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -202,7 +194,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> with TickerProvid
     await prefs.setBool('is_first_run', false);
 
     ref.read(gameSettingsProvider.notifier).setPlayerNames(name, 'AI');
-    ref.read(gameSettingsProvider.notifier).setPlayerSymbols(_selectedSymbol, 'assets/icons/eagle.png');
+    ref.read(gameSettingsProvider.notifier).setPlayerSymbols(_selectedSymbol, AppAssets.eagle);
 
     if (!mounted) return;
 
@@ -426,7 +418,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> with TickerProvid
                                                     ? [BoxShadow(color: primary.withValues(alpha: 0.3), blurRadius: 10)]
                                                     : [],
                                               ),
-                                              child: Image.asset(
+                                              child: AppAssetImage(
                                                 symbol,
                                                 color: isSelected ? null : Colors.white.withValues(alpha: 0.4),
                                               ),

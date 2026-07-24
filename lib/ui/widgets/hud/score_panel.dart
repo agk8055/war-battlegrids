@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_assets.dart';
 import '../../../core/enums/win_condition_type.dart';
 
 class ScorePanel extends StatefulWidget {
@@ -149,7 +150,7 @@ class _ScorePanelState extends State<ScorePanel>
                 child: child,
               );
             },
-            child: Image.asset(
+            child: AppAssetImage(
               widget.symbolAsset,
               width: 20,
               height: 20,

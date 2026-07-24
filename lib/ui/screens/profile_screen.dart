@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/constants/app_assets.dart';
 import '../../providers/game_settings_provider.dart';
 import '../../campaign/campaign_manager.dart';
 import '../../campaign/data/kingdoms_data.dart';
@@ -83,7 +84,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           top: 0,
           right: 0,
@@ -93,14 +94,14 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           bottom: 0,
           left: 0,
           child: SizedBox(
               width: sz,
               height: sz,
-              child: Image.asset('assets/icons/border-edge.png', color: color))),
+              child: AppAssetImage(AppAssets.borderEdge, color: color))),
       Positioned(
           bottom: 0,
           right: 0,
@@ -110,7 +111,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
     ];
   }
 }
@@ -147,16 +148,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with TickerProviderStateMixin {
 
-  final List<String> _availableSymbols = const [
-    'assets/symbols/fire.png',
-    'assets/symbols/tiger.png',
-    'assets/symbols/flash.png',
-    'assets/icons/hacker.png',
-    'assets/icons/lion.png',
-    'assets/icons/wolf.png',
-    'assets/icons/bull.png',
-    'assets/icons/shuriken.png',
-  ];
+  final List<String> _availableSymbols = AppAssets.availableSymbols;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -302,7 +294,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                         ? [BoxShadow(color: primary.withValues(alpha: 0.3), blurRadius: 10)]
                         : [],
                   ),
-                  child: Image.asset(
+                  child: AppAssetImage(
                     symbol,
                     color: isSelected ? primary : Colors.white.withValues(alpha: 0.55),
                   ),
@@ -486,7 +478,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   border: Border.all(color: primary.withValues(alpha: 0.6), width: 2),
                 ),
                 padding: const EdgeInsets.all(18),
-                child: Image.asset(
+                child: AppAssetImage(
                   settings.player1Symbol,
                   color: primary,
                 ),

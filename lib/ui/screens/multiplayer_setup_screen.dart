@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/app_assets.dart';
 import '../../providers/game_settings_provider.dart';
 import '../../providers/simulation_provider.dart';
 import 'game_screen.dart';
@@ -100,7 +101,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           top: 0,
           right: 0,
@@ -110,14 +111,14 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           bottom: 0,
           left: 0,
           child: SizedBox(
               width: sz,
               height: sz,
-              child: Image.asset('assets/icons/border-edge.png', color: color))),
+              child: AppAssetImage(AppAssets.borderEdge, color: color))),
       Positioned(
           bottom: 0,
           right: 0,
@@ -127,7 +128,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
     ];
   }
 }
@@ -202,16 +203,7 @@ class _MultiplayerSetupScreenState
   final TextEditingController _thresholdController =
       TextEditingController(text: '10');
 
-  final List<String> _availableSigils = [
-    'assets/symbols/fire.png',
-    'assets/symbols/tiger.png',
-    'assets/symbols/flash.png',
-    'assets/icons/hacker.png',
-    'assets/icons/lion.png',
-    'assets/icons/wolf.png',
-    'assets/icons/bull.png',
-    'assets/icons/shuriken.png',
-  ];
+  final List<String> _availableSigils = AppAssets.availableSymbols;
 
   final List<Color> _availableColors = [
     Colors.blue,
@@ -749,7 +741,7 @@ class _MultiplayerSetupScreenState
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 200),
                 opacity: isUnavailable ? 0.18 : 1.0,
-                child: Image.asset(
+                child: AppAssetImage(
                   sigil,
                   color: isSelected ? null : Colors.white.withValues(alpha: 0.55),
                 ),

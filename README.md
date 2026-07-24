@@ -53,7 +53,17 @@ The online system uses a **Pure Realtime Broadcast** approach via Supabase, bypa
 ## 🚦 Getting Started
 
 > [!IMPORTANT]
-> **Notice on Game Assets**: The `assets/` directory (containing game graphics, audio, icons, and Tiled `.tmx` maps) is excluded from this public repository (`.gitignore`). To run or build the project locally, you need to populate the `assets/` folder with compatible asset files matching the structure defined in `pubspec.yaml`.
+> **Notice on Game Assets & Fallback Support**: 
+> The `assets/` directory (containing custom graphics, audio files, icons, and Tiled `.tmx` maps) is excluded from this public repository (`.gitignore`).
+> 
+> **You can still build and run the game without adding any asset files!** The application includes a global fallback system so the app runs smoothly out-of-the-box. However, the following visual/auditory elements will be absent or replaced:
+> - **UI Banners & Images**: Replaced with stylized dark stone-textured placeholder panels.
+> - **House Sigils & Icons**: Replaced with clean placeholder icon containers.
+> - **In-Game Unit & Link Sprites**: Replaced with procedural vector graphics (colored circles, rings, and unit paths rendered directly on the Flame canvas).
+> - **Tiled Map Graphics (`.tmx`)**: Replaced with procedurally generated grid boundaries.
+> - **Music & SFX**: Sound effects and background music are safely muted.
+>
+> *To experience full custom artwork, audio, and tilemaps, populate the `assets/` directory matching the paths defined in `pubspec.yaml`.*
 
 ### Prerequisites
 - Flutter SDK (latest stable)

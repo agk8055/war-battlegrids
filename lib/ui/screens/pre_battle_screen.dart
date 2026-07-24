@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/app_assets.dart';
 import '../../campaign/models/kingdom_model.dart';
 import '../../campaign/data/battle_configs.dart';
 import 'game_screen.dart';
@@ -40,7 +41,7 @@ class _PreBattleScreenState extends ConsumerState<PreBattleScreen> {
           Positioned.fill(
             child: Opacity(
               opacity: 0.3,
-              child: Image.asset(
+              child: AppAssetImage(
                 widget.kingdom.bannerAsset,
                 fit: BoxFit.cover,
               ),

@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
+import '../../core/constants/app_assets.dart';
 import '../../core/enums/cell_state.dart';
 import '../../simulation/board.dart';
 import '../kingdom_game.dart';
@@ -39,9 +40,9 @@ class CellComponent extends PositionComponent with TapCallbacks, HasGameRef<King
   @override
   Future<void> onLoad() async {
     super.onLoad();
-    _playerSprite = await Sprite.load(playerSymbol);
-    _opponentSprite = await Sprite.load(opponentSymbol);
-    _linkSprite = await Sprite.load('assets/icons/link.png');
+    _playerSprite = await AppAssets.loadSpriteSafely(playerSymbol);
+    _opponentSprite = await AppAssets.loadSpriteSafely(opponentSymbol);
+    _linkSprite = await AppAssets.loadSpriteSafely(AppAssets.link);
   }
 
   void updateState(CellState newState) {
@@ -88,21 +89,39 @@ class CellComponent extends PositionComponent with TapCallbacks, HasGameRef<King
     // Render Linkages (Drawn before symbols to be "under")
     _renderLinkages(canvas);
 
-    // If there is a unit on this tile, draw the symbol (sigil)
-    if (_currentState == CellState.player && _playerSprite != null) {
-      _playerSprite!.render(
-        canvas,
-        position: Vector2(size.x * 0.15, size.y * 0.15),
-        size: Vector2(size.x * 0.7, size.y * 0.7),
-        overridePaint: Paint()..colorFilter = ColorFilter.mode(playerColor, BlendMode.srcIn),
-      );
-    } else if (_currentState == CellState.ai && _opponentSprite != null) {
-      _opponentSprite!.render(
-        canvas,
-        position: Vector2(size.x * 0.15, size.y * 0.15),
-        size: Vector2(size.x * 0.7, size.y * 0.7),
-        overridePaint: Paint()..colorFilter = ColorFilter.mode(opponentColor, BlendMode.srcIn),
-      );
+    // If there is a unit on this tile, draw the symbol (sigil) or fallback shape
+    if (_currentState == CellState.player) {
+      if (_playerSprite != null) {
+        _playerSprite!.render(
+          canvas,
+          position: Vector2(size.x * 0.15, size.y * 0.15),
+          size: Vector2(size.x * 0.7, size.y * 0.7),
+          overridePaint: Paint()..colorFilter = ColorFilter.mode(playerColor, BlendMode.srcIn),
+        );
+      } else {
+        // Fallback vector shape if sprite fails
+        canvas.drawCircle(
+          Offset(size.x / 2, size.y / 2),
+          size.x * 0.25,
+          Paint()..color = playerColor,
+        );
+      }
+    } else if (_currentState == CellState.ai) {
+      if (_opponentSprite != null) {
+        _opponentSprite!.render(
+          canvas,
+          position: Vector2(size.x * 0.15, size.y * 0.15),
+          size: Vector2(size.x * 0.7, size.y * 0.7),
+          overridePaint: Paint()..colorFilter = ColorFilter.mode(opponentColor, BlendMode.srcIn),
+        );
+      } else {
+        // Fallback vector shape if sprite fails
+        canvas.drawCircle(
+          Offset(size.x / 2, size.y / 2),
+          size.x * 0.25,
+          Paint()..color = opponentColor,
+        );
+      }
     }
   }
 

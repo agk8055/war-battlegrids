@@ -1,3 +1,4 @@
+import '../../core/constants/app_assets.dart';
 import '../../core/models/level_config.dart';
 import '../models/battle_config.dart';
 import '../../simulation/ai/ai_strategy.dart';
@@ -5,7 +6,7 @@ import '../../simulation/ai/ai_strategy.dart';
 final Map<String, BattleConfig> kBattleConfigs = {
   'northern_village': BattleConfig(
     kingdomId: 'northern_village',
-    mapPath: '15x15_northern_forest_map.tmx',
+    mapPath: AppAssets.northernForestMap,
     levelConfig: const LevelConfig(
       boardWidth: 15,
       boardHeight: 15,
@@ -17,7 +18,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
   ),
   'blue_dome_town': BattleConfig(
     kingdomId: 'blue_dome_town',
-    mapPath: '15x15_northern_forest_map.tmx',
+    mapPath: AppAssets.northernForestMap,
     levelConfig: const LevelConfig(
       boardWidth: 15,
       boardHeight: 15,
@@ -29,7 +30,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
   ),
   'coastal_castle': BattleConfig(
     kingdomId: 'coastal_castle',
-    mapPath: '15x15_northern_forest_map.tmx',
+    mapPath: AppAssets.northernForestMap,
     levelConfig: const LevelConfig(
       boardWidth: 15,
       boardHeight: 15,
@@ -41,7 +42,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
   ),
   'pyramid_area': BattleConfig(
     kingdomId: 'pyramid_area',
-    mapPath: '15x15_northern_forest_map.tmx',
+    mapPath: AppAssets.northernForestMap,
     levelConfig: const LevelConfig(
       boardWidth: 15,
       boardHeight: 15,
@@ -53,7 +54,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
   ),
   'desert_settlement': BattleConfig(
     kingdomId: 'desert_settlement',
-    mapPath: '15x15_northern_forest_map.tmx',
+    mapPath: AppAssets.northernForestMap,
     levelConfig: const LevelConfig(
       boardWidth: 15,
       boardHeight: 15,
@@ -65,7 +66,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
   ),
   'large_fort': BattleConfig(
     kingdomId: 'large_fort',
-    mapPath: '15x15_northern_forest_map.tmx',
+    mapPath: AppAssets.northernForestMap,
     levelConfig: const LevelConfig(
       boardWidth: 15,
       boardHeight: 15,
@@ -77,7 +78,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
   ),
   'oriental_pagoda': BattleConfig(
     kingdomId: 'oriental_pagoda',
-    mapPath: '15x15_northern_forest_map.tmx',
+    mapPath: AppAssets.northernForestMap,
     levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,
@@ -89,7 +90,7 @@ final Map<String, BattleConfig> kBattleConfigs = {
   ),
   'southern_city': BattleConfig(
     kingdomId: 'southern_city',
-    mapPath: '15x15_northern_forest_map.tmx',
+    mapPath: AppAssets.northernForestMap,
     levelConfig: const LevelConfig(
       boardWidth: 25,
       boardHeight: 25,

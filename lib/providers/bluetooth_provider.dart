@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:nearby_connections/nearby_connections.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../core/constants/app_assets.dart';
 import 'simulation_provider.dart';
 import 'game_settings_provider.dart';
 
@@ -42,8 +43,8 @@ class BluetoothState {
     this.peerKingdomName,
     this.selectedMapPath,
     this.selectedMapName,
-    this.player1Symbol = 'assets/symbols/fire.png',
-    this.player2Symbol = 'assets/icons/eagle.png',
+    this.player1Symbol = AppAssets.fire,
+    this.player2Symbol = AppAssets.eagle,
     this.player1Color = 0xFF2196F3, // Colors.blue
     this.player2Color = 0xFFF44336, // Colors.red
     this.kingdomAttackThreshold = 100,

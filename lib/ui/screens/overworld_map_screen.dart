@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
+import '../../core/constants/app_assets.dart';
 import '../../campaign/campaign_manager.dart';
 import '../../campaign/data/battle_configs.dart';
 import '../../campaign/data/kingdoms_data.dart';
@@ -19,74 +20,82 @@ class OverworldMapScreen extends ConsumerStatefulWidget {
 
 class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with TickerProviderStateMixin {
   final TransformationController _transformationController = TransformationController();
-  late AnimationController _animationController;
-  Animation<Matrix4>? _animation;
-
-  // Image dimensions
-  static const double _mapWidth = 1970;
-  static const double _mapHeight = 3188;
+  static const double _mapWidth = 1970.0;
+  static const double _mapHeight = 3188.0;
+  late AnimationController _zoomController;
+  Animation<Matrix4>? _zoomAnimation;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
+    _zoomController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..addListener(() {
-        if (_animation != null) {
-          _transformationController.value = _animation!.value;
-        }
-      });
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    _zoomController.addListener(() {
+      if (_zoomAnimation != null) {
+        _transformationController.value = _zoomAnimation!.value;
+      }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _centerMapOnScreen();
+    });
+  }
+
+  void _centerMapOnScreen() {
+    final Size screenSize = MediaQuery.of(context).size;
+    final double scaleX = screenSize.width / _mapWidth;
+    final double scaleY = screenSize.height / _mapHeight;
+    final double initialScale = math.max(scaleX, scaleY);
+
+    final double translateX = (screenSize.width - (_mapWidth * initialScale)) / 2;
+    final double translateY = (screenSize.height - (_mapHeight * initialScale)) / 2;
+
+    _transformationController.value = Matrix4.identity()
+      ..translate(translateX, translateY)
+      ..scale(initialScale);
+  }
+
+  void _zoomToKingdom(KingdomModel kingdom, BoxConstraints constraints, double minScale) {
+    final double targetScale = 1.6;
+
+    final double kingdomPixelX = kingdom.x * _mapWidth;
+    final double kingdomPixelY = kingdom.y * _mapHeight;
+
+    final double screenCenterX = constraints.maxWidth / 2;
+    final double screenCenterY = constraints.maxHeight / 2;
+
+    double targetX = screenCenterX - (kingdomPixelX * targetScale);
+    double targetY = screenCenterY - (kingdomPixelY * targetScale);
+
+    final double minX = constraints.maxWidth - (_mapWidth * targetScale);
+    final double minY = constraints.maxHeight - (_mapHeight * targetScale);
+
+    targetX = targetX.clamp(minX, 0.0);
+    targetY = targetY.clamp(minY, 0.0);
+
+    final Matrix4 endMatrix = Matrix4.identity()
+      ..translate(targetX, targetY)
+      ..scale(targetScale);
+
+    _zoomAnimation = Matrix4Tween(
+      begin: _transformationController.value,
+      end: endMatrix,
+    ).animate(CurvedAnimation(
+      parent: _zoomController,
+      curve: Curves.easeInOutCubic,
+    ));
+
+    _zoomController.forward(from: 0);
   }
 
   @override
   void dispose() {
+    _zoomController.dispose();
     _transformationController.dispose();
-    _animationController.dispose();
     super.dispose();
-  }
-
-  bool _initialScaleSet = false;
-  String? _lastSelectedKingdomId;
-
-  void _zoomToKingdom(KingdomModel kingdom, BoxConstraints constraints, double minScale) {
-    // Zoom in a bit more than minScale
-    final double targetScale = (minScale * 1.8).clamp(minScale, 2.0);
-    
-    // If sidebar is on the right (takes 35%), the visible "center" for the map 
-    // is at 32.5% of the total screen width.
-    final double viewportCenterX = constraints.maxWidth * 0.325;
-    final double viewportCenterY = constraints.maxHeight / 2;
-
-    final double kingdomX = kingdom.x * _mapWidth;
-    final double kingdomY = kingdom.y * _mapHeight;
-
-    // The transformation that puts (kingdomX, kingdomY) at (viewportCenterX, viewportCenterY)
-    final Matrix4 endMatrix = Matrix4.identity()
-      ..translateByVector3(Vector3(viewportCenterX, viewportCenterY, 0.0))
-      ..scaleByVector3(Vector3(targetScale, targetScale, 1.0))
-      ..translateByVector3(Vector3(-kingdomX, -kingdomY, 0.0));
-
-    _animation = Matrix4Tween(
-      begin: _transformationController.value,
-      end: endMatrix,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.fastOutSlowIn,
-    ));
-
-    _animationController.forward(from: 0);
-  }
-
-  void _resetZoom(double minScale) {
-    _animation = Matrix4Tween(
-      begin: _transformationController.value,
-      end: Matrix4.identity()..scaleByVector3(Vector3(minScale, minScale, 1.0)),
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.fastOutSlowIn,
-    ));
-    _animationController.forward(from: 0);
   }
 
   @override
@@ -99,49 +108,30 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF0D0B09),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // Calculate min scale
-          final double screenRatioW = constraints.maxWidth / _mapWidth;
-          final double screenRatioH = constraints.maxHeight / _mapHeight;
-          final double minScale = (screenRatioW > screenRatioH ? screenRatioW : screenRatioH) * 1.2;
-
-          if (!_initialScaleSet) {
-            _transformationController.value = Matrix4.identity()..scaleByVector3(Vector3(minScale, minScale, 1.0));
-            _initialScaleSet = true;
-          }
-
-          // Trigger animation if selection changed
-          if (selectedKingdomId != _lastSelectedKingdomId) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (selectedKingdom != null) {
-                _zoomToKingdom(selectedKingdom, constraints, minScale);
-              } else if (_lastSelectedKingdomId != null) {
-                _resetZoom(minScale);
-              }
-              _lastSelectedKingdomId = selectedKingdomId;
-            });
-          }
+          final double scaleX = constraints.maxWidth / _mapWidth;
+          final double scaleY = constraints.maxHeight / _mapHeight;
+          final double minScale = math.max(scaleX, scaleY);
 
           return Stack(
             children: [
-              // Background Map
               Positioned.fill(
                 child: InteractiveViewer(
                   transformationController: _transformationController,
                   maxScale: 2.5,
-                  minScale: minScale * 0.5, // Allow zooming out slightly during transitions
+                  minScale: minScale * 0.5,
                   constrained: false,
-                  boundaryMargin: const EdgeInsets.all(600), // Large margin for free movement
+                  boundaryMargin: const EdgeInsets.all(600),
                   child: SizedBox(
                     width: _mapWidth,
                     height: _mapHeight,
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Image.asset(
-                          'assets/images/overworld_map.png',
+                        AppAssetImage(
+                          AppAssets.overworldMap,
                           width: _mapWidth,
                           height: _mapHeight,
                           fit: BoxFit.contain,
@@ -338,7 +328,7 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
             opacity: opacity,
             child: RotatedBox(
               quarterTurns: rotation,
-              child: Image.asset('assets/images/cloud.png', width: 600),
+              child: AppAssetImage(AppAssets.cloud, width: 600),
             ),
           ),
         ),
@@ -391,15 +381,15 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
                 ],
               ),
               child: isConquered
-                  ? Image.asset(
-                      'assets/icons/throne.png',
+                  ? AppAssetImage(
+                      AppAssets.throne,
                       width: isSelected ? 45 : 30,
                       height: isSelected ? 45 : 30,
                       color: Colors.black,
                     )
                   : (isUnlocked
-                      ? Image.asset(
-                          'assets/icons/shield_sword.png',
+                      ? AppAssetImage(
+                          AppAssets.shieldSword,
                           width: isSelected ? 45 : 30,
                           height: isSelected ? 45 : 30,
                           color: Colors.white,
@@ -460,8 +450,8 @@ class PathPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-    const double mapWidth = 1970;
-    const double mapHeight = 3188;
+    final double mapWidth = size.width;
+    final double mapHeight = size.height;
 
     for (var k in kingdoms) {
       for (var unlockedId in k.unlockedBy) {
@@ -551,7 +541,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           top: 0,
           right: 0,
@@ -561,14 +551,14 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           bottom: 0,
           left: 0,
           child: SizedBox(
               width: sz,
               height: sz,
-              child: Image.asset('assets/icons/border-edge.png', color: color))),
+              child: AppAssetImage(AppAssets.borderEdge, color: color))),
       Positioned(
           bottom: 0,
           right: 0,
@@ -578,7 +568,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
     ];
   }
 }

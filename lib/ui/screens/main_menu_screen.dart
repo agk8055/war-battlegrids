@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/app_assets.dart';
 import '../../providers/game_settings_provider.dart';
 import '../../core/enums/game_mode.dart';
 import 'overworld_map_screen.dart';
@@ -29,8 +30,8 @@ class GameHomeScreen extends ConsumerWidget {
           ),
           Expanded(
             child: Center(
-              child: Image.asset(
-                'assets/images/home_banner.png',
+              child: AppAssetImage(
+                AppAssets.homeBanner,
                 fit: BoxFit.contain,
               ),
             ),
@@ -46,7 +47,7 @@ class GameHomeScreen extends ConsumerWidget {
                   _buildMenuButton(
                     context,
                     label: 'CAMPAIGN',
-                    iconAsset: 'assets/icons/story_mode_icon.png',
+                    iconAsset: AppAssets.storyModeIcon,
                     onPressed: () {
                       ref.read(gameSettingsProvider.notifier).setMode(GameMode.story);
                       Navigator.push(
@@ -62,7 +63,7 @@ class GameHomeScreen extends ConsumerWidget {
                   _buildMenuButton(
                     context,
                     label: 'MULTIPLAYER',
-                    iconAsset: 'assets/icons/multiplayer_icon.png',
+                    iconAsset: AppAssets.multiplayerIcon,
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -91,7 +92,7 @@ class GameHomeScreen extends ConsumerWidget {
                   _buildMenuButton(
                     context,
                     label: 'SETTINGS',
-                    iconAsset: 'assets/icons/settings_icon.png',
+                    iconAsset: AppAssets.settingsIcon,
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -124,7 +125,7 @@ class GameHomeScreen extends ConsumerWidget {
         IconButton(
           onPressed: onPressed,
           icon: iconAsset != null
-              ? Image.asset(iconAsset, width: 55, height: 55)
+              ? AppAssetImage(iconAsset, width: 55, height: 55)
               : Icon(iconData, size: 45, color: Colors.black),
           style: IconButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.primary,

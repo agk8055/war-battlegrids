@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/game_settings_provider.dart';
 
+import '../../core/constants/app_assets.dart';
+
 class AudioService with WidgetsBindingObserver {
   final AudioPlayer _musicPlayer = AudioPlayer();
   bool _isStoppedForMatch = false;
@@ -77,14 +79,18 @@ class AudioService with WidgetsBindingObserver {
       // Ensure we are stopped before starting fresh
       await _musicPlayer.stop();
       await _musicPlayer.setVolume(settings.musicVolume);
-      await _musicPlayer.play(AssetSource('audio/Crown_of_the_Morning_Sky.mp3'));
+      await _musicPlayer.play(AssetSource(AppAssets.mainThemePath));
     } catch (e) {
       debugPrint('AudioService: Failed to play main theme: $e');
     }
   }
 
   Future<void> stopMusic() async {
-    await _musicPlayer.stop();
+    try {
+      await _musicPlayer.stop();
+    } catch (e) {
+      debugPrint('AudioService: Failed to stop music: $e');
+    }
   }
 
   Future<void> stopMusicForMatch() async {
@@ -105,11 +111,16 @@ class AudioService with WidgetsBindingObserver {
     final player = _pool[_nextPlayerIndex];
     _nextPlayerIndex = (_nextPlayerIndex + 1) % _poolSize;
 
-    // Set volume and play. On Android, using a fresh play call on a 
-    // rotating pool is the most reliable way to avoid the "stuck at end" issue.
+    // Set volume and play.
     player.setVolume(settings.sfxVolume);
     player.stop().then((_) {
-      player.play(AssetSource(path));
+      try {
+        player.play(AssetSource(path));
+      } catch (e) {
+        debugPrint('AudioService: Failed to play SFX $path: $e');
+      }
+    }).catchError((e) {
+      debugPrint('AudioService: Error stopping player before SFX $path: $e');
     });
   }
 

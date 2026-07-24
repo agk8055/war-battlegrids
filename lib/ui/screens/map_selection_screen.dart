@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/constants/app_assets.dart';
 import '../../providers/game_settings_provider.dart';
 import '../../core/enums/game_mode.dart';
 import 'multiplayer_setup_screen.dart';
@@ -43,15 +44,15 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
     final List<Map<String, String>> availableMaps = [
       {
         'name': 'Northern Forest',
-        'path': '15x15_northern_forest_map.tmx',
+        'path': AppAssets.northernForestMap,
         'description': 'A dense 15x15 forest environment.',
-        'image': 'assets/images/northern_forest.png',
+        'image': AppAssets.northernForest,
       },
       {
         'name': 'Standard 25x25',
-        'path': '25x25_map.tmx',
+        'path': AppAssets.defaultMap,
         'description': 'A balanced 25x25 grid for local warfare.',
-        'image': 'assets/images/grassland_army.png',
+        'image': AppAssets.grasslandArmy,
       },
     ];
 
@@ -211,7 +212,7 @@ class _MapCard extends StatelessWidget {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: Image.asset(
+                    child: AppAssetImage(
                       map['image']!,
                       fit: BoxFit.cover,
                     ),
@@ -344,7 +345,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           top: 0,
           right: 0,
@@ -354,14 +355,14 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           bottom: 0,
           left: 0,
           child: SizedBox(
               width: sz,
               height: sz,
-              child: Image.asset('assets/icons/border-edge.png', color: color))),
+              child: AppAssetImage(AppAssets.borderEdge, color: color))),
       Positioned(
           bottom: 0,
           right: 0,
@@ -371,7 +372,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
     ];
   }
 }

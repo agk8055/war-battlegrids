@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/constants/app_assets.dart';
 import '../../core/services/audio_service.dart';
 import 'main_menu_screen.dart';
 import 'welcome_screen.dart';
@@ -54,8 +55,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Center(
-        child: Image.asset(
-          'assets/images/war_splash_screen.png',
+        child: AppAssetImage(
+          AppAssets.warSplashScreen,
           width: 500,
           height: 500,
           fit: BoxFit.contain,

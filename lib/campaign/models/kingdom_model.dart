@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/app_assets.dart';
 
 class KingdomModel {
   final String id;
@@ -18,7 +19,7 @@ class KingdomModel {
     required this.lore,
     required this.difficulty,
     required this.bannerAsset,
-    this.symbolAsset = 'assets/icons/eagle.png',
+    this.symbolAsset = AppAssets.eagle,
     this.primaryColor = Colors.red,
     required this.x,
     required this.y,

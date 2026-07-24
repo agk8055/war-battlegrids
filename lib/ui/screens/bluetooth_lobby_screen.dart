@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/constants/app_assets.dart';
 import '../../providers/bluetooth_provider.dart';
 import '../../providers/turn_provider.dart';
 import '../../providers/game_settings_provider.dart';
@@ -12,7 +13,7 @@ import 'game_screen.dart';
 import 'map_selection_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Decorative Painter – subtle diagonal hatch lines (parchment feel)
+//  Painters & Panel (matching setup aesthetic)
 // ─────────────────────────────────────────────────────────────────────────────
 class _HatchPainter extends CustomPainter {
   final Color color;
@@ -33,11 +34,6 @@ class _HatchPainter extends CustomPainter {
   bool shouldRepaint(_HatchPainter old) => old.color != color;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Reusable Widgets
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// A stone-panel card with corner ornaments and optional title banner.
 class _StonePanel extends StatelessWidget {
   final Widget child;
   final Color accentColor;
@@ -51,42 +47,25 @@ class _StonePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ornamentColor = accentColor.withValues(alpha: 0.55);
+    final ornamentColor = accentColor.withValues(alpha: 0.5);
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1A1510),
-            Color(0xFF0F0D0A),
-          ],
+          colors: [Color(0xFF1A1510), Color(0xFF0F0D0A)],
         ),
         border: Border.all(color: accentColor.withValues(alpha: 0.28), width: 1.2),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.55),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: accentColor.withValues(alpha: 0.06),
-            blurRadius: 24,
-            spreadRadius: 2,
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 18, offset: const Offset(0, 6)),
+          BoxShadow(color: accentColor.withValues(alpha: 0.06), blurRadius: 24, spreadRadius: 2),
         ],
       ),
       child: Stack(
         children: [
-          // Parchment hatch texture
           Positioned.fill(
-            child: CustomPaint(
-              painter: _HatchPainter(
-                color: Colors.white.withValues(alpha: 0.018),
-              ),
-            ),
+            child: CustomPaint(painter: _HatchPainter(color: Colors.white.withValues(alpha: 0.018))),
           ),
-          // Corner ornaments
           ..._corners(ornamentColor),
           Padding(padding: padding, child: child),
         ],
@@ -106,7 +85,7 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           top: 0,
           right: 0,
@@ -116,14 +95,14 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
       Positioned(
           bottom: 0,
           left: 0,
           child: SizedBox(
               width: sz,
               height: sz,
-              child: Image.asset('assets/icons/border-edge.png', color: color))),
+              child: AppAssetImage(AppAssets.borderEdge, color: color))),
       Positioned(
           bottom: 0,
           right: 0,
@@ -133,16 +112,14 @@ class _StonePanel extends StatelessWidget {
               child: SizedBox(
                   width: sz,
                   height: sz,
-                  child: Image.asset('assets/icons/border-edge.png', color: color)))),
+                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
     ];
   }
 }
 
-/// Section label styled like a carved stone inscription.
 class _SectionLabel extends StatelessWidget {
   final String text;
   final Color color;
-
   const _SectionLabel(this.text, {required this.color});
 
   @override
@@ -151,15 +128,7 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Container(width: 18, height: 1.5, color: color.withValues(alpha: 0.5)),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 2.8,
-          ),
-        ),
+        Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 2.8)),
         const SizedBox(width: 8),
         Expanded(child: Container(height: 1.5, color: color.withValues(alpha: 0.5))),
       ],
@@ -167,7 +136,6 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-/// Divider styled as a decorative horizontal rule.
 class _RoyalDivider extends StatelessWidget {
   final Color color;
   const _RoyalDivider({required this.color});
@@ -176,17 +144,23 @@ class _RoyalDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Container(height: 1, color: color.withValues(alpha: 0.15))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Icon(Icons.brightness_1, color: color.withValues(alpha: 0.3), size: 5),
+        Expanded(child: Container(height: 1, color: color.withValues(alpha: 0.2))),
+        Container(
+          width: 6,
+          height: 6,
+          margin: const EdgeInsets.symmetric(horizontal: 10),
+          transform: Matrix4.rotationZ(math.pi / 4),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.5)),
         ),
-        Expanded(child: Container(height: 1, color: color.withValues(alpha: 0.15))),
+        Expanded(child: Container(height: 1, color: color.withValues(alpha: 0.2))),
       ],
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Main Screen
+// ─────────────────────────────────────────────────────────────────────────────
 class BluetoothLobbyScreen extends ConsumerStatefulWidget {
   const BluetoothLobbyScreen({super.key});
 
@@ -997,7 +971,7 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen>
                     child: AnimatedOpacity(
                       duration: const Duration(milliseconds: 200),
                       opacity: isUnavailable ? 0.18 : 1.0,
-                      child: Image.asset(
+                      child: AppAssetImage(
                         sigil,
                         color: isSelected ? null : Colors.white.withValues(alpha: 0.55),
                       ),
@@ -1017,7 +991,7 @@ class _BluetoothLobbyScreenState extends ConsumerState<BluetoothLobbyScreen>
               border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
             ),
             padding: const EdgeInsets.all(10),
-            child: Image.asset(currentSigil),
+            child: AppAssetImage(currentSigil),
           ),
       ],
     );

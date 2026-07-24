@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/constants/app_assets.dart';
 import '../core/enums/game_mode.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
@@ -23,11 +24,11 @@ class GameSettings {
 
   GameSettings({
     this.mode = GameMode.story,
-    this.selectedMapPath = '25x25_map.tmx',
+    this.selectedMapPath = AppAssets.defaultMap,
     this.player1Name = 'PLAYER 1',
     this.player2Name = 'PLAYER 2',
-    this.player1Symbol = 'assets/symbols/fire.png',
-    this.player2Symbol = 'assets/icons/eagle.png',
+    this.player1Symbol = AppAssets.fire,
+    this.player2Symbol = AppAssets.eagle,
     this.player1Color = 0xFF2196F3, // Colors.blue
     this.player2Color = 0xFFF44336, // Colors.red
     this.kingdomAttackThreshold = 100,
@@ -96,7 +97,7 @@ class GameSettingsNotifier extends Notifier<GameSettings> {
       sfxEnabled: sfxEnabled,
       sfxVolume: sfxVolume,
       player1Name: savedName ?? 'PLAYER 1',
-      player1Symbol: savedSymbol ?? 'assets/symbols/fire.png',
+      player1Symbol: savedSymbol ?? AppAssets.fire,
     );
   }
 
