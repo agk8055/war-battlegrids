@@ -52,6 +52,9 @@ The online system uses a **Pure Realtime Broadcast** approach via Supabase, bypa
 
 ## 🚦 Getting Started
 
+> [!IMPORTANT]
+> **Notice on Game Assets**: The `assets/` directory (containing game graphics, audio, icons, and Tiled `.tmx` maps) is excluded from this public repository (`.gitignore`). To run or build the project locally, you need to populate the `assets/` folder with compatible asset files matching the structure defined in `pubspec.yaml`.
+
 ### Prerequisites
 - Flutter SDK (latest stable)
 - Android Studio / VS Code with Flutter extension
@@ -66,9 +69,13 @@ The online system uses a **Pure Realtime Broadcast** approach via Supabase, bypa
    ```bash
    flutter pub get
    ```
-3. (Optional) Configure Supabase:
-   Update the initialization in `lib/main.dart` with your credentials.
-4. Run the app:
+3. Add required assets to the `assets/` directory (`assets/images/`, `assets/audio/`, `assets/icons/`, `assets/tiles/`).
+4. Configure Supabase credentials:
+   Copy `.env.example` to `.env` and enter your Supabase URL and anon key:
+   ```bash
+   cp .env.example .env
+   ```
+5. Run the app:
    ```bash
    flutter run
    ```
@@ -77,12 +84,11 @@ The online system uses a **Pure Realtime Broadcast** approach via Supabase, bypa
 
 ## 📸 Screenshots
 
-| Home Screen | Campaign Map | Tactical Battle |
-| :---: | :---: | :---: |
-| ![Home](assets/images/home_banner.png) | ![Map](assets/images/overworld_map.png) | ![Battle](assets/images/grassland_army.png) |
+*(Screenshots will be visible once assets or preview images are uploaded)*
 
 ---
 
 ## 📜 License
 
-This project is for educational and portfolio purposes. All assets are owned by their respective creators.
+This project is for educational and portfolio purposes. Source code is released open-source, while proprietary game assets are excluded from version control.
+
