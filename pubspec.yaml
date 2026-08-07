@@ -88,6 +88,10 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
+  windows:
+    generate: true
+    image_path: "assets/images/war_app_icon.png"
+    icon_size: 48
   color: "#000000"
   image_path: "assets/images/war_app_icon.png"
   min_sdk_android: 21
