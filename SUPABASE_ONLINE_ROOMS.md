@@ -47,11 +47,18 @@ void _handleMessage(Map<String, dynamic> rawPayload) {
 
 The system uses `onPresenceSync` to track the number of active players in a channel.
 
-1.  **Handshake**: When a user joins, they call `channel.track()`.
-2.  **Room Persistence**:
+1.  **Global Lobby Tracking**:
+    - The `rooms_lobby` channel maintains a real-time presence count of all active hosted rooms.
+    - When a Host creates a room, they track their presence in `rooms_lobby`.
+    - When the Host leaves or disconnects, presence is untracked.
+    - If the number of active rooms reaches **70**, the server room creation limit is triggered:
+      - Room creation is blocked (`OnlineNotifier.maxOnlineRooms = 70`).
+      - In the UI, the "HOST ROOM" button is dimmed and disabled with a clear "ROOM CREATION LIMIT REACHED" indicator.
+2.  **Handshake**: When a user joins a game room, they call `channel.track()`.
+3.  **Room Persistence**:
     - **Host**: If a client leaves, the Host remains in the room with the same code. `wasPeerConnected` is reset, allowing a new client to join the existing session.
     - **Client**: If the Host leaves, the room is considered "abandoned," and the client is notified via a dialog.
-3.  **Disconnection Detection**: If the presence count drops below 2 while a game is in progress, the remaining player is notified that the battle has been disrupted.
+4.  **Disconnection Detection**: If the presence count drops below 2 while a game is in progress, the remaining player is notified that the battle has been disrupted.
 
 ---
 

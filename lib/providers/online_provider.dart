@@ -25,6 +25,9 @@ class OnlineState {
   final int player1Color;
   final int player2Color;
   final int kingdomAttackThreshold;
+  final int activeRoomCount;
+
+  bool get isRoomLimitReached => activeRoomCount >= OnlineNotifier.maxOnlineRooms;
 
   OnlineState({
     this.status = OnlineStatus.idle,
@@ -41,6 +44,7 @@ class OnlineState {
     this.player1Color = 0xFF2196F3, // Colors.blue
     this.player2Color = 0xFFF44336, // Colors.red
     this.kingdomAttackThreshold = 100,
+    this.activeRoomCount = 0,
   });
 
   OnlineState copyWith({
@@ -61,6 +65,7 @@ class OnlineState {
     int? player1Color,
     int? player2Color,
     int? kingdomAttackThreshold,
+    int? activeRoomCount,
   }) {
     return OnlineState(
       status: status ?? this.status,
@@ -77,6 +82,7 @@ class OnlineState {
       player1Color: player1Color ?? this.player1Color,
       player2Color: player2Color ?? this.player2Color,
       kingdomAttackThreshold: kingdomAttackThreshold ?? this.kingdomAttackThreshold,
+      activeRoomCount: activeRoomCount ?? this.activeRoomCount,
     );
   }
 }
@@ -86,11 +92,52 @@ final onlineProvider = NotifierProvider<OnlineNotifier, OnlineState>(() {
 });
 
 class OnlineNotifier extends Notifier<OnlineState> {
+  static const int maxOnlineRooms = 70;
   RealtimeChannel? _channel;
+  RealtimeChannel? _lobbyChannel;
 
   @override
   OnlineState build() {
+    _initLobbyPresence();
     return OnlineState();
+  }
+
+  void _initLobbyPresence() {
+    try {
+      if (_lobbyChannel != null) return;
+      _lobbyChannel = Supabase.instance.client.channel('rooms_lobby');
+      _lobbyChannel!
+        .onPresenceSync((payload) {
+          if (_lobbyChannel == null) return;
+          final presence = _lobbyChannel!.presenceState();
+          final count = presence.length;
+          debugPrint('🌐 Lobby Presence Sync: $count active rooms');
+          _updateRoomCount(count);
+        })
+        .subscribe((status, [error]) {
+          if (status == RealtimeSubscribeStatus.subscribed && _lobbyChannel != null) {
+            final count = _lobbyChannel!.presenceState().length;
+            _updateRoomCount(count);
+          }
+        });
+    } catch (e) {
+      debugPrint('⚠️ Error initializing lobby presence: $e');
+    }
+  }
+
+  void _updateRoomCount(int count) {
+    Future.microtask(() {
+      state = state.copyWith(activeRoomCount: count);
+    });
+  }
+
+  void refreshLobbyPresence() {
+    if (_lobbyChannel == null) {
+      _initLobbyPresence();
+    } else {
+      final count = _lobbyChannel!.presenceState().length;
+      _updateRoomCount(count);
+    }
   }
 
   String _generateRoomCode() {
@@ -102,6 +149,10 @@ class OnlineNotifier extends Notifier<OnlineState> {
   }
 
   Future<void> createRoom() async {
+    if (state.activeRoomCount >= maxOnlineRooms) {
+      debugPrint('⚠️ Room creation limit reached ($maxOnlineRooms rooms max)');
+      return;
+    }
     await disconnect();
     final code = _generateRoomCode();
     state = state.copyWith(
@@ -225,13 +276,26 @@ class OnlineNotifier extends Notifier<OnlineState> {
             'online_at': DateTime.now().toIso8601String(),
           });
 
+          if (state.isHost && _lobbyChannel != null) {
+            try {
+              await _lobbyChannel!.track({
+                'room_code': code,
+                'host_id': Supabase.instance.client.auth.currentUser?.id,
+                'online_at': DateTime.now().toIso8601String(),
+              });
+              debugPrint('🌐 Tracked host in rooms_lobby for room: $code');
+            } catch (e) {
+              debugPrint('⚠️ Failed to track host in rooms_lobby: $e');
+            }
+          }
+
           sendKingdomName(ref.read(gameSettingsProvider).player1Name);
         } else if (status == RealtimeSubscribeStatus.channelError || status == RealtimeSubscribeStatus.timedOut) {
           debugPrint('❌ Subscription failed: $status');
           state = state.copyWith(status: OnlineStatus.failed);
         }
       });
-    } catch (e, stack) {
+    } catch (e) {
       debugPrint('❌ General exception in _joinChannel: $e');
       state = state.copyWith(status: OnlineStatus.failed);
     }
@@ -431,10 +495,18 @@ class OnlineNotifier extends Notifier<OnlineState> {
   }
 
   Future<void> disconnect() async {
+    if (state.isHost && _lobbyChannel != null) {
+      try {
+        await _lobbyChannel!.untrack();
+      } catch (e) {
+        debugPrint('⚠️ Failed to untrack host in rooms_lobby: $e');
+      }
+    }
     if (_channel != null) {
       await Supabase.instance.client.removeChannel(_channel!);
       _channel = null;
     }
-    state = OnlineState();
+    final currentCount = state.activeRoomCount;
+    state = OnlineState(activeRoomCount: currentCount);
   }
 }

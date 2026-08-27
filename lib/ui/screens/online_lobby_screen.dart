@@ -234,6 +234,11 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(onlineProvider.notifier).refreshLobbyPresence();
+      }
+    });
     final onlineState = ref.read(onlineProvider);
     _isHosting = onlineState.isHost && onlineState.status != OnlineStatus.idle;
     // Joiner should only be \"joining\" if they have a code and are connected
@@ -274,6 +279,16 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen>
   }
 
   void _handleHost() {
+    final onlineState = ref.read(onlineProvider);
+    if (onlineState.isRoomLimitReached) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Room creation limit reached (${OnlineNotifier.maxOnlineRooms} rooms max). Please join an existing room.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     setState(() {
       _isHosting = true;
       _isJoining = false;
@@ -413,9 +428,10 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen>
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
+        final navigator = Navigator.of(context);
         final shouldPop = await _onWillPop();
         if (shouldPop && mounted) {
-          Navigator.of(context).pop();
+          navigator.pop();
         }
       },
       child: Scaffold(
@@ -468,6 +484,30 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen>
                                       letterSpacing: 2,
                                     ),
                                   ),
+                                  if (onlineState.activeRoomCount > 0) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                                      child: Text(
+                                        '•',
+                                        style: TextStyle(color: primary.withValues(alpha: 0.4), fontSize: 10),
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.sensors,
+                                      color: onlineState.isRoomLimitReached ? Colors.redAccent : primary.withValues(alpha: 0.6),
+                                      size: 13,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'ONLINE ROOMS: ${onlineState.activeRoomCount}/${OnlineNotifier.maxOnlineRooms}',
+                                      style: TextStyle(
+                                        color: onlineState.isRoomLimitReached ? Colors.redAccent : primary.withValues(alpha: 0.8),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -475,12 +515,45 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen>
 
                             if (!_isHosting && !_isJoining) ...[
                               const SizedBox(height: 60),
+                              if (onlineState.isRoomLimitReached)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 20),
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.redAccent.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35), width: 1.2),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 16),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'ROOM CREATION LIMIT REACHED (${onlineState.activeRoomCount}/${OnlineNotifier.maxOnlineRooms})',
+                                            style: const TextStyle(
+                                              color: Colors.redAccent,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               _buildModeButton(
                                 title: 'HOST ROOM',
-                                subtitle: 'Get a code and invite a friend',
-                                icon: Icons.add_to_home_screen_rounded,
-                                onTap: _handleHost,
+                                subtitle: onlineState.isRoomLimitReached
+                                    ? 'Room creation limit reached (${onlineState.activeRoomCount}/${OnlineNotifier.maxOnlineRooms})'
+                                    : 'Get a code and invite a friend',
+                                icon: onlineState.isRoomLimitReached ? Icons.block_rounded : Icons.add_to_home_screen_rounded,
+                                onTap: onlineState.isRoomLimitReached ? null : _handleHost,
                                 primaryColor: primary,
+                                isEnabled: !onlineState.isRoomLimitReached,
                               ),
                               const SizedBox(height: 24),
                               _buildModeButton(
@@ -1285,57 +1358,69 @@ class _OnlineLobbyScreenState extends ConsumerState<OnlineLobbyScreen>
     required String title,
     required String subtitle,
     required IconData icon,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
     required Color primaryColor,
+    bool isEnabled = true,
   }) {
+    final effectiveAccent = isEnabled ? primaryColor : Colors.white24;
     return Center(
       child: SizedBox(
         width: 300,
-        child: _AnimatedPressButton(
-          onTap: onTap,
-          accentColor: primaryColor,
-          child: _StonePanel(
-            accentColor: primaryColor,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: primaryColor.withValues(alpha: 0.2), width: 1),
+        child: Opacity(
+          opacity: isEnabled ? 1.0 : 0.45,
+          child: _AnimatedPressButton(
+            onTap: isEnabled ? (onTap ?? () {}) : () {},
+            isEnabled: isEnabled,
+            accentColor: effectiveAccent,
+            child: _StonePanel(
+              accentColor: effectiveAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: effectiveAccent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: effectiveAccent.withValues(alpha: 0.2), width: 1),
+                    ),
+                    child: Icon(icon, size: 24, color: isEnabled ? primaryColor : Colors.white38),
                   ),
-                  child: Icon(icon, size: 24, color: primaryColor),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: isEnabled ? Colors.white : Colors.white54,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.4),
-                          fontSize: 10,
-                          letterSpacing: 0.5,
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: isEnabled
+                                ? Colors.white.withValues(alpha: 0.4)
+                                : Colors.redAccent.withValues(alpha: 0.8),
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                Icon(Icons.chevron_right, color: primaryColor.withValues(alpha: 0.4), size: 18),
-              ],
+                  Icon(
+                    isEnabled ? Icons.chevron_right : Icons.lock_outline_rounded,
+                    color: effectiveAccent.withValues(alpha: 0.4),
+                    size: 18,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1351,11 +1436,13 @@ class _AnimatedPressButton extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
   final Color accentColor;
+  final bool isEnabled;
 
   const _AnimatedPressButton({
     required this.child,
     required this.onTap,
     required this.accentColor,
+    this.isEnabled = true,
   });
 
   @override
@@ -1390,6 +1477,9 @@ class _AnimatedPressButtonState extends State<_AnimatedPressButton>
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.isEnabled) {
+      return widget.child;
+    }
     return GestureDetector(
       onTapDown: (_) => _ctrl.forward(),
       onTapUp: (_) {
