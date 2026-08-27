@@ -49,6 +49,12 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
         'image': AppAssets.northernForest,
       },
       {
+        'name': 'Desert 19x19',
+        'path': AppAssets.desertMap,
+        'description': 'An arid 19x19 battlefield of dunes.',
+        'image': AppAssets.pyramid,
+      },
+      {
         'name': 'Standard 25x25',
         'path': AppAssets.defaultMap,
         'description': 'A balanced 25x25 grid for local warfare.',

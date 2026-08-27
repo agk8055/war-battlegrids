@@ -75,6 +75,7 @@ class AppAssets {
 
   // --- MAPS ---
   static const String northernForestMap = '15x15_northern_forest_map.tmx';
+  static const String desertMap = '19X19_desert_map.tmx';
   static const String defaultMap = '25x25_map.tmx';
 
   // --- FALLBACK HELPERS ---
