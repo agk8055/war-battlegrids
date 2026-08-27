@@ -27,13 +27,15 @@ import '../../core/enums/connection_type.dart';
 
 class KingdomGame extends FlameGame with ScaleDetector {
   final WidgetRef ref;
+  final void Function(String message, Color color)? onToast;
   late BoardComponent boardComponent;
 
   Board get simulationBoard => ref.read(simulationProvider).board;
 
   double _startScale = 1.0;
 
-  KingdomGame(this.ref);
+  KingdomGame(this.ref, {this.onToast});
+
 
   @override
   Future<void> onLoad() async {
@@ -139,16 +141,22 @@ class KingdomGame extends FlameGame with ScaleDetector {
     final connectionType = ref.read(connectionTypeProvider);
     final bluetoothState = ref.read(bluetoothProvider);
     final onlineState = ref.read(onlineProvider);
+    final campaignState = ref.read(campaignProvider);
 
-    // Prevent tap if game is over or AI is thinking
+    // Prevent tap if game is over
     if (simulationState.currentPhase == GamePhase.gameOver) return;
     
-    // In story mode, prevent tap if it's AI turn
+    // In story mode, prevent tap if it's AI turn and show toast
     if (settings.mode == GameMode.story && simulationState.currentTurn == Turn.ai) {
+      final selectedKingdom = campaignState.selectedKingdomId != null
+          ? kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId)
+          : null;
+      final aiColor = selectedKingdom?.primaryColor ?? Colors.redAccent;
+      onToast?.call("Opponent is playing", aiColor);
       return;
     }
 
-    // In remote multiplayer mode, prevent tap if it's not our turn
+    // In remote multiplayer mode, prevent tap if it's not our turn and show toast
     if (connectionType == ConnectionType.bluetooth || connectionType == ConnectionType.online) {
       bool isOurTurn = false;
       if (connectionType == ConnectionType.bluetooth) {
@@ -158,7 +166,11 @@ class KingdomGame extends FlameGame with ScaleDetector {
         isOurTurn = (onlineState.isHost && simulationState.currentTurn == Turn.player) ||
                      (!onlineState.isHost && simulationState.currentTurn == Turn.ai);
       }
-      if (!isOurTurn) return;
+      if (!isOurTurn) {
+        final opponentColor = Color(settings.player2Color);
+        onToast?.call("Opponent is playing", opponentColor);
+        return;
+      }
     }
 
     final result = notifier.placeUnit(x, y);
@@ -198,10 +210,13 @@ class KingdomGame extends FlameGame with ScaleDetector {
       // Add a slight artificial delay so the AI doesn't feel instantaneous, giving the player a moment to process the board.
       await Future.delayed(const Duration(milliseconds: 600));
 
+      final notifier = ref.read(simulationProvider.notifier);
+      bool movePlaced = false;
+
       if (bestMove != null) {
-        final notifier = ref.read(simulationProvider.notifier);
         final result = notifier.placeUnit(bestMove.$1, bestMove.$2);
         if (result.$1) {
+          movePlaced = true;
           if (result.$2) {
             ref.read(audioServiceProvider).playSfx(AppAssets.sfxCapture);
           } else {
@@ -209,9 +224,32 @@ class KingdomGame extends FlameGame with ScaleDetector {
           }
           boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
         }
-      } else {
-        // AI has no moves, skip turn to prevent game from getting stuck
-        ref.read(simulationProvider.notifier).skipTurn();
+      }
+
+      // If bestMove was null or invalid, attempt fallback moves so turn never hangs
+      if (!movePlaced) {
+        final currentSim = ref.read(simulationProvider);
+        final candidates = currentSim.board.getRestrictedAvailableCells(radius: 2, allowZones: false);
+        
+        for (final move in candidates) {
+          final result = notifier.placeUnit(move.$1, move.$2);
+          if (result.$1) {
+            movePlaced = true;
+            if (result.$2) {
+              ref.read(audioServiceProvider).playSfx(AppAssets.sfxCapture);
+            } else {
+              ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
+            }
+            boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
+            break;
+          }
+        }
+      }
+
+      // If still no move could be placed, skip AI turn to advance the game
+      if (!movePlaced) {
+        notifier.skipTurn();
+        boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
       }
 
       ref.read(aiStateProvider.notifier).setIdle();

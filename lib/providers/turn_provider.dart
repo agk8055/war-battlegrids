@@ -54,11 +54,11 @@ class AIManager {
     };
 
     try {
-      // Spawn Isolate and await result
-      final result = await Isolate.run(() => _runMinimaxInIsolate(args));
+      // Spawn Isolate and await result with a 3.5s timeout safeguard
+      final result = await Isolate.run(() => _runMinimaxInIsolate(args))
+          .timeout(const Duration(milliseconds: 3500), onTimeout: () => null);
       return result;
     } catch (e) {
-      // print("AI Isolate Error: $e");
       return null;
     }
   }

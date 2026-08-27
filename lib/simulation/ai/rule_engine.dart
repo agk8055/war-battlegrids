@@ -115,7 +115,8 @@ class RuleEngine {
     final attackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
     final opponentAttackUnlocked = opponentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
     
-    final defenderState = opponentTurn == Turn.player ? CellState.player : CellState.ai;
+    final oppState = opponentTurn == Turn.player ? CellState.player : CellState.ai;
+    final myState = currentTurn == Turn.player ? CellState.player : CellState.ai;
 
     (int, int)? bestBlock;
     int maxThreatened = 0;
@@ -127,14 +128,14 @@ class RuleEngine {
       }
 
       // Check if opponent placing here threatens our pieces
-      sim.board.setCell(move.$1, move.$2, defenderState);
+      sim.board.setCell(move.$1, move.$2, oppState);
       int potentialCaptures = 0;
       try {
         final result = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn);
-        for(final c in result.capturedCells) {
-            if (sim.board.getCell(c.$1, c.$2) == defenderState) {
-                potentialCaptures++;
-            }
+        for (final c in result.capturedCells) {
+          if (sim.board.getCell(c.$1, c.$2) == myState) {
+            potentialCaptures++;
+          }
         }
       } finally {
         sim.board.setCell(move.$1, move.$2, CellState.empty);
@@ -145,28 +146,27 @@ class RuleEngine {
         if (GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked)) {
           // Safety verification check: will this piece just be captured right back next turn?
           bool getsCaptured = false;
-          final myState = currentTurn == Turn.player ? CellState.player : CellState.ai;
           sim.board.setCell(move.$1, move.$2, myState);
           try {
-             final orthogonalDirs = [
-               (move.$1, move.$2 - 1), (move.$1, move.$2 + 1),
-               (move.$1 - 1, move.$2), (move.$1 + 1, move.$2),
-             ];
-             for (final oppMove in orthogonalDirs) {
-                if (oppMove.$1 < 0 || oppMove.$1 >= sim.board.width || oppMove.$2 < 0 || oppMove.$2 >= sim.board.height) continue;
-                if (sim.board.getCell(oppMove.$1, oppMove.$2) != CellState.empty) continue;
-                if (!GameRules.isValidPlacement(sim.board, oppMove.$1, oppMove.$2, opponentTurn, opponentAttackUnlocked)) continue;
-                
-                sim.board.setCell(oppMove.$1, oppMove.$2, defenderState);
-                final oppResult = CaptureUtils.getCapturedUnits(sim.board, oppMove, opponentTurn);
-                sim.board.setCell(oppMove.$1, oppMove.$2, CellState.empty);
-                if (oppResult.capturedCells.contains(move)) {
-                    getsCaptured = true;
-                    break;
-                }
-             }
+            final orthogonalDirs = [
+              (move.$1, move.$2 - 1), (move.$1, move.$2 + 1),
+              (move.$1 - 1, move.$2), (move.$1 + 1, move.$2),
+            ];
+            for (final oppMove in orthogonalDirs) {
+              if (oppMove.$1 < 0 || oppMove.$1 >= sim.board.width || oppMove.$2 < 0 || oppMove.$2 >= sim.board.height) continue;
+              if (sim.board.getCell(oppMove.$1, oppMove.$2) != CellState.empty) continue;
+              if (!GameRules.isValidPlacement(sim.board, oppMove.$1, oppMove.$2, opponentTurn, opponentAttackUnlocked)) continue;
+              
+              sim.board.setCell(oppMove.$1, oppMove.$2, oppState);
+              final oppResult = CaptureUtils.getCapturedUnits(sim.board, oppMove, opponentTurn);
+              sim.board.setCell(oppMove.$1, oppMove.$2, CellState.empty);
+              if (oppResult.capturedCells.contains(move)) {
+                getsCaptured = true;
+                break;
+              }
+            }
           } finally {
-             sim.board.setCell(move.$1, move.$2, CellState.empty);
+            sim.board.setCell(move.$1, move.$2, CellState.empty);
           }
 
           if (!getsCaptured) {

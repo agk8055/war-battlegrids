@@ -16,13 +16,11 @@ import 'settings_screen.dart';
 import '../../core/enums/game_phase.dart';
 import '../../core/enums/turn.dart';
 import '../../campaign/campaign_manager.dart';
-import '../../campaign/data/kingdoms_data.dart';
 import '../../core/services/audio_service.dart';
 import '../widgets/hud/battle_hud_header.dart';
 import 'post_battle_screen.dart';
 import '../widgets/overlays/capture_toast.dart';
 import '../widgets/overlays/pause_overlay.dart';
-import '../widgets/overlays/ai_thinking_overlay.dart';
 import '../widgets/overlays/game_over_overlay.dart';
 import '../../simulation/game_simulation.dart';
 
@@ -41,10 +39,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   @override
   void initState() {
     super.initState();
-    _game = KingdomGame(ref);
+    _game = KingdomGame(ref, onToast: _showGameToast);
     // Ensure music is playing
     ref.read(audioServiceProvider).playMainTheme();
   }
+
+  void _showGameToast(String message, Color color) {
+    if (!mounted) return;
+    CaptureToast.show(context, message, color);
+  }
+
 
   void _togglePause() {
     final connectionType = ref.read(connectionTypeProvider);
@@ -121,7 +125,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     ref.read(simulationProvider.notifier).reset();
     setState(() {
       _showPostBattle = false;
-      _game = KingdomGame(ref);
+      _game = KingdomGame(ref, onToast: _showGameToast);
     });
   }
 
@@ -173,7 +177,6 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   @override
   Widget build(BuildContext context) {
     final simulationState = ref.watch(simulationProvider);
-    final aiState = ref.watch(aiStateProvider);
     final settings = ref.watch(gameSettingsProvider);
     final bluetoothState = ref.watch(bluetoothProvider);
     final onlineState = ref.watch(onlineProvider);
@@ -266,47 +269,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       }
     });
 
-    // Determine if it's opponent's turn in remote multiplayer
-    bool isOpponentWaiting = false;
-    if (settings.mode == GameMode.multiplayer && 
-        (connectionType == ConnectionType.bluetooth || connectionType == ConnectionType.online)) {
-      final isHost = (connectionType == ConnectionType.bluetooth) 
-          ? bluetoothState.isHost 
-          : onlineState.isHost;
-      final myTurn = isHost ? Turn.player : Turn.ai;
-      isOpponentWaiting = simulationState.currentTurn != myTurn;
-    }
-
     final isGameOver = simulationState.currentPhase == GamePhase.gameOver || 
                        simulationState.currentPhase == GamePhase.draw;
-
-    final showAiThinking = (settings.mode == GameMode.story && aiState == AIState.thinking);
-    final showOpponentWaiting = isOpponentWaiting;
-
-    // Loading/Thinking Overlay
-    if ((showAiThinking || showOpponentWaiting) && !effectivePaused && !isGameOver) {
-      final campaignState = ref.watch(campaignProvider);
-      final isMultiplayer = settings.mode == GameMode.multiplayer;
-      
-      Color aiColor = Colors.redAccent;
-
-      if (isMultiplayer) {
-        aiColor = Color(settings.player2Color);
-      } else if (campaignState.selectedKingdomId != null) {
-        final kingdom = kKingdoms.firstWhere((k) => k.id == campaignState.selectedKingdomId);
-        aiColor = kingdom.primaryColor;
-      }
-
-      return Stack(
-        children: [
-          _buildBaseGame(context, simulationState, settings, effectivePaused, isGameOver, connectionType),
-          AiThinkingOverlay(
-            color: aiColor,
-            label: showAiThinking ? "AI IS THINKING" : "OPPONENT IS PLANNING",
-          ),
-        ],
-      );
-    }
 
     return _buildBaseGame(context, simulationState, settings, effectivePaused, isGameOver, connectionType);
   }

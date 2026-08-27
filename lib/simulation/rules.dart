@@ -88,24 +88,35 @@ class GameRules {
   }) {
     if (!kingdomAttackUnlocked) return WinResult(false);
 
-    // Check for actual U-shaped win
-    final uWon = _findBlockade(board, currentTurn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: false);
+    // 1. Check for actual U-shaped win
+    final uWon = _findBlockade(
+      board,
+      currentTurn,
+      {AnchorType.topLeft, AnchorType.topRight},
+      includeKingdom: false,
+      includeEmpty: false,
+    );
     if (uWon.isWin) return uWon;
 
-    // If not won by U-shape, is a U-shape STILL POSSIBLE?
-    final uPossible = _findBlockade(board, currentTurn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: true);
-    if (uPossible.isWin) return WinResult(false); // If a U-shape is possible, you MUST win that way.
-
-    // U-shape is impossible. Check for actual Parallel win.
-    final pWon = _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: false);
+    // 2. Check for actual Parallel win
+    final pWon = _findBlockade(
+      board,
+      currentTurn,
+      {AnchorType.leftEdge, AnchorType.rightEdge},
+      includeKingdom: false,
+      includeEmpty: false,
+    );
     if (pWon.isWin) return pWon;
 
-    // If not won by Parallel, is a Parallel STILL POSSIBLE?
-    final pPossible = _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: true);
-    if (pPossible.isWin) return WinResult(false); // If a Parallel is possible, you MUST win that way.
-
-    // Both U-shape and Parallel are impossible. Check for Kingdom-assisted win.
-    return _findBlockade(board, currentTurn, {AnchorType.leftEdge, AnchorType.rightEdge, AnchorType.topLeft, AnchorType.topRight}, includeKingdom: true, includeEmpty: false, requireKingdom: true);
+    // 3. Check for actual Kingdom-assisted win
+    return _findBlockade(
+      board,
+      currentTurn,
+      {AnchorType.leftEdge, AnchorType.rightEdge, AnchorType.topLeft, AnchorType.topRight},
+      includeKingdom: true,
+      includeEmpty: false,
+      requireKingdom: true,
+    );
   }
 
   static WinResult _findBlockade(
@@ -142,16 +153,17 @@ class GameRules {
         if (includeEmpty && state == CellState.empty) isWallPart = true;
 
         if (isWallPart && !visited.contains((x, y))) {
-          final groupVisited = <(int, int)>{};
+          final groupVisited = <(int, int)>[];
           final queue = <(int, int)>[(x, y)];
           visited.add((x, y));
           groupVisited.add((x, y));
 
           final foundAnchors = <AnchorType>{};
           bool usesKingdom = false;
+          int head = 0;
 
-          while (queue.isNotEmpty) {
-            final curr = queue.removeAt(0);
+          while (head < queue.length) {
+            final curr = queue[head++];
 
             final anchor = getAnchorType(curr.$1, curr.$2);
             if (anchor != null) foundAnchors.add(anchor);
@@ -186,12 +198,12 @@ class GameRules {
 
           // Check if the connected group satisfies the required anchor combination
           if (requiredAnchors.every((a) => foundAnchors.contains(a))) {
-            return WinResult(true, groupVisited.toList());
+            return WinResult(true, groupVisited);
           }
           
           // Special case for Kingdom-assisted: any TWO distinct anchors from the set
           if (requireKingdom && foundAnchors.length >= 2) {
-            return WinResult(true, groupVisited.toList());
+            return WinResult(true, groupVisited);
           }
         }
       }
