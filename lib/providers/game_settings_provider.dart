@@ -126,7 +126,27 @@ class GameSettingsNotifier extends Notifier<GameSettings> {
   }
 
   void setMode(GameMode mode) {
-    state = state.copyWith(mode: mode);
+    if (mode == GameMode.story) {
+      restoreCampaignSettings();
+    } else {
+      state = state.copyWith(mode: mode);
+    }
+  }
+
+  void restoreCampaignSettings() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final savedName = prefs.getString(_keyKingdomName);
+    final savedSymbol = prefs.getString(_keyKingdomSymbol);
+
+    state = state.copyWith(
+      mode: GameMode.story,
+      player1Name: savedName ?? 'PLAYER 1',
+      player1Symbol: savedSymbol ?? AppAssets.fire,
+      player1Color: 0xFF2196F3, // Default Blue
+      player2Name: 'AI',
+      player2Symbol: AppAssets.eagle,
+      player2Color: 0xFFF44336, // Default Red
+    );
   }
 
   void setSelectedMap(String mapPath) {

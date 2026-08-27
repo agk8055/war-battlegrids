@@ -80,6 +80,7 @@ class GameHomeScreen extends ConsumerWidget {
                     label: 'PROFILE',
                     iconData: Icons.person_rounded,
                     onPressed: () {
+                      ref.read(gameSettingsProvider.notifier).restoreCampaignSettings();
                       Navigator.push(
                         context,
                         MaterialPageRoute(

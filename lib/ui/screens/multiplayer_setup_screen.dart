@@ -230,14 +230,10 @@ class _MultiplayerSetupScreenState
   @override
   void initState() {
     super.initState();
-    final settings = ref.read(gameSettingsProvider);
-    _p1Symbol = settings.player1Symbol;
-    _p2Symbol = settings.player2Symbol;
-    _p1Color = Color(settings.player1Color);
-    _p2Color = Color(settings.player2Color);
-
-    if (!_availableSigils.contains(_p1Symbol)) _p1Symbol = _availableSigils[0];
-    if (!_availableSigils.contains(_p2Symbol)) _p2Symbol = _availableSigils[1];
+    _p1Symbol = _availableSigils.isNotEmpty ? _availableSigils[0] : AppAssets.fire;
+    _p2Symbol = _availableSigils.length > 1 ? _availableSigils[1] : AppAssets.eagle;
+    _p1Color = _availableColors[0];
+    _p2Color = _availableColors[1];
 
     _fadeController = AnimationController(
       vsync: this,

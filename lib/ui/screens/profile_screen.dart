@@ -160,6 +160,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   @override
   void initState() {
     super.initState();
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(gameSettingsProvider.notifier).restoreCampaignSettings();
+      }
+    });
 
     _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 650));
     _slideController = AnimationController(vsync: this, duration: const Duration(milliseconds: 580));

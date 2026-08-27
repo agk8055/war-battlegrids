@@ -115,6 +115,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         MaterialPageRoute(builder: (context) => const OnlineLobbyScreen()),
       );
     } else if (settings.mode == GameMode.story) {
+      ref.read(gameSettingsProvider.notifier).restoreCampaignSettings();
       Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
     } else {
       Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
@@ -142,6 +143,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               );
         }
       }
+      ref.read(gameSettingsProvider.notifier).restoreCampaignSettings();
       Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
     } else if (settings.mode == GameMode.multiplayer) {
       final connectionType = ref.read(connectionTypeProvider);

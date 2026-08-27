@@ -28,6 +28,11 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
   @override
   void initState() {
     super.initState();
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(gameSettingsProvider.notifier).restoreCampaignSettings();
+      }
+    });
     _zoomController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -207,6 +212,7 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
                   child: PreBattleSidebar(
                     kingdom: selectedKingdom,
                     onEnterBattle: () {
+                      ref.read(gameSettingsProvider.notifier).restoreCampaignSettings();
                       final battleConfig = kBattleConfigs[selectedKingdom.id];
                       if (battleConfig != null) {
                         ref.read(gameSettingsProvider.notifier).setSelectedMap(battleConfig.mapPath);

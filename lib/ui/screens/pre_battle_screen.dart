@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_assets.dart';
 import '../../campaign/models/kingdom_model.dart';
 import '../../campaign/data/battle_configs.dart';
+import '../../providers/game_settings_provider.dart';
 import 'game_screen.dart';
 
 class PreBattleScreen extends ConsumerStatefulWidget {
@@ -18,6 +19,11 @@ class _PreBattleScreenState extends ConsumerState<PreBattleScreen> {
   @override
   void initState() {
     super.initState();
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(gameSettingsProvider.notifier).restoreCampaignSettings();
+      }
+    });
     // Automatically transition to game after a short delay
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
