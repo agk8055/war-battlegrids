@@ -19,10 +19,11 @@ import '../../campaign/campaign_manager.dart';
 import '../../campaign/data/kingdoms_data.dart';
 import '../../core/services/audio_service.dart';
 import '../widgets/hud/battle_hud_header.dart';
-import '../widgets/overlays/game_over_overlay.dart';
+import 'post_battle_screen.dart';
 import '../widgets/overlays/capture_toast.dart';
 import '../widgets/overlays/pause_overlay.dart';
 import '../widgets/overlays/ai_thinking_overlay.dart';
+import '../widgets/overlays/game_over_overlay.dart';
 import '../../simulation/game_simulation.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
@@ -35,6 +36,7 @@ class GameScreen extends ConsumerStatefulWidget {
 class _GameScreenState extends ConsumerState<GameScreen> {
   KingdomGame? _game;
   bool _isPaused = false;
+  bool _showPostBattle = false;
 
   @override
   void initState() {
@@ -110,6 +112,59 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       );
     } else if (settings.mode == GameMode.story) {
       Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
+    } else {
+      Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
+    }
+  }
+
+  void _handleRematch() {
+    ref.read(simulationProvider.notifier).reset();
+    setState(() {
+      _showPostBattle = false;
+      _game = KingdomGame(ref);
+    });
+  }
+
+  void _handleReturn() {
+    final settings = ref.read(gameSettingsProvider);
+    final simulationState = ref.read(simulationProvider);
+
+    if (settings.mode == GameMode.story) {
+      if (simulationState.winner == Turn.player) {
+        final campaignState = ref.read(campaignProvider);
+        if (campaignState.selectedKingdomId != null) {
+          ref.read(campaignProvider.notifier).conquerKingdom(
+                campaignState.selectedKingdomId!,
+              );
+        }
+      }
+      Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
+    } else if (settings.mode == GameMode.multiplayer) {
+      final connectionType = ref.read(connectionTypeProvider);
+      if (connectionType == ConnectionType.bluetooth) {
+        // Reset gameStarted flag so we can start again
+        ref.read(bluetoothProvider.notifier).setGameStarted(false);
+        
+        // Return to lobby
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const BluetoothLobbyScreen(),
+          ),
+        );
+      } else if (connectionType == ConnectionType.online) {
+        // Reset gameStarted flag so we can start again
+        ref.read(onlineProvider.notifier).setGameStarted(false);
+        
+        // Return to lobby
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const OnlineLobbyScreen(),
+          ),
+        );
+      } else {
+        // Same-device multiplayer: return to mode selection
+        Navigator.of(context).popUntil((route) => route.settings.name == '/multiplayer_mode');
+      }
     } else {
       Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
     }
@@ -244,7 +299,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
       return Stack(
         children: [
-          _buildBaseGame(context, simulationState, settings, effectivePaused),
+          _buildBaseGame(context, simulationState, settings, effectivePaused, isGameOver, connectionType),
           AiThinkingOverlay(
             color: aiColor,
             label: showAiThinking ? "AI IS THINKING" : "OPPONENT IS PLANNING",
@@ -253,10 +308,24 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       );
     }
 
-    return _buildBaseGame(context, simulationState, settings, effectivePaused);
+    return _buildBaseGame(context, simulationState, settings, effectivePaused, isGameOver, connectionType);
   }
 
-  Widget _buildBaseGame(BuildContext context, GameSimulation simulationState, GameSettings settings, bool effectivePaused) {
+  Widget _buildBaseGame(
+    BuildContext context,
+    GameSimulation simulationState,
+    GameSettings settings,
+    bool effectivePaused,
+    bool isGameOver,
+    ConnectionType connectionType,
+  ) {
+    final isMultiplayer = settings.mode == GameMode.multiplayer;
+    final isBluetooth = connectionType == ConnectionType.bluetooth;
+    final isOnline = connectionType == ConnectionType.online;
+    final isSameDevice = isMultiplayer && !isBluetooth && !isOnline;
+
+    final canRematch = (settings.mode == GameMode.story || isSameDevice);
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -286,57 +355,36 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               },
             ),
 
-          // Game Over Overlay
-          if (simulationState.currentPhase == GamePhase.gameOver)
-            Positioned.fill(
-              child: GameOverOverlay(
-                winner: simulationState.winner ?? Turn.player,
+          // Game Over Sequence:
+          // 1. Cinematic Victory / Defeat Overlay (3-4 secs or tap to continue)
+          // 2. Full Post Battle Stats Screen
+          if (isGameOver) ...[
+            if (!_showPostBattle)
+              GameOverOverlay(
+                winner: simulationState.winner,
                 mode: settings.mode,
-                onReturnToMap: () {
-                  if (settings.mode == GameMode.story) {
-                    if (simulationState.winner == Turn.player) {
-                      final campaignState = ref.read(campaignProvider);
-                      if (campaignState.selectedKingdomId != null) {
-                        ref.read(campaignProvider.notifier).conquerKingdom(
-                              campaignState.selectedKingdomId!,
-                            );
-                      }
-                    }
-                    Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
-                  } else if (settings.mode == GameMode.multiplayer) {
-                    final connectionType = ref.read(connectionTypeProvider);
-                    if (connectionType == ConnectionType.bluetooth) {
-                      // Reset gameStarted flag so we can start again
-                      ref.read(bluetoothProvider.notifier).setGameStarted(false);
-                      
-                      // Return to lobby
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (context) => const BluetoothLobbyScreen(),
-                        ),
-                      );
-                    } else if (connectionType == ConnectionType.online) {
-                      // Reset gameStarted flag so we can start again
-                      ref.read(onlineProvider.notifier).setGameStarted(false);
-                      
-                      // Return to lobby
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (context) => const OnlineLobbyScreen(),
-                        ),
-                      );
-                    } else {
-                      // Same-device multiplayer: return to mode selection
-                      Navigator.of(context).popUntil((route) => route.settings.name == '/multiplayer_mode');
-                    }
-                  } else {
-                    Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
+                onContinue: () {
+                  if (mounted) {
+                    setState(() {
+                      _showPostBattle = true;
+                    });
                   }
                 },
+              )
+            else
+              Positioned.fill(
+                child: PostBattleScreen(
+                  stats: simulationState.generateBattleStats(),
+                  mode: settings.mode,
+                  onContinue: _handleReturn,
+                  onRematch: canRematch ? _handleRematch : null,
+                ),
               ),
-            ),
+          ],
         ],
       ),
     );
   }
 }
+
+
