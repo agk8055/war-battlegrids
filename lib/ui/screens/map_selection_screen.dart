@@ -43,22 +43,28 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
 
     final List<Map<String, String>> availableMaps = [
       {
-        'name': 'Northern Forest',
+        'name': 'ShadowWoods 15x15',
         'path': AppAssets.northernForestMap,
         'description': 'A dense 15x15 forest environment.',
         'image': AppAssets.northernForest,
       },
       {
-        'name': 'Desert 19x19',
+        'name': 'Hellfire 19x19',
         'path': AppAssets.desertMap,
         'description': 'An arid 19x19 battlefield of dunes.',
         'image': AppAssets.pyramid,
       },
       {
-        'name': 'Standard 25x25',
+        'name': 'Arcadia 25x25',
         'path': AppAssets.defaultMap,
         'description': 'A balanced 25x25 grid for local warfare.',
         'image': AppAssets.grasslandArmy,
+      },
+      {
+        'name': 'Icelands 30x30',
+        'path': AppAssets.icelandsMap,
+        'description': 'A frozen 30x30 glacial battlefield.',
+        'image': AppAssets.winterCastle,
       },
     ];
 

@@ -19,6 +19,7 @@ class AppAssets {
   static const String roman = 'assets/images/roman.png';
   static const String costalFort = 'assets/images/costal_fort.png';
   static const String tibet = 'assets/images/tibet.png';
+  static const String winterCastle = 'assets/images/winter_castle.png';
   static const String sangaNagaram = 'assets/images/sanga_nagaram.png';
   static const String warAppIcon = 'assets/images/war_app_icon.png';
   static const String plainBlack = 'assets/images/plain_black.png';
@@ -77,6 +78,7 @@ class AppAssets {
   static const String northernForestMap = '15x15_northern_forest_map.tmx';
   static const String desertMap = '19X19_desert_map.tmx';
   static const String defaultMap = '25x25_map.tmx';
+  static const String icelandsMap = '30x30_icelands.tmx';
 
   // --- FALLBACK HELPERS ---
 
