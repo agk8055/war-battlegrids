@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_assets.dart';
-import 'map_selection_screen.dart';
+import 'multiplayer_setup_screen.dart';
 import 'bluetooth_lobby_screen.dart';
 import 'online_lobby_screen.dart';
 import '../../core/enums/connection_type.dart';
@@ -194,8 +194,8 @@ class MultiplayerModeSelectionScreen extends ConsumerWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              settings: const RouteSettings(name: '/map_selection'),
-              builder: (context) => const MapSelectionScreen(),
+              settings: const RouteSettings(name: '/multiplayer_setup'),
+              builder: (context) => const MultiplayerSetupScreen(),
             ),
           );
         },

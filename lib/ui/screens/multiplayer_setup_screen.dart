@@ -10,6 +10,7 @@ import '../../providers/game_settings_provider.dart';
 import '../../providers/simulation_provider.dart';
 import '../../providers/turn_provider.dart';
 import 'game_screen.dart';
+import 'map_selection_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Decorative Painter – subtle diagonal hatch lines (parchment feel)
@@ -222,6 +223,8 @@ class _MultiplayerSetupScreenState
   late Color _p1Color;
   late Color _p2Color;
   int _thresholdValue = 30;
+  late String _selectedMapPath;
+  late String _selectedMapName;
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -231,10 +234,29 @@ class _MultiplayerSetupScreenState
   late Animation<Offset> _slideAnim;
   late Animation<double> _pulseAnim;
 
+  String _getMapName(String path) {
+    if (path == AppAssets.northernForestMap) return 'ShadowWoods 15x15';
+    if (path == AppAssets.desertMap) return 'Hellfire 19x19';
+    if (path == AppAssets.defaultMap) return 'Arcadia 25x25';
+    if (path == AppAssets.icelandsMap) return 'Icelands 30x30';
+    return 'Arcadia 25x25';
+  }
+
+  String _getMapImage(String path) {
+    if (path == AppAssets.northernForestMap) return AppAssets.northernForest;
+    if (path == AppAssets.desertMap) return AppAssets.pyramid;
+    if (path == AppAssets.defaultMap) return AppAssets.grasslandArmy;
+    if (path == AppAssets.icelandsMap) return AppAssets.winterCastle;
+    return AppAssets.grasslandArmy;
+  }
+
   @override
   void initState() {
     super.initState();
     final settings = ref.read(gameSettingsProvider);
+
+    _selectedMapPath = settings.selectedMapPath.isNotEmpty ? settings.selectedMapPath : AppAssets.defaultMap;
+    _selectedMapName = _getMapName(_selectedMapPath);
 
     _p1Controller = TextEditingController(
       text: settings.player1Name.isNotEmpty ? settings.player1Name : 'COMMANDER 1',
@@ -432,7 +454,7 @@ class _MultiplayerSetupScreenState
                                 // ALWAYS SIDE BY SIDE CARDS ROW
                                 _buildSideBySideCardsRow(primary),
                                 const SizedBox(height: 18),
-                                _buildSiegeSettingsCard(primary),
+                                _buildSettingsAndMapRow(primary),
                                 const SizedBox(height: 24),
                                 _buildStartBattleSection(primary),
                                 const SizedBox(height: 12),
@@ -1124,41 +1146,70 @@ class _MultiplayerSetupScreenState
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  //  Siege Conditions / Glory Threshold Card (Direct Input)
+  //  Settings & Map Row (Siege Conditions & Select Map Side by Side)
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildSettingsAndMapRow(Color primary) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Left Tile (50%): Siege Conditions
+          Expanded(
+            child: _buildSiegeSettingsCard(primary),
+          ),
+          const SizedBox(width: 12),
+
+          // Right Tile (50%): Select Map Tile
+          Expanded(
+            child: _buildMapSelectionTile(primary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  //  Siege Conditions / Glory Threshold Card (Half Width)
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildSiegeSettingsCard(Color primary) {
     return _StonePanel(
       accentColor: primary,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _SectionLabel(
-            'SIEGE CONDITIONS',
-            color: primary,
-            trailing: Icon(Icons.castle_outlined, color: primary.withValues(alpha: 0.7), size: 15),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SectionLabel(
+                'SIEGE CONDITIONS',
+                color: primary,
+                trailing: Icon(Icons.castle_outlined, color: primary.withValues(alpha: 0.7), size: 14),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Glory points required to launch siege assault.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 10,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Glory points required to breach enemy capital defenses and launch siege attack.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
-              fontSize: 11,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
-          // Direct Numeric Input & Steppers
+          // Steppers & Numeric Input
           Row(
             children: [
               Text(
-                'ATTACK THRESHOLD:',
+                'THRESHOLD:',
                 style: TextStyle(
                   color: primary.withValues(alpha: 0.85),
-                  fontSize: 9.5,
+                  fontSize: 9,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
+                  letterSpacing: 1.2,
                 ),
               ),
               const Spacer(),
@@ -1167,20 +1218,20 @@ class _MultiplayerSetupScreenState
                 onTap: () => _setThreshold(_thresholdValue - 5),
                 primary: primary,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               SizedBox(
-                width: 80,
+                width: 62,
                 child: TextField(
                   controller: _thresholdController,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.sairaStencilOne(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 14,
                   ),
                   decoration: InputDecoration(
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 6),
                     filled: true,
                     fillColor: primary.withValues(alpha: 0.08),
                     enabledBorder: OutlineInputBorder(
@@ -1200,7 +1251,7 @@ class _MultiplayerSetupScreenState
                   },
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               _buildStepperButton(
                 icon: Icons.add,
                 onTap: () => _setThreshold(_thresholdValue + 5),
@@ -1222,14 +1273,167 @@ class _MultiplayerSetupScreenState
       onTap: onTap,
       accentColor: primary,
       child: Container(
-        width: 32,
-        height: 32,
+        width: 28,
+        height: 28,
         decoration: BoxDecoration(
           color: primary.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(7),
           border: Border.all(color: primary.withValues(alpha: 0.35), width: 1),
         ),
-        child: Icon(icon, color: primary, size: 15),
+        child: Icon(icon, color: primary, size: 14),
+      ),
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  //  Map Selection Tile (Half Width with Map Image & Name)
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildMapSelectionTile(Color primary) {
+    final mapImage = _getMapImage(_selectedMapPath);
+
+    return _StonePanel(
+      accentColor: primary,
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: _AnimatedPressButton(
+          onTap: () async {
+            _playClickSound();
+            final result = await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const MapSelectionScreen(isBluetoothMode: true),
+              ),
+            );
+            if (result != null && result is Map<String, String>) {
+              setState(() {
+                _selectedMapPath = result['path']!;
+                _selectedMapName = result['name']!;
+              });
+              ref.read(gameSettingsProvider.notifier).setSelectedMap(result['path']!);
+            }
+          },
+          accentColor: primary,
+          child: Stack(
+            children: [
+              // Map Image Background
+              Positioned.fill(
+                child: AppAssetImage(
+                  mapImage,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              // Dark Vignette Overlay
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.35),
+                        const Color(0xFF0F0D0A).withValues(alpha: 0.92),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Hatch overlay
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _HatchPainter(color: Colors.white.withValues(alpha: 0.03)),
+                ),
+              ),
+              // Text and badges
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(color: primary.withValues(alpha: 0.5), width: 1),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.map, color: primary, size: 10),
+                              const SizedBox(width: 4),
+                              Text(
+                                'BATTLEGROUND',
+                                style: TextStyle(
+                                  color: primary,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: primary.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(color: primary.withValues(alpha: 0.5), width: 1),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.edit, color: primary, size: 9),
+                              const SizedBox(width: 3),
+                              Text(
+                                'CHANGE',
+                                style: TextStyle(
+                                  color: primary,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedMapName.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.sairaStencilOne(
+                            color: Colors.white,
+                            fontSize: 13,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Tap to change battlefield',
+                          style: TextStyle(
+                            color: primary.withValues(alpha: 0.7),
+                            fontSize: 9,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1459,6 +1663,7 @@ class _MultiplayerSetupScreenState
     notifier.setPlayerColors(_p1Color.toARGB32(), _p2Color.toARGB32());
     final parsedThreshold = int.tryParse(_thresholdController.text.trim()) ?? _thresholdValue;
     notifier.setKingdomAttackThreshold(parsedThreshold > 0 ? parsedThreshold : 30);
+    notifier.setSelectedMap(_selectedMapPath);
 
     ref.read(connectionTypeProvider.notifier).setConnectionType(ConnectionType.local);
     ref.read(simulationProvider.notifier).reset();
