@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/constants/app_assets.dart';
 import '../../../core/enums/connection_type.dart';
 import '../../../core/enums/game_mode.dart';
 import '../../../core/enums/turn.dart';
+import '../../../core/services/audio_service.dart';
 import '../../../providers/bluetooth_provider.dart';
 import '../../../providers/game_settings_provider.dart';
 import '../../../providers/online_provider.dart';
@@ -19,6 +21,7 @@ class GameOverOverlay extends ConsumerStatefulWidget {
   final Turn? winner;
   final GameMode mode;
   final VoidCallback onContinue;
+  final VoidCallback? onViewMap;
   final Duration displayDuration;
 
   const GameOverOverlay({
@@ -26,6 +29,7 @@ class GameOverOverlay extends ConsumerStatefulWidget {
     required this.winner,
     required this.mode,
     required this.onContinue,
+    this.onViewMap,
     this.displayDuration = const Duration(seconds: 15),
   });
 
@@ -150,6 +154,18 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
     _exitController.forward().then((_) {
       if (mounted) {
         widget.onContinue();
+      }
+    });
+  }
+
+  void _handleViewMap() {
+    if (_isTransitioning || !mounted) return;
+    _isTransitioning = true;
+    _autoAdvanceTimer?.cancel();
+
+    _exitController.forward().then((_) {
+      if (mounted) {
+        widget.onViewMap?.call();
       }
     });
   }
@@ -299,31 +315,79 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
 
   Widget _buildContinueHint(_ThemePalette palette) {
     return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.14),
-            width: 0.7,
-          ),
-        ),
-        child: Text(
-          "Tap the screen to continue",
-          textAlign: TextAlign.center,
-          style: GoogleFonts.sairaStencilOne(
-            fontSize: 11,
-            letterSpacing: 1.6,
-            color: Colors.white.withValues(alpha: 0.85),
-            shadows: [
-              Shadow(
-                color: palette.glowColor.withValues(alpha: 0.6),
-                blurRadius: 8,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.14),
+                width: 0.7,
               ),
-            ],
+            ),
+            child: Text(
+              "Tap the screen to continue",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.sairaStencilOne(
+                fontSize: 11,
+                letterSpacing: 1.6,
+                color: Colors.white.withValues(alpha: 0.85),
+                shadows: [
+                  Shadow(
+                    color: palette.glowColor.withValues(alpha: 0.6),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+          if (widget.onViewMap != null) ...[
+            const SizedBox(height: 10),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
+                _handleViewMap();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF13100C).withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: const Color(0xFF4FC3F7).withValues(alpha: 0.65),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4FC3F7).withValues(alpha: 0.25),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.map_outlined, size: 14, color: Color(0xFF4FC3F7)),
+                    const SizedBox(width: 6),
+                    Text(
+                      "VIEW FINAL MAP",
+                      style: GoogleFonts.sairaStencilOne(
+                        fontSize: 10.5,
+                        letterSpacing: 1.2,
+                        color: const Color(0xFF4FC3F7),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

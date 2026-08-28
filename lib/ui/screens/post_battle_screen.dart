@@ -20,6 +20,7 @@ class PostBattleScreen extends ConsumerStatefulWidget {
   final GameMode mode;
   final VoidCallback onContinue;
   final VoidCallback? onRematch;
+  final VoidCallback? onViewMap;
 
   const PostBattleScreen({
     super.key,
@@ -27,6 +28,7 @@ class PostBattleScreen extends ConsumerStatefulWidget {
     required this.mode,
     required this.onContinue,
     this.onRematch,
+    this.onViewMap,
   });
 
   @override
@@ -917,104 +919,146 @@ class _PostBattleScreenState extends ConsumerState<PostBattleScreen>
 
           const SizedBox(height: 12),
 
-          // Action Buttons: 3:7 proportional ratio between Rematch and Continue / Return
-          Row(
-            children: [
-              // Rematch button (30% width)
-              if (widget.onRematch != null) ...[
-                Expanded(
-                  flex: 3,
-                  child: _AnimatedPressButton(
-                    onTap: () {
-                      ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
-                      widget.onRematch!();
-                    },
-                    accentColor: Colors.amberAccent,
-                    child: Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.amberAccent.withValues(alpha: 0.55),
-                          width: 1.2,
+          // Action Buttons: Rematch / View Final Map (Secondary row) + Continue / Return (Primary button)
+          if (widget.onRematch != null || widget.onViewMap != null) ...[
+            Row(
+              children: [
+                // Rematch button
+                if (widget.onRematch != null) ...[
+                  Expanded(
+                    child: _AnimatedPressButton(
+                      onTap: () {
+                        ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
+                        widget.onRematch!();
+                      },
+                      accentColor: Colors.amberAccent,
+                      child: Container(
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.amberAccent.withValues(alpha: 0.55),
+                            width: 1.2,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.refresh, color: Colors.amberAccent, size: 16),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              "REMATCH",
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.sairaStencilOne(
-                                color: Colors.amberAccent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.refresh, color: Colors.amberAccent, size: 15),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                "REMATCH",
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.sairaStencilOne(
+                                  color: Colors.amberAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-              ],
-
-              // Primary CONTINUE / RETURN TO MAP button (70% width)
-              Expanded(
-                flex: widget.onRematch != null ? 7 : 10,
-                child: _AnimatedPressButton(
-                  onTap: () {
-                    ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
-                    widget.onContinue();
-                  },
-                  accentColor: primaryColor,
-                  child: Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          primaryColor.withValues(alpha: 0.85),
-                          primaryColor,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryColor.withValues(alpha: 0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
+                ],
+                if (widget.onRematch != null && widget.onViewMap != null)
+                  const SizedBox(width: 8),
+                // View Final Map button
+                if (widget.onViewMap != null) ...[
+                  Expanded(
+                    child: _AnimatedPressButton(
+                      onTap: () {
+                        ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
+                        widget.onViewMap!();
+                      },
+                      accentColor: const Color(0xFF4FC3F7),
+                      child: Container(
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4FC3F7).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFF4FC3F7).withValues(alpha: 0.55),
+                            width: 1.2,
+                          ),
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            continueLabel,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.sairaStencilOne(
-                              color: Colors.black,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.map_outlined, color: Color(0xFF4FC3F7), size: 15),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                "VIEW MAP",
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.sairaStencilOne(
+                                  color: const Color(0xFF4FC3F7),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 5),
-                        const Icon(Icons.arrow_forward, color: Colors.black, size: 14),
-                      ],
+                      ),
                     ),
                   ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Primary CONTINUE / RETURN TO MAP button
+          _AnimatedPressButton(
+            onTap: () {
+              ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
+              widget.onContinue();
+            },
+            accentColor: primaryColor,
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    primaryColor.withValues(alpha: 0.85),
+                    primaryColor,
+                  ],
                 ),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryColor.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      continueLabel,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.sairaStencilOne(
+                        color: Colors.black,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  const Icon(Icons.arrow_forward, color: Colors.black, size: 14),
+                ],
+              ),
+            ),
           ),
         ],
       ),

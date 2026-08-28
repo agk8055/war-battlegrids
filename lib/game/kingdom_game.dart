@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flame/game.dart';
 import 'package:flame/events.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -421,23 +422,14 @@ class KingdomGame extends FlameGame with ScaleDetector {
   void _clampPosition() {
     final scaledWidth = boardComponent.width * boardComponent.scale.x;
     final scaledHeight = boardComponent.height * boardComponent.scale.y;
+    const margin = 140.0;
 
-    // X-Axis Clamping
-    if (scaledWidth > size.x) {
-      // Board is wider than screen: clamp between (size.x - scaledWidth) and 0
-      boardComponent.x = boardComponent.x.clamp(size.x - scaledWidth, 0);
-    } else {
-      // Board is narrower: keep it centered or at least within view
-      boardComponent.x = boardComponent.x.clamp(0, size.x - scaledWidth);
-    }
+    final minX = math.min(0.0, size.x - scaledWidth) - margin;
+    final maxX = math.max(0.0, size.x - scaledWidth) + margin;
+    boardComponent.x = boardComponent.x.clamp(minX, maxX);
 
-    // Y-Axis Clamping
-    if (scaledHeight > size.y) {
-      // Board is taller than screen
-      boardComponent.y = boardComponent.y.clamp(size.y - scaledHeight, 0);
-    } else {
-      // Board is shorter
-      boardComponent.y = boardComponent.y.clamp(0, size.y - scaledHeight);
-    }
+    final minY = math.min(0.0, size.y - scaledHeight) - margin;
+    final maxY = math.max(0.0, size.y - scaledHeight) + margin;
+    boardComponent.y = boardComponent.y.clamp(minY, maxY);
   }
 }

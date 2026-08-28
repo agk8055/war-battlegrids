@@ -22,6 +22,7 @@ import 'post_battle_screen.dart';
 import '../widgets/overlays/capture_toast.dart';
 import '../widgets/overlays/pause_overlay.dart';
 import '../widgets/overlays/game_over_overlay.dart';
+import '../widgets/overlays/final_map_overlay.dart';
 import '../../campaign/data/kingdoms_data.dart';
 import '../../simulation/game_simulation.dart';
 
@@ -36,6 +37,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   KingdomGame? _game;
   bool _isPaused = false;
   bool _showPostBattle = false;
+  bool _isViewingFinalMap = false;
 
   @override
   void initState() {
@@ -127,6 +129,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     ref.read(simulationProvider.notifier).reset();
     setState(() {
       _showPostBattle = false;
+      _isViewingFinalMap = false;
       _game = KingdomGame(ref, onToast: _showGameToast);
     });
   }
@@ -331,18 +334,19 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           // The Game World
           if (_game != null) GameWidget(game: _game!),
 
-          // HUD Header
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: BattleHudHeader(
-              onPausePressed: _togglePause,
+          // HUD Header (hidden during final map analysis)
+          if (!_isViewingFinalMap)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: BattleHudHeader(
+                onPausePressed: _togglePause,
+              ),
             ),
-          ),
 
           // Pause Overlay
-          if (effectivePaused)
+          if (effectivePaused && !_isViewingFinalMap)
             PauseOverlay(
               onResume: _isPaused ? _togglePause : () {}, // Only local can resume if they paused it
               onQuit: _handleAbandon,
@@ -354,10 +358,25 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             ),
 
           // Game Over Sequence:
-          // 1. Cinematic Victory / Defeat Overlay (3-4 secs or tap to continue)
-          // 2. Full Post Battle Stats Screen
+          // 1. Final Map Analysis Overlay (View-only map review)
+          // 2. Cinematic Victory / Defeat Overlay (3-4 secs or tap to continue)
+          // 3. Full Post Battle Stats Screen
           if (isGameOver) ...[
-            if (!_showPostBattle)
+            if (_isViewingFinalMap)
+              FinalMapOverlay(
+                stats: simulationState.generateBattleStats(),
+                mode: settings.mode,
+                canRematch: canRematch,
+                onBackToStats: () {
+                  setState(() {
+                    _isViewingFinalMap = false;
+                    _showPostBattle = true;
+                  });
+                },
+                onRematch: canRematch ? _handleRematch : null,
+                onContinue: _handleReturn,
+              )
+            else if (!_showPostBattle)
               GameOverOverlay(
                 winner: simulationState.winner,
                 mode: settings.mode,
@@ -365,6 +384,13 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   if (mounted) {
                     setState(() {
                       _showPostBattle = true;
+                    });
+                  }
+                },
+                onViewMap: () {
+                  if (mounted) {
+                    setState(() {
+                      _isViewingFinalMap = true;
                     });
                   }
                 },
@@ -376,6 +402,13 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   mode: settings.mode,
                   onContinue: _handleReturn,
                   onRematch: canRematch ? _handleRematch : null,
+                  onViewMap: () {
+                    if (mounted) {
+                      setState(() {
+                        _isViewingFinalMap = true;
+                      });
+                    }
+                  },
                 ),
               ),
           ],
