@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:war/core/enums/cell_state.dart';
 import 'package:war/core/enums/turn.dart';
 import 'package:war/core/enums/game_phase.dart';
+import 'package:war/core/enums/win_condition_type.dart';
 import 'package:war/core/models/level_config.dart';
 import 'package:war/simulation/board.dart';
 import 'package:war/simulation/rules.dart';
@@ -149,5 +150,145 @@ void main() {
       sim.winner = Turn.player;
       expect(HeuristicEvaluator.evaluate(sim, strategy), equals(-HeuristicEvaluator.winScore));
     });
+
+    test('Players can cover their own kingdom without needing siege points', () {
+      // AI placing a defensive line in front of AI palace (e.g. at y = 5)
+      for (int x = board.playableMinX; x < board.playableMaxX; x++) {
+        board.setCell(x, 5, CellState.ai);
+      }
+
+      // AI should be able to place the final tile to complete the defensive line in front of AI palace
+      // even with aiKingdomAttackUnlocked = false
+      expect(
+        GameRules.isValidPlacement(board, board.playableMaxX, 5, Turn.ai, false),
+        isTrue,
+      );
+      expect(
+        GameRules.isPlacementBlockedBySiege(board, board.playableMaxX, 5, Turn.ai, false),
+        isFalse,
+      );
+
+      // And completing this defensive wall does NOT trigger a win for AI
+      board.setCell(board.playableMaxX, 5, CellState.ai);
+      final aiWin = GameRules.checkWinCondition(board, Turn.ai, kingdomAttackUnlocked: true);
+      expect(aiWin.isWin, isFalse);
+
+      // Similarly, Player placing a defensive line in front of Player palace (at y = 9)
+      for (int x = board.playableMinX; x < board.playableMaxX; x++) {
+        board.setCell(x, 9, CellState.player);
+      }
+
+      // Player should be able to place the final tile without siege points
+      expect(
+        GameRules.isValidPlacement(board, board.playableMaxX, 9, Turn.player, false),
+        isTrue,
+      );
+      expect(
+        GameRules.isPlacementBlockedBySiege(board, board.playableMaxX, 9, Turn.player, false),
+        isFalse,
+      );
+
+      // And completing this defensive wall does NOT trigger a win for Player
+      board.setCell(board.playableMaxX, 9, CellState.player);
+      final playerWin = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
+      expect(playerWin.isWin, isFalse);
+    });
+
+    test('Parallel win condition is NOT enabled when U-shape is still possible', () {
+      // Board is open, U-shape is still possible around AI palace
+      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.uShape), isTrue);
+
+      // Player builds a parallel line across row 7
+      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
+        board.setCell(x, 7, CellState.player);
+      }
+
+      // Even with siege unlocked, parallel line alone does NOT win while U-shape is possible
+      final winAttempt = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
+      expect(winAttempt.isWin, isFalse);
+    });
+
+    test('Parallel win condition IS enabled when opponent blocks U-shape', () {
+      // AI covers row 5 completely (blocking access to AI palace and U-shape)
+      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
+        board.setCell(x, 5, CellState.ai);
+      }
+      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.uShape), isFalse);
+
+      // Player builds a parallel line across row 7
+      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
+        board.setCell(x, 7, CellState.player);
+      }
+
+      // Now with U-shape blocked and siege unlocked, Player achieves parallel win!
+      final winUnlocked = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
+      expect(winUnlocked.isWin, isTrue);
+
+      // Without siege unlocked, win condition returns false
+      final winLocked = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: false);
+      expect(winLocked.isWin, isFalse);
+    });
+
+    test('Attacking player achieves win by breaching top boundary through gap / flank', () {
+      // Opponent (AI) covered row 5, but there is a gap on the top edge at (x=5, y=3)
+      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
+        if (x != 5) board.setCell(x, 5, CellState.ai);
+      }
+      // Player builds a line from left edge (3, 6) up through the gap to (5, 3)
+      board.setCell(3, 6, CellState.player);
+      board.setCell(4, 5, CellState.player);
+      board.setCell(5, 4, CellState.player);
+      board.setCell(5, 3, CellState.player); // Reaches top boundary at x=5 (left of AI palace at 6..8)
+
+      // Touches leftEdge at (3,6) and top boundary at (5,3)
+      final winResult = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
+      expect(winResult.isWin, isTrue);
+    });
+
+    test('Full GameSimulation: Opponent covers kingdom, player parallel block wins with siege ready', () {
+      final sim = GameSimulation(
+        config: const LevelConfig(
+          boardWidth: 15,
+          boardHeight: 15,
+          playerKingdomAttackThreshold: 20,
+          aiKingdomAttackThreshold: 20,
+        ),
+      );
+      sim.board.setPlayableArea(3, 3, 11, 11);
+      sim.board.setPalaceZones(
+        aiStartX: 6,
+        aiEndX: 8,
+        aiStartY: 3,
+        aiEndY: 4,
+        playerStartX: 6,
+        playerEndX: 8,
+        playerStartY: 10,
+        playerEndY: 11,
+      );
+
+      // AI covers its kingdom defensively across row 5
+      for (int x = 3; x <= 11; x++) {
+        sim.board.setCell(x, 5, CellState.ai);
+      }
+
+      // Player has siege ready (playerKingdomAttackUnlocked = true)
+      sim.playerScore = 30;
+      sim.playerKingdomAttackUnlocked = true;
+      sim.currentPhase = GamePhase.kingdomAttack;
+      sim.currentTurn = Turn.player;
+
+      // Player builds parallel line at row 7 from x=3 to 10
+      for (int x = 3; x < 11; x++) {
+        sim.board.setCell(x, 7, CellState.player);
+      }
+
+      // Player places final tile at (11, 7)
+      final (success, _) = sim.placeUnit(11, 7);
+      expect(success, isTrue);
+      expect(sim.currentPhase, equals(GamePhase.gameOver));
+      expect(sim.winner, equals(Turn.player));
+    });
   });
 }
+
+

@@ -10,6 +10,8 @@ class WinResult {
   WinResult(this.isWin, [this.blockage]);
 }
 
+enum _WinCategory { uShape, parallel, gapBreach, kingdomAssisted }
+
 class GameRules {
   /// Checks if an attempted placement is structurally valid on the board.
   static bool isValidPlacement(
@@ -51,7 +53,7 @@ class GameRules {
         return false;
       }
 
-      // We also cannot place a piece that would COMPLETE a blockage around the opponent's kingdom!
+      // We also cannot place a piece that would COMPLETE an offensive winning blockage around the opponent's kingdom!
       final originalState = board.getCell(x, y);
       board.setCell(
         x,
@@ -91,7 +93,7 @@ class GameRules {
     // Only regular empty tiles are subject to the siege-blocked overlay
     if (cell != CellState.empty) return false;
 
-    // Check if placing a piece here would complete a winning blockade
+    // Check if placing a piece here would complete a winning blockade against the opponent
     board.setCell(
       x,
       y,
@@ -113,12 +115,12 @@ class GameRules {
     return numberOfUnitsCaptured * kCapturePointsValue;
   }
 
-  /// Checks if the win condition has been met.
-  /// Checks if the win condition has been met by entirely surrounding the opponent's palace.
+  /// Checks if the win condition has been met by entirely blockading / encircling the opponent's palace.
   static WinResult checkWinCondition(
     Board board,
     Turn currentTurn, {
     required bool kingdomAttackUnlocked,
+    WinConditionType? activeCondition,
   }) {
     if (!kingdomAttackUnlocked) return WinResult(false);
 
@@ -126,53 +128,76 @@ class GameRules {
     final uWon = _findBlockade(
       board,
       currentTurn,
-      {AnchorType.topLeft, AnchorType.topRight},
+      _WinCategory.uShape,
       includeKingdom: false,
       includeEmpty: false,
     );
     if (uWon.isWin) return uWon;
 
-    // 2. Check for actual Parallel win
-    final pWon = _findBlockade(
-      board,
-      currentTurn,
-      {AnchorType.leftEdge, AnchorType.rightEdge},
-      includeKingdom: false,
-      includeEmpty: false,
-    );
-    if (pWon.isWin) return pWon;
+    // Parallel win condition is ONLY enabled when U-shape is blocked / no longer possible
+    // (e.g. opponent covered their kingdom / blocked access to the palace flanks)
+    final isUShapePossible = isWinConditionPossible(board, currentTurn, WinConditionType.uShape);
+    if (!isUShapePossible) {
+      // 2. Check for actual Parallel win
+      final pWon = _findBlockade(
+        board,
+        currentTurn,
+        _WinCategory.parallel,
+        includeKingdom: false,
+        includeEmpty: false,
+      );
+      if (pWon.isWin) return pWon;
 
-    // 3. Check for actual Kingdom-assisted win
-    return _findBlockade(
-      board,
-      currentTurn,
-      {AnchorType.leftEdge, AnchorType.rightEdge, AnchorType.topLeft, AnchorType.topRight},
-      includeKingdom: true,
-      includeEmpty: false,
-      requireKingdom: true,
-    );
+      // 3. Check for End / Gap breach win (breaching to the opponent's boundary through gaps/sides)
+      final gapWon = _findBlockade(
+        board,
+        currentTurn,
+        _WinCategory.gapBreach,
+        includeKingdom: false,
+        includeEmpty: false,
+      );
+      if (gapWon.isWin) return gapWon;
+
+      // Kingdom-assisted win is ONLY enabled when Parallel is also not possible
+      final isParallelPossible = isWinConditionPossible(board, currentTurn, WinConditionType.parallel);
+      if (!isParallelPossible) {
+        // 4. Check for actual Kingdom-assisted win
+        return _findBlockade(
+          board,
+          currentTurn,
+          _WinCategory.kingdomAssisted,
+          includeKingdom: true,
+          includeEmpty: false,
+          requireKingdom: true,
+        );
+      }
+    }
+
+    return WinResult(false);
   }
 
   static WinResult _findBlockade(
     Board board, 
     Turn currentTurn, 
-    Set<AnchorType> requiredAnchors, 
+    _WinCategory category,
     {required bool includeKingdom, required bool includeEmpty, bool requireKingdom = false}
   ) {
     final attackerState = currentTurn == Turn.player ? CellState.player : CellState.ai;
     final attackerZone = currentTurn == Turn.player ? CellState.playerZone : CellState.aiZone;
     final isAttackingAI = currentTurn == Turn.player;
 
-    final leftPalaceX = isAttackingAI ? board.aiPalaceStartX : board.playerPalaceStartX;
-    final rightPalaceX = isAttackingAI ? board.aiPalaceEndX : board.playerPalaceEndX;
-    final palaceY = isAttackingAI ? board.playableMinY : board.playableMaxY;
+    final oppLeftPalaceX = isAttackingAI ? board.aiPalaceStartX : board.playerPalaceStartX;
+    final oppRightPalaceX = isAttackingAI ? board.aiPalaceEndX : board.playerPalaceEndX;
+    final oppPalaceBoundaryY = isAttackingAI ? board.playableMinY : board.playableMaxY;
 
     AnchorType? getAnchorType(int x, int y) {
       if (x == board.playableMinX) return AnchorType.leftEdge;
       if (x == board.playableMaxX) return AnchorType.rightEdge;
-      if (y == palaceY) {
-        if (x < leftPalaceX) return AnchorType.topLeft;
-        if (x > rightPalaceX) return AnchorType.topRight;
+      if (y == oppPalaceBoundaryY) {
+        if (x < oppLeftPalaceX) return AnchorType.topLeft;
+        if (x > oppRightPalaceX) return AnchorType.topRight;
+        // Reached opponent's boundary between palace markers (e.g. gap in kingdom or palace flank)
+        return AnchorType.endGap;
       }
       return null;
     }
@@ -243,14 +268,54 @@ class GameRules {
             if (!hasAttackerPiece) continue;
           }
 
-          // Check if the connected group satisfies the required anchor combination
-          if (requiredAnchors.every((a) => foundAnchors.contains(a))) {
-            return WinResult(true, groupVisited);
-          }
-          
-          // Special case for Kingdom-assisted: any TWO distinct anchors from the set
-          if (requireKingdom && foundAnchors.length >= 2) {
-            return WinResult(true, groupVisited);
+          final reachesOpponentEnd = foundAnchors.contains(AnchorType.topLeft) ||
+              foundAnchors.contains(AnchorType.topRight) ||
+              foundAnchors.contains(AnchorType.endGap);
+
+          // Evaluate win by category
+          switch (category) {
+            case _WinCategory.uShape:
+              // U-shape requires connecting both flanks of the opponent palace (or through end gaps)
+              final hasLeftFlank = foundAnchors.contains(AnchorType.topLeft) || foundAnchors.contains(AnchorType.endGap);
+              final hasRightFlank = foundAnchors.contains(AnchorType.topRight) || foundAnchors.contains(AnchorType.endGap);
+              if (hasLeftFlank && hasRightFlank && foundAnchors.length >= 2) {
+                return WinResult(true, groupVisited);
+              }
+              break;
+
+            case _WinCategory.parallel:
+              // Parallel requires connecting left and right edges
+              if (foundAnchors.contains(AnchorType.leftEdge) && foundAnchors.contains(AnchorType.rightEdge)) {
+                final midY = (board.playableMinY + board.playableMaxY) / 2.0;
+                bool isOffensiveWall = false;
+                if (isAttackingAI) {
+                  // Attacking AI (at top): Wall separates AI palace if it's placed towards AI's side or middle (y < playerPalaceStartY)
+                  isOffensiveWall = groupVisited.any((c) => c.$2 < board.playerPalaceStartY && c.$2 <= midY + 1);
+                } else {
+                  // Attacking Player (at bottom): Wall separates Player palace if it's placed towards Player's side or middle (y > aiPalaceEndY + 1 && y >= midY - 1)
+                  isOffensiveWall = groupVisited.any((c) => c.$2 > board.aiPalaceEndY + 1 && c.$2 >= midY - 1);
+                }
+                if (isOffensiveWall) {
+                  return WinResult(true, groupVisited);
+                }
+              }
+              break;
+
+            case _WinCategory.gapBreach:
+              // Breaching the opponent's boundary through the gap or flank combined with a board side
+              if (reachesOpponentEnd) {
+                if (foundAnchors.contains(AnchorType.leftEdge) || foundAnchors.contains(AnchorType.rightEdge)) {
+                  return WinResult(true, groupVisited);
+                }
+              }
+              break;
+
+            case _WinCategory.kingdomAssisted:
+              // Kingdom-assisted: uses own kingdom zone and reaches the opponent's boundary/anchors
+              if (requireKingdom && usesKingdom && reachesOpponentEnd && foundAnchors.length >= 2) {
+                return WinResult(true, groupVisited);
+              }
+              break;
           }
         }
       }
@@ -283,13 +348,13 @@ class GameRules {
   static bool isWinConditionPossible(Board board, Turn turn, WinConditionType type) {
     switch (type) {
       case WinConditionType.uShape:
-        return _findBlockade(board, turn, {AnchorType.topLeft, AnchorType.topRight}, includeKingdom: false, includeEmpty: true).isWin;
+        return _findBlockade(board, turn, _WinCategory.uShape, includeKingdom: false, includeEmpty: true).isWin;
       case WinConditionType.parallel:
-        return _findBlockade(board, turn, {AnchorType.leftEdge, AnchorType.rightEdge}, includeKingdom: false, includeEmpty: true).isWin;
+        return _findBlockade(board, turn, _WinCategory.parallel, includeKingdom: false, includeEmpty: true).isWin;
       case WinConditionType.kingdomAssisted:
-        return _findBlockade(board, turn, {AnchorType.leftEdge, AnchorType.rightEdge, AnchorType.topLeft, AnchorType.topRight}, includeKingdom: true, includeEmpty: true, requireKingdom: true).isWin;
+        return _findBlockade(board, turn, _WinCategory.kingdomAssisted, includeKingdom: true, includeEmpty: true, requireKingdom: true).isWin;
     }
   }
 }
 
-enum AnchorType { leftEdge, rightEdge, topLeft, topRight }
+enum AnchorType { leftEdge, rightEdge, topLeft, topRight, endGap }
