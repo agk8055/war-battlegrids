@@ -101,6 +101,12 @@ class SimulationNotifier extends Notifier<GameSimulation> {
     state = state.clone();
   }
 
+  /// Explicitly marks the game as a Draw / Stalemate.
+  void declareDraw() {
+    state.declareDraw();
+    state = state.clone();
+  }
+
   /// Places a unit from a peer without sending it back.
   (bool, bool) placeUnitFromPeer(int x, int y) {
     final connectionType = ref.read(connectionTypeProvider);

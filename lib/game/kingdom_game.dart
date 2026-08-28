@@ -11,9 +11,9 @@ import '../../providers/game_settings_provider.dart';
 import '../../providers/bluetooth_provider.dart';
 import '../../simulation/ai/ai_strategy.dart';
 import '../../campaign/data/kingdoms_data.dart';
-import '../../campaign/models/kingdom_model.dart';
 import '../../core/services/audio_service.dart';
 import '../../simulation/board.dart';
+import '../../simulation/rules.dart';
 
 import '../core/enums/turn.dart';
 import '../core/enums/game_mode.dart';
@@ -22,8 +22,6 @@ import 'board/board_component.dart';
 
 import '../../providers/online_provider.dart';
 import '../../core/enums/connection_type.dart';
-
-// ... (other imports)
 
 class KingdomGame extends FlameGame with ScaleDetector {
   final WidgetRef ref;
@@ -35,7 +33,6 @@ class KingdomGame extends FlameGame with ScaleDetector {
   double _startScale = 1.0;
 
   KingdomGame(this.ref, {this.onToast});
-
 
   @override
   Future<void> onLoad() async {
@@ -132,6 +129,51 @@ class KingdomGame extends FlameGame with ScaleDetector {
     
     // Ensure it's clamped immediately
     _clampPosition();
+
+    // Initial sync of board and siege overlay states
+    syncBoard();
+  }
+
+  /// Synchronizes the visual board tiles and siege-restriction overlays with the simulation state.
+  void syncBoard() {
+    final sim = ref.read(simulationProvider);
+    final settings = ref.read(gameSettingsProvider);
+    final connectionType = ref.read(connectionTypeProvider);
+    final bluetoothState = ref.read(bluetoothProvider);
+    final onlineState = ref.read(onlineProvider);
+
+    Turn effectiveTurn = Turn.player;
+    bool attackUnlocked = sim.playerKingdomAttackUnlocked;
+
+    if (settings.mode == GameMode.multiplayer) {
+      if (connectionType == ConnectionType.bluetooth) {
+        effectiveTurn = bluetoothState.isHost ? Turn.player : Turn.ai;
+        attackUnlocked = bluetoothState.isHost
+            ? sim.playerKingdomAttackUnlocked
+            : sim.aiKingdomAttackUnlocked;
+      } else if (connectionType == ConnectionType.online) {
+        effectiveTurn = onlineState.isHost ? Turn.player : Turn.ai;
+        attackUnlocked = onlineState.isHost
+            ? sim.playerKingdomAttackUnlocked
+            : sim.aiKingdomAttackUnlocked;
+      } else {
+        // Pass & Play (Same Device)
+        effectiveTurn = sim.currentTurn;
+        attackUnlocked = (sim.currentTurn == Turn.player)
+            ? sim.playerKingdomAttackUnlocked
+            : sim.aiKingdomAttackUnlocked;
+      }
+    } else {
+      // Story Mode / Vs AI
+      effectiveTurn = Turn.player;
+      attackUnlocked = sim.playerKingdomAttackUnlocked;
+    }
+
+    boardComponent.syncWithSimulation(
+      sim.board,
+      effectiveTurn: effectiveTurn,
+      kingdomAttackUnlocked: attackUnlocked,
+    );
   }
 
   void _handleCellTapped(int x, int y) {
@@ -143,8 +185,11 @@ class KingdomGame extends FlameGame with ScaleDetector {
     final onlineState = ref.read(onlineProvider);
     final campaignState = ref.read(campaignProvider);
 
-    // Prevent tap if game is over
-    if (simulationState.currentPhase == GamePhase.gameOver) return;
+    // Prevent tap if game is over or drawn
+    if (simulationState.currentPhase == GamePhase.gameOver ||
+        simulationState.currentPhase == GamePhase.draw) {
+      return;
+    }
     
     // In story mode, prevent tap if it's AI turn and show toast
     if (settings.mode == GameMode.story && simulationState.currentTurn == Turn.ai) {
@@ -181,17 +226,81 @@ class KingdomGame extends FlameGame with ScaleDetector {
       } else {
         ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
       }
-      boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
+      syncBoard();
       
+      final currentSim = ref.read(simulationProvider);
+      if (currentSim.currentPhase == GamePhase.gameOver ||
+          currentSim.currentPhase == GamePhase.draw) {
+        return;
+      }
+
       if (settings.mode == GameMode.story) {
         _checkAITurn();
+      }
+    } else {
+      // Check if tap failed specifically due to siege restrictions
+      Turn effectiveTurn = Turn.player;
+      bool attackUnlocked = simulationState.playerKingdomAttackUnlocked;
+      int currentScore = simulationState.playerScore;
+      int threshold = simulationState.config.playerKingdomAttackThreshold;
+
+      if (settings.mode == GameMode.multiplayer) {
+        if (connectionType == ConnectionType.bluetooth) {
+          effectiveTurn = bluetoothState.isHost ? Turn.player : Turn.ai;
+          attackUnlocked = bluetoothState.isHost
+              ? simulationState.playerKingdomAttackUnlocked
+              : simulationState.aiKingdomAttackUnlocked;
+          currentScore = bluetoothState.isHost ? simulationState.playerScore : simulationState.aiScore;
+          threshold = bluetoothState.isHost
+              ? simulationState.config.playerKingdomAttackThreshold
+              : simulationState.config.aiKingdomAttackThreshold;
+        } else if (connectionType == ConnectionType.online) {
+          effectiveTurn = onlineState.isHost ? Turn.player : Turn.ai;
+          attackUnlocked = onlineState.isHost
+              ? simulationState.playerKingdomAttackUnlocked
+              : simulationState.aiKingdomAttackUnlocked;
+          currentScore = onlineState.isHost ? simulationState.playerScore : simulationState.aiScore;
+          threshold = onlineState.isHost
+              ? simulationState.config.playerKingdomAttackThreshold
+              : simulationState.config.aiKingdomAttackThreshold;
+        } else {
+          effectiveTurn = simulationState.currentTurn;
+          attackUnlocked = (simulationState.currentTurn == Turn.player)
+              ? simulationState.playerKingdomAttackUnlocked
+              : simulationState.aiKingdomAttackUnlocked;
+          currentScore = (simulationState.currentTurn == Turn.player)
+              ? simulationState.playerScore
+              : simulationState.aiScore;
+          threshold = (simulationState.currentTurn == Turn.player)
+              ? simulationState.config.playerKingdomAttackThreshold
+              : simulationState.config.aiKingdomAttackThreshold;
+        }
+      }
+
+      final isSiegeBlocked = GameRules.isPlacementBlockedBySiege(
+        simulationState.board,
+        x,
+        y,
+        effectiveTurn,
+        attackUnlocked,
+      );
+
+      if (isSiegeBlocked) {
+        final pointsRemaining = (threshold - currentScore).clamp(0, threshold);
+        onToast?.call(
+          "⚔ SIEGE LOCKED — Earn $pointsRemaining more Glory to breach!",
+          const Color(0xFFD32F2F),
+        );
       }
     }
   }
 
   void _checkAITurn() async {
     final simulationState = ref.read(simulationProvider);
-    if (simulationState.currentPhase == GamePhase.gameOver) return;
+    if (simulationState.currentPhase == GamePhase.gameOver ||
+        simulationState.currentPhase == GamePhase.draw) {
+      return;
+    }
 
     if (simulationState.currentTurn == Turn.ai) {
       // Set UI to thinking state
@@ -222,7 +331,7 @@ class KingdomGame extends FlameGame with ScaleDetector {
           } else {
             ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
           }
-          boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
+          syncBoard();
         }
       }
 
@@ -240,7 +349,7 @@ class KingdomGame extends FlameGame with ScaleDetector {
             } else {
               ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
             }
-            boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
+            syncBoard();
             break;
           }
         }
@@ -249,16 +358,42 @@ class KingdomGame extends FlameGame with ScaleDetector {
       // If still no move could be placed, skip AI turn to advance the game
       if (!movePlaced) {
         notifier.skipTurn();
-        boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
+        syncBoard();
       }
 
       ref.read(aiStateProvider.notifier).setIdle();
+
+      // After AI turn, check if the human player has any valid moves
+      final afterAiSim = ref.read(simulationProvider);
+      if (afterAiSim.currentPhase != GamePhase.gameOver &&
+          afterAiSim.currentPhase != GamePhase.draw) {
+        final playerCanMove = GameRules.hasValidMoves(
+          afterAiSim.board,
+          Turn.player,
+          afterAiSim.playerKingdomAttackUnlocked,
+        );
+        final aiCanMove = GameRules.hasValidMoves(
+          afterAiSim.board,
+          Turn.ai,
+          afterAiSim.aiKingdomAttackUnlocked,
+        );
+
+        if (!playerCanMove && !aiCanMove) {
+          notifier.declareDraw();
+          syncBoard();
+        } else if (!playerCanMove && aiCanMove) {
+          onToast?.call("No valid deployment tiles — Passing turn to AI", Colors.orangeAccent);
+          notifier.skipTurn();
+          syncBoard();
+          _checkAITurn();
+        }
+      }
     }
   }
 
   /// Force a visual sync from the outside (useful if AI takes a turn)
   void forceSync() {
-    boardComponent.syncWithSimulation(ref.read(simulationProvider).board);
+    syncBoard();
   }
 
   @override

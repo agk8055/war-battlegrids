@@ -141,6 +141,13 @@ class GameSimulation {
     return true;
   }
 
+  /// Explicitly marks the game as a Draw / Stalemate.
+  void declareDraw() {
+    currentPhase = GamePhase.draw;
+    winner = null;
+    endTime = DateTime.now();
+  }
+
   void _updateActiveWinConditions() {
     // Player
     if (playerActiveWinCondition == WinConditionType.uShape) {

@@ -5,7 +5,9 @@ import 'package:flame_tiled/flame_tiled.dart';
 import 'package:flutter/foundation.dart';
 import '../../core/constants/app_assets.dart';
 import '../../simulation/board.dart';
+import '../../simulation/rules.dart';
 import '../../core/enums/cell_state.dart';
+import '../../core/enums/turn.dart';
 import '../../core/constants/board_constants.dart';
 import 'cell_component.dart';
 
@@ -90,6 +92,14 @@ class BoardComponent extends PositionComponent {
                           y >= simulationBoard.playableMinY && 
                           y <= simulationBoard.playableMaxY;
 
+        final isBlocked = isPlayable && GameRules.isPlacementBlockedBySiege(
+          simulationBoard,
+          x,
+          y,
+          Turn.player,
+          false,
+        );
+
         final cell = CellComponent(
           gridX: x,
           gridY: y,
@@ -102,6 +112,9 @@ class BoardComponent extends PositionComponent {
           size: Vector2.all(cellSize),
           position: Vector2(x * cellSize, y * cellSize),
         );
+        if (isBlocked) {
+          cell.updateState(simulationBoard.getCell(x, y), isSiegeBlocked: true);
+        }
         add(cell);
         return cell;
       }),
@@ -228,13 +241,27 @@ class BoardComponent extends PositionComponent {
     );
   }
 
-  /// Syncs the Flame visual board with the Simulation board data.
-  void syncWithSimulation(Board currentBoard) {
+  /// Syncs the Flame visual board with the Simulation board data and siege restrictions.
+  void syncWithSimulation(
+    Board currentBoard, {
+    Turn effectiveTurn = Turn.player,
+    bool kingdomAttackUnlocked = false,
+  }) {
     if (_cellGrid.isEmpty) return;
     for (int y = 0; y < currentBoard.height; y++) {
       for (int x = 0; x < currentBoard.width; x++) {
         if (y < _cellGrid.length && x < _cellGrid[y].length) {
-          _cellGrid[y][x].updateState(currentBoard.getCell(x, y));
+          final isBlocked = GameRules.isPlacementBlockedBySiege(
+            currentBoard,
+            x,
+            y,
+            effectiveTurn,
+            kingdomAttackUnlocked,
+          );
+          _cellGrid[y][x].updateState(
+            currentBoard.getCell(x, y),
+            isSiegeBlocked: isBlocked,
+          );
         }
       }
     }

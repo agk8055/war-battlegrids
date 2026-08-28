@@ -2,7 +2,6 @@ import '../core/enums/cell_state.dart';
 import '../core/enums/turn.dart';
 import '../core/enums/win_condition_type.dart';
 import '../core/constants/game_constants.dart';
-import '../core/constants/board_constants.dart';
 import 'board.dart';
 
 class WinResult {
@@ -72,6 +71,39 @@ class GameRules {
     }
 
     return true;
+  }
+
+  /// Checks if a cell is deployable ONLY IF kingdom attack / siege is unlocked,
+  /// but currently blocked because siege points are not met (e.g. completing a winning blockade).
+  /// Kingdom zone tiles are excluded so kingdom colors and palace overlays remain untouched.
+  static bool isPlacementBlockedBySiege(
+    Board board,
+    int x,
+    int y,
+    Turn turn,
+    bool kingdomAttackUnlocked,
+  ) {
+    if (kingdomAttackUnlocked) return false;
+    if (!board.isWithinPlayableArea(x, y)) return false;
+
+    final cell = board.getCell(x, y);
+    // Only regular empty tiles are subject to the siege-blocked overlay
+    if (cell != CellState.empty) return false;
+
+    // Check if placing a piece here would complete a winning blockade
+    board.setCell(
+      x,
+      y,
+      turn == Turn.player ? CellState.player : CellState.ai,
+    );
+    final wouldCompleteBlockage = checkWinCondition(
+      board,
+      turn,
+      kingdomAttackUnlocked: true,
+    );
+    board.setCell(x, y, cell);
+
+    return wouldCompleteBlockage.isWin;
   }
 
   /// Calculates the score earned for capturing a list of units.
@@ -212,15 +244,24 @@ class GameRules {
     return WinResult(false);
   }
 
-  /// Checks if the board is full and no moves are possible.
-  static bool checkDraw(Board board, bool playerAttackUnlocked, bool aiAttackUnlocked) {
+  /// Checks if a player has any valid placement moves available on the board.
+  static bool hasValidMoves(Board board, Turn turn, bool kingdomAttackUnlocked) {
     for (int y = board.playableMinY; y <= board.playableMaxY; y++) {
       for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
-        if (isValidPlacement(board, x, y, Turn.player, playerAttackUnlocked)) return false;
-        if (isValidPlacement(board, x, y, Turn.ai, aiAttackUnlocked)) return false;
+        if (isValidPlacement(board, x, y, turn, kingdomAttackUnlocked)) {
+          return true;
+        }
       }
     }
-    return true;
+    return false;
+  }
+
+  /// Checks if neither player has any valid moves remaining (e.g. board is full,
+  /// or remaining tiles cannot be deployed to because neither player has enough siege points).
+  static bool checkDraw(Board board, bool playerAttackUnlocked, bool aiAttackUnlocked) {
+    final playerHasMoves = hasValidMoves(board, Turn.player, playerAttackUnlocked);
+    final aiHasMoves = hasValidMoves(board, Turn.ai, aiAttackUnlocked);
+    return !playerHasMoves && !aiHasMoves;
   }
 
   /// Checks if a specific win condition is still structurally possible for a player.

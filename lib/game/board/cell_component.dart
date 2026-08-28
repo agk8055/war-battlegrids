@@ -4,7 +4,6 @@ import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_assets.dart';
 import '../../core/enums/cell_state.dart';
-import '../../simulation/board.dart';
 import '../kingdom_game.dart';
 
 class CellComponent extends PositionComponent with TapCallbacks, HasGameRef<KingdomGame> {
@@ -18,6 +17,7 @@ class CellComponent extends PositionComponent with TapCallbacks, HasGameRef<King
   final Color opponentColor;
 
   late CellState _currentState;
+  bool _isSiegeBlocked = false;
   Sprite? _playerSprite;
   Sprite? _opponentSprite;
   Sprite? _linkSprite;
@@ -45,8 +45,9 @@ class CellComponent extends PositionComponent with TapCallbacks, HasGameRef<King
     _linkSprite = await AppAssets.loadSpriteSafely(AppAssets.link);
   }
 
-  void updateState(CellState newState) {
+  void updateState(CellState newState, {bool isSiegeBlocked = false}) {
     _currentState = newState;
+    _isSiegeBlocked = isSiegeBlocked;
   }
 
   @override
@@ -80,11 +81,42 @@ class CellComponent extends PositionComponent with TapCallbacks, HasGameRef<King
         break;
     }
 
+    final tileRect = Rect.fromLTWH(1, 1, size.x - 2, size.y - 2);
+
     // Draw the tile slightly smaller than size to create grid lines
     canvas.drawRect(
-      Rect.fromLTWH(1, 1, size.x - 2, size.y - 2),
+      tileRect,
       paint,
     );
+
+    // If siege blocked on an empty tile, draw a reverse circular gradient with red border
+    if (_isSiegeBlocked && _currentState == CellState.empty) {
+      // 1. Reverse circular gradient (transparent center fading outward to edges)
+      final reverseGradientPaint = Paint()
+        ..style = PaintingStyle.fill
+        ..shader = const RadialGradient(
+          center: Alignment.center,
+          radius: 0.72,
+          colors: [
+            Color(0x00FF1744), // Clear in center
+            Color(0x15FF1744),
+            Color(0x55FF1744), // Fades into edges
+          ],
+          stops: [0.0, 0.4, 1.0],
+        ).createShader(tileRect);
+
+      canvas.drawRect(tileRect, reverseGradientPaint);
+
+      // 2. Red border around the tile
+      final redBorderPaint = Paint()
+        ..color = const Color(0xB3FF1744)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2;
+      canvas.drawRect(
+        Rect.fromLTWH(1.5, 1.5, size.x - 3, size.y - 3),
+        redBorderPaint,
+      );
+    }
 
     // Render Linkages (Drawn before symbols to be "under")
     _renderLinkages(canvas);
