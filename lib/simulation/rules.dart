@@ -65,7 +65,8 @@ class GameRules {
       );
       board.setCell(x, y, originalState);
 
-      if (wouldCompleteBlockage.isWin) {
+      if (wouldCompleteBlockage.isWin &&
+          (wouldCompleteBlockage.blockage?.contains((x, y)) ?? false)) {
         return false;
       }
     }
@@ -103,7 +104,8 @@ class GameRules {
     );
     board.setCell(x, y, cell);
 
-    return wouldCompleteBlockage.isWin;
+    return wouldCompleteBlockage.isWin &&
+        (wouldCompleteBlockage.blockage?.contains((x, y)) ?? false);
   }
 
   /// Calculates the score earned for capturing a list of units.
@@ -180,7 +182,7 @@ class GameRules {
     for (int y = board.playableMinY; y <= board.playableMaxY; y++) {
       for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
         final state = board.getCell(x, y);
-        bool isWallPart = (state == attackerState || state == CellState.capturedGrid);
+        bool isWallPart = (state == attackerState);
         if (includeKingdom && state == attackerZone) isWallPart = true;
         if (includeEmpty && state == CellState.empty) isWallPart = true;
 
@@ -213,7 +215,7 @@ class GameRules {
             for (final dir in dirs) {
               if (board.isWithinPlayableArea(dir.$1, dir.$2)) {
                 final neighborState = board.getCell(dir.$1, dir.$2);
-                bool isNeighborWall = (neighborState == attackerState || neighborState == CellState.capturedGrid);
+                bool isNeighborWall = (neighborState == attackerState);
                 if (includeKingdom && neighborState == attackerZone) isNeighborWall = true;
                 if (includeEmpty && neighborState == CellState.empty) isNeighborWall = true;
 
@@ -227,6 +229,19 @@ class GameRules {
           }
 
           if (requireKingdom && !usesKingdom) continue;
+
+          // A real blockade must contain at least one attacker unit (or attacker zone if allowed)
+          if (!includeEmpty) {
+            bool hasAttackerPiece = false;
+            for (final coord in groupVisited) {
+              final cState = board.getCell(coord.$1, coord.$2);
+              if (cState == attackerState || (includeKingdom && cState == attackerZone)) {
+                hasAttackerPiece = true;
+                break;
+              }
+            }
+            if (!hasAttackerPiece) continue;
+          }
 
           // Check if the connected group satisfies the required anchor combination
           if (requiredAnchors.every((a) => foundAnchors.contains(a))) {

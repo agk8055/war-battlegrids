@@ -1,8 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:war/core/enums/cell_state.dart';
 import 'package:war/core/enums/turn.dart';
+import 'package:war/core/enums/game_phase.dart';
+import 'package:war/core/models/level_config.dart';
 import 'package:war/simulation/board.dart';
 import 'package:war/simulation/rules.dart';
+import 'package:war/simulation/game_simulation.dart';
+import 'package:war/simulation/ai/ai_strategy.dart';
+import 'package:war/simulation/ai/rule_engine.dart';
+import 'package:war/simulation/ai/evaluator.dart';
 
 void main() {
   group('Siege Overlay & Placement Rules', () {
@@ -80,6 +86,68 @@ void main() {
       // If player unlocks siege, player can deploy in AI palace, so not a draw
       expect(GameRules.hasValidMoves(board, Turn.player, true), isTrue);
       expect(GameRules.checkDraw(board, true, false), isFalse);
+    });
+
+    test('Captured grid chains across anchors do not falsely prevent AI from deploying', () {
+      // Simulate player captures that created a line of capturedGrid across the board
+      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
+        board.setCell(x, 7, CellState.capturedGrid);
+      }
+
+      // AI has not unlocked kingdom attack yet
+      expect(GameRules.hasValidMoves(board, Turn.ai, false), isTrue);
+
+      // AI should be able to deploy at empty positions that are not completing an actual AI winning blockade
+      expect(GameRules.isValidPlacement(board, 5, 5, Turn.ai, false), isTrue);
+      expect(GameRules.isValidPlacement(board, 7, 8, Turn.ai, false), isTrue);
+    });
+
+    test('AI successfully finds and places moves after player unlocks Kingdom Attack / Siege points', () {
+      final sim = GameSimulation(
+        config: const LevelConfig(
+          boardWidth: 15,
+          boardHeight: 15,
+          playerKingdomAttackThreshold: 20,
+          aiKingdomAttackThreshold: 20,
+        ),
+      );
+
+      // Set player siege unlocked (as if player earned 20 Glory points)
+      sim.playerScore = 20;
+      sim.playerKingdomAttackUnlocked = true;
+      sim.currentPhase = GamePhase.kingdomAttack;
+      sim.currentTurn = Turn.ai;
+
+      // Set some units on board
+      sim.board.setCell(5, 5, CellState.player);
+      sim.board.setCell(5, 6, CellState.ai);
+
+      // Verify AI has valid moves
+      expect(GameRules.hasValidMoves(sim.board, Turn.ai, sim.aiKingdomAttackUnlocked), isTrue);
+
+      // RuleEngine should find a valid best move
+      final strategy = AIStrategy.fromType(AIStrategyType.basic);
+      final bestMove = RuleEngine.getBestMove(sim, strategy);
+      expect(bestMove, isNotNull);
+
+      // AI placing this move should succeed
+      final (success, _) = sim.placeUnit(bestMove!.$1, bestMove.$2);
+      expect(success, isTrue);
+      expect(sim.currentTurn, equals(Turn.player));
+    });
+
+    test('HeuristicEvaluator awards positive winScore when AI wins and negative when player wins', () {
+      final sim = GameSimulation();
+      final strategy = AIStrategy.fromType(AIStrategyType.basic);
+
+      // AI wins
+      sim.currentPhase = GamePhase.gameOver;
+      sim.winner = Turn.ai;
+      expect(HeuristicEvaluator.evaluate(sim, strategy), equals(HeuristicEvaluator.winScore));
+
+      // Player wins
+      sim.winner = Turn.player;
+      expect(HeuristicEvaluator.evaluate(sim, strategy), equals(-HeuristicEvaluator.winScore));
     });
   });
 }

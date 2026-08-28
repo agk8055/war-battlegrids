@@ -22,6 +22,7 @@ import 'post_battle_screen.dart';
 import '../widgets/overlays/capture_toast.dart';
 import '../widgets/overlays/pause_overlay.dart';
 import '../widgets/overlays/game_over_overlay.dart';
+import '../../campaign/data/kingdoms_data.dart';
 import '../../simulation/game_simulation.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
@@ -238,7 +239,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       // Visual sync
       _game?.forceSync();
       
-      // Determine Player names for toast messages
+      // Determine Player names & colors for toast messages
       final isMultiplayer = settings.mode == GameMode.multiplayer;
       bool isHost = true;
       if (connectionType == ConnectionType.bluetooth) {
@@ -247,26 +248,57 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         isHost = onlineState.isHost;
       }
 
-      final p1Name = settings.player1Name;
-      final p2Name = isMultiplayer ? settings.player2Name : "AI";
+      final campaignState = ref.read(campaignProvider);
+      final selectedKingdom = campaignState.selectedKingdomId != null
+          ? kKingdoms.firstWhere(
+              (k) => k.id == campaignState.selectedKingdomId,
+              orElse: () => kKingdoms.first,
+            )
+          : null;
 
-      if (next.playerScore > previous.playerScore) {
-        // Turn.player (Host) captured
-        final name = (isMultiplayer && !isHost) ? p2Name : p1Name;
-        final color = (isMultiplayer && !isHost) ? Color(settings.player2Color) : Color(settings.player1Color);
-        CaptureToast.show(
-          context,
-          "${name.toUpperCase()} CAPTURE! +${next.playerScore - previous.playerScore}",
-          color,
+      final p1Name = settings.player1Name;
+      final p2Name = isMultiplayer
+          ? settings.player2Name
+          : (selectedKingdom?.name ?? "AI");
+
+      final p1Color = Color(settings.player1Color);
+      final p2Color = isMultiplayer
+          ? Color(settings.player2Color)
+          : (selectedKingdom?.primaryColor ?? const Color(0xFFE53935));
+
+      final hostName = (isMultiplayer && !isHost) ? p2Name : p1Name;
+      final hostColor = (isMultiplayer && !isHost) ? p2Color : p1Color;
+
+      final guestName = (isMultiplayer && !isHost) ? p1Name : p2Name;
+      final guestColor = (isMultiplayer && !isHost) ? p1Color : p2Color;
+
+      final pScoreDiff = next.playerScore - previous.playerScore;
+      final pUnitsDiff = next.playerCapturedUnits - previous.playerCapturedUnits;
+
+      final aiScoreDiff = next.aiScore - previous.aiScore;
+      final aiUnitsDiff = next.aiCapturedUnits - previous.aiCapturedUnits;
+
+      if (pScoreDiff > 0 || pUnitsDiff > 0) {
+        // Player (Host in remote) captured
+        final units = pUnitsDiff > 0 ? pUnitsDiff : (pScoreDiff ~/ 100);
+        final points = pScoreDiff > 0 ? pScoreDiff : (units * 100);
+        CaptureToast.showCapture(
+          context: context,
+          capturerName: hostName,
+          capturerColor: hostColor,
+          unitsCaptured: units,
+          pointsGained: points,
         );
-      } else if (next.aiScore > previous.aiScore) {
-        // Turn.ai (Joiner/AI) captured
-        final name = (isMultiplayer && !isHost) ? p1Name : p2Name;
-        final color = (isMultiplayer && !isHost) ? Color(settings.player1Color) : Color(settings.player2Color);
-        CaptureToast.show(
-          context,
-          "${name.toUpperCase()} CAPTURE! +${next.aiScore - previous.aiScore}",
-          color,
+      } else if (aiScoreDiff > 0 || aiUnitsDiff > 0) {
+        // AI / Joiner captured
+        final units = aiUnitsDiff > 0 ? aiUnitsDiff : (aiScoreDiff ~/ 100);
+        final points = aiScoreDiff > 0 ? aiScoreDiff : (units * 100);
+        CaptureToast.showCapture(
+          context: context,
+          capturerName: guestName,
+          capturerColor: guestColor,
+          unitsCaptured: units,
+          pointsGained: points,
         );
       }
     });

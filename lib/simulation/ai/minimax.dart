@@ -96,7 +96,7 @@ class MinimaxAI {
       if (alpha >= beta) return entry.score;
     }
 
-    if (depth <= 0 || sim.currentPhase == GamePhase.gameOver) {
+    if (depth <= 0 || sim.currentPhase == GamePhase.gameOver || sim.currentPhase == GamePhase.draw) {
       return HeuristicEvaluator.evaluate(sim, strategy);
     }
 

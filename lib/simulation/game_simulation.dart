@@ -88,10 +88,13 @@ class GameSimulation {
     }
 
     // Evaluate Win Condition
+    final isKingdomAttackUnlocked = isPlayer
+        ? playerKingdomAttackUnlocked
+        : aiKingdomAttackUnlocked;
     final winResult = GameRules.checkWinCondition(
       board,
       currentTurn,
-      kingdomAttackUnlocked: attackUnlocked,
+      kingdomAttackUnlocked: isKingdomAttackUnlocked,
     );
     
     if (winResult.isWin) {

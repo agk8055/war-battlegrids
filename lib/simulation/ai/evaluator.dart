@@ -1,14 +1,10 @@
 import '../../core/enums/cell_state.dart';
 import '../../core/enums/turn.dart';
 import '../../core/enums/game_phase.dart';
-import '../../core/constants/board_constants.dart';
 
 import '../game_simulation.dart';
 import '../board.dart';
 import 'ai_strategy.dart';
-
-import '../../core/utils/capture_utils.dart';
-import '../../core/utils/board_utils.dart';
 
 class HeuristicEvaluator {
   static const int winScore = 1000000;
@@ -18,8 +14,11 @@ class HeuristicEvaluator {
     int score = 0;
 
     if (simulation.currentPhase == GamePhase.gameOver) {
-      // If Game Over and it's player's turn, AI just moved and WON.
-      return simulation.currentTurn == Turn.player ? winScore : -winScore;
+      return simulation.winner == Turn.ai ? winScore : -winScore;
+    }
+
+    if (simulation.currentPhase == GamePhase.draw) {
+      return 0;
     }
 
     score += (simulation.aiScore - simulation.playerScore) * strategy.captureWeight;

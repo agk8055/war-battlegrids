@@ -45,6 +45,9 @@ class AppAssets {
   static const String shieldSword = 'assets/icons/shield_sword.png';
   static const String shuriken = 'assets/icons/shuriken.png';
   static const String storyModeIcon = 'assets/icons/story_mode_icon.png';
+  static const String excalibur = 'assets/icons/excalibur.png';
+  static const String medieval = 'assets/icons/medieval.png';
+  static const String swordFight = 'assets/icons/sword-fight.png';
   static const String throne = 'assets/icons/throne.png';
   static const String vikingHelmet = 'assets/icons/viking_helmet.png';
   static const String wolf = 'assets/icons/wolf.png';

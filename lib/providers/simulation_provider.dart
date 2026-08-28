@@ -66,10 +66,11 @@ class SimulationNotifier extends Notifier<GameSimulation> {
         final myTurn = bluetoothState.isHost ? Turn.player : Turn.ai;
         if (state.currentTurn != myTurn) return (false, false);
         
-        final result = state.placeUnit(x, y);
+        final nextState = state.clone();
+        final result = nextState.placeUnit(x, y);
         if (result.$1) {
           ref.read(bluetoothProvider.notifier).sendMove(x, y);
-          state = state.clone();
+          state = nextState;
         }
         return result;
       }
@@ -79,32 +80,36 @@ class SimulationNotifier extends Notifier<GameSimulation> {
         final myTurn = onlineState.isHost ? Turn.player : Turn.ai;
         if (state.currentTurn != myTurn) return (false, false);
         
-        final result = state.placeUnit(x, y);
+        final nextState = state.clone();
+        final result = nextState.placeUnit(x, y);
         if (result.$1) {
           ref.read(onlineProvider.notifier).sendMove(x, y);
-          state = state.clone();
+          state = nextState;
         }
         return result;
       }
     }
 
-    final result = state.placeUnit(x, y);
+    final nextState = state.clone();
+    final result = nextState.placeUnit(x, y);
     if (result.$1) {
-      state = state.clone();
+      state = nextState;
     }
     return result;
   }
 
   /// Skips the current turn and updates state.
   void skipTurn() {
-    state.skipTurn();
-    state = state.clone();
+    final nextState = state.clone();
+    nextState.skipTurn();
+    state = nextState;
   }
 
   /// Explicitly marks the game as a Draw / Stalemate.
   void declareDraw() {
-    state.declareDraw();
-    state = state.clone();
+    final nextState = state.clone();
+    nextState.declareDraw();
+    state = nextState;
   }
 
   /// Places a unit from a peer without sending it back.
@@ -124,9 +129,10 @@ class SimulationNotifier extends Notifier<GameSimulation> {
       return (false, false);
     }
 
-    final result = state.placeUnit(x, y);
+    final nextState = state.clone();
+    final result = nextState.placeUnit(x, y);
     if (result.$1) {
-      state = state.clone();
+      state = nextState;
     }
     return result;
   }
