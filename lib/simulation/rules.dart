@@ -10,7 +10,7 @@ class WinResult {
   WinResult(this.isWin, [this.blockage]);
 }
 
-enum _WinCategory { uShape, parallel, gapBreach, kingdomAssisted }
+enum _WinCategory { uShape, parallel, kingdomAssisted }
 
 class GameRules {
   /// Checks if an attempted placement is structurally valid on the board.
@@ -124,7 +124,7 @@ class GameRules {
   }) {
     if (!kingdomAttackUnlocked) return WinResult(false);
 
-    // 1. Check for actual U-shaped win
+    // 1. Check for actual U-shaped / Half U-shaped Encirclement win
     final uWon = _findBlockade(
       board,
       currentTurn,
@@ -134,8 +134,8 @@ class GameRules {
     );
     if (uWon.isWin) return uWon;
 
-    // Parallel win condition is ONLY enabled when U-shape is blocked / no longer possible
-    // (e.g. opponent covered their kingdom / blocked access to the palace flanks)
+    // Parallel win condition is ONLY enabled when U-shape (including half U-shape to open ends) is blocked / no longer possible
+    // (e.g. opponent completely covered their kingdom / blocked access to the palace flanks)
     final isUShapePossible = isWinConditionPossible(board, currentTurn, WinConditionType.uShape);
     if (!isUShapePossible) {
       // 2. Check for actual Parallel win
@@ -148,20 +148,10 @@ class GameRules {
       );
       if (pWon.isWin) return pWon;
 
-      // 3. Check for End / Gap breach win (breaching to the opponent's boundary through gaps/sides)
-      final gapWon = _findBlockade(
-        board,
-        currentTurn,
-        _WinCategory.gapBreach,
-        includeKingdom: false,
-        includeEmpty: false,
-      );
-      if (gapWon.isWin) return gapWon;
-
       // Kingdom-assisted win is ONLY enabled when Parallel is also not possible
       final isParallelPossible = isWinConditionPossible(board, currentTurn, WinConditionType.parallel);
       if (!isParallelPossible) {
-        // 4. Check for actual Kingdom-assisted win
+        // 3. Check for actual Kingdom-assisted win
         return _findBlockade(
           board,
           currentTurn,
@@ -190,16 +180,14 @@ class GameRules {
     final oppRightPalaceX = isAttackingAI ? board.aiPalaceEndX : board.playerPalaceEndX;
     final oppPalaceBoundaryY = isAttackingAI ? board.playableMinY : board.playableMaxY;
 
-    AnchorType? getAnchorType(int x, int y) {
-      if (x == board.playableMinX) return AnchorType.leftEdge;
-      if (x == board.playableMaxX) return AnchorType.rightEdge;
+    void addAnchorsForCoord(int x, int y, Set<AnchorType> foundAnchors) {
+      if (x == board.playableMinX) foundAnchors.add(AnchorType.leftEdge);
+      if (x == board.playableMaxX) foundAnchors.add(AnchorType.rightEdge);
       if (y == oppPalaceBoundaryY) {
-        if (x < oppLeftPalaceX) return AnchorType.topLeft;
-        if (x > oppRightPalaceX) return AnchorType.topRight;
-        // Reached opponent's boundary between palace markers (e.g. gap in kingdom or palace flank)
-        return AnchorType.endGap;
+        if (x < oppLeftPalaceX) foundAnchors.add(AnchorType.topLeft);
+        if (x > oppRightPalaceX) foundAnchors.add(AnchorType.topRight);
+        if (x >= oppLeftPalaceX && x <= oppRightPalaceX) foundAnchors.add(AnchorType.endGap);
       }
-      return null;
     }
 
     final visited = <(int, int)>{};
@@ -224,8 +212,7 @@ class GameRules {
           while (head < queue.length) {
             final curr = queue[head++];
 
-            final anchor = getAnchorType(curr.$1, curr.$2);
-            if (anchor != null) foundAnchors.add(anchor);
+            addAnchorsForCoord(curr.$1, curr.$2, foundAnchors);
             
             if (board.getCell(curr.$1, curr.$2) == attackerZone) {
               usesKingdom = true;
@@ -275,10 +262,28 @@ class GameRules {
           // Evaluate win by category
           switch (category) {
             case _WinCategory.uShape:
-              // U-shape requires connecting both flanks of the opponent palace (or through end gaps)
+              // Must extend into the battlefield from the attacker's side
+              final reachesAttackerSide = isAttackingAI
+                  ? groupVisited.any((c) => c.$2 > board.aiPalaceEndY)
+                  : groupVisited.any((c) => c.$2 < board.playerPalaceStartY);
+              if (!reachesAttackerSide) break;
+
+              // 1. Full U-shape: connects both flanks of the opponent palace (or through end gaps)
               final hasLeftFlank = foundAnchors.contains(AnchorType.topLeft) || foundAnchors.contains(AnchorType.endGap);
               final hasRightFlank = foundAnchors.contains(AnchorType.topRight) || foundAnchors.contains(AnchorType.endGap);
-              if (hasLeftFlank && hasRightFlank && foundAnchors.length >= 2) {
+              final isFullUShape = hasLeftFlank && hasRightFlank && (
+                (foundAnchors.contains(AnchorType.topLeft) && foundAnchors.contains(AnchorType.topRight)) ||
+                (foundAnchors.contains(AnchorType.endGap) && foundAnchors.length >= 2)
+              );
+
+              // 2. Half U-shape / Gap-End Enclosure: connects a board side edge to the opponent top boundary
+              final touchesSideEdge = foundAnchors.contains(AnchorType.leftEdge) || foundAnchors.contains(AnchorType.rightEdge);
+
+              final isHalfUShape = reachesOpponentEnd && touchesSideEdge && groupVisited.length >= 3 &&
+                  ((foundAnchors.contains(AnchorType.leftEdge) && (foundAnchors.contains(AnchorType.topRight) || foundAnchors.contains(AnchorType.endGap) || groupVisited.any((c) => c.$1 >= oppLeftPalaceX - 1))) ||
+                   (foundAnchors.contains(AnchorType.rightEdge) && (foundAnchors.contains(AnchorType.topLeft) || foundAnchors.contains(AnchorType.endGap) || groupVisited.any((c) => c.$1 <= oppRightPalaceX + 1))));
+
+              if (isFullUShape || isHalfUShape) {
                 return WinResult(true, groupVisited);
               }
               break;
@@ -296,15 +301,6 @@ class GameRules {
                   isOffensiveWall = groupVisited.any((c) => c.$2 > board.aiPalaceEndY + 1 && c.$2 >= midY - 1);
                 }
                 if (isOffensiveWall) {
-                  return WinResult(true, groupVisited);
-                }
-              }
-              break;
-
-            case _WinCategory.gapBreach:
-              // Breaching the opponent's boundary through the gap or flank combined with a board side
-              if (reachesOpponentEnd) {
-                if (foundAnchors.contains(AnchorType.leftEdge) || foundAnchors.contains(AnchorType.rightEdge)) {
                   return WinResult(true, groupVisited);
                 }
               }

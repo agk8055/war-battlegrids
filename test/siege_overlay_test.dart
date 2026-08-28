@@ -288,6 +288,36 @@ void main() {
       expect(sim.currentPhase, equals(GamePhase.gameOver));
       expect(sim.winner, equals(Turn.player));
     });
+
+    test('Half U-Shape: When opponent covers only one side (e.g. left side), parallel line does NOT win prematurely', () {
+      // Opponent (AI) covers left side and middle of kingdom: row 5 from x=3 to x=9
+      // Leaving x=10 and x=11 open on the right flank!
+      for (int x = 3; x <= 9; x++) {
+        board.setCell(x, 5, CellState.ai);
+      }
+
+      // U-shape / half U-shape is STILL possible because the right flank (x=10, 11) is open!
+      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.uShape), isTrue);
+
+      // Player builds a horizontal line across row 7 from x=3 to 11
+      for (int x = 3; x <= 11; x++) {
+        board.setCell(x, 7, CellState.player);
+      }
+
+      // Parallel block win condition CANNOT be activated yet because hitting the right end (half U-shape) is possible!
+      final winAttempt = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
+      expect(winAttempt.isWin, isFalse);
+
+      // Player now extends upward from (11, 7) through (11, 5), (11, 4), and hits the right top end at (11, 3)
+      board.setCell(11, 6, CellState.player);
+      board.setCell(11, 5, CellState.player);
+      board.setCell(11, 4, CellState.player);
+      board.setCell(11, 3, CellState.player); // Reaches topRight anchor at y=3, x=11 (> aiPalaceEndX=8)
+
+      // Now Player has completed the half U-shape (leftEdge to topRight) and wins!
+      final halfUWin = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
+      expect(halfUWin.isWin, isTrue);
+    });
   });
 }
 
