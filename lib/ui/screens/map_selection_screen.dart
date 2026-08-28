@@ -61,7 +61,7 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
         'image': AppAssets.grasslandArmy,
       },
       {
-        'name': 'Icelands 30x30',
+        'name': 'Hardhome 30x30',
         'path': AppAssets.icelandsMap,
         'description': 'A frozen 30x30 glacial battlefield.',
         'image': AppAssets.winterCastle,
@@ -87,7 +87,9 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
           // Hatch pattern background
           Positioned.fill(
             child: CustomPaint(
-              painter: _HatchPainter(color: Colors.white.withValues(alpha: 0.015)),
+              painter: _HatchPainter(
+                color: Colors.white.withValues(alpha: 0.015),
+              ),
             ),
           ),
           SafeArea(
@@ -100,18 +102,22 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
                   const SizedBox(height: 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: _SectionLabel('AVAILABLE BATTLEFIELDS', color: primary),
+                    child: _SectionLabel(
+                      'AVAILABLE BATTLEFIELDS',
+                      color: primary,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Expanded(
                     child: GridView.builder(
                       padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 1.45,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 1.45,
+                          ),
                       itemCount: availableMaps.length,
                       itemBuilder: (context, index) {
                         final map = availableMaps[index];
@@ -145,7 +151,10 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: primary.withValues(alpha: 0.3), width: 1),
+                border: Border.all(
+                  color: primary.withValues(alpha: 0.3),
+                  width: 1,
+                ),
               ),
               child: Icon(Icons.chevron_left, color: primary, size: 20),
             ),
@@ -165,7 +174,9 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
                   ),
                 ),
                 Text(
-                  widget.isBluetoothMode ? "Bluetooth Deployment" : "Multiplayer Deployment",
+                  widget.isBluetoothMode
+                      ? "Bluetooth Deployment"
+                      : "Multiplayer Deployment",
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.35),
                     fontSize: 9,
@@ -184,15 +195,13 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
   void _handleMapSelection(Map<String, String> map) {
     ref.read(gameSettingsProvider.notifier).setMode(GameMode.multiplayer);
     ref.read(gameSettingsProvider.notifier).setSelectedMap(map['path']!);
-    
+
     if (widget.isBluetoothMode) {
       Navigator.pop(context, map);
     } else {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => const MultiplayerSetupScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const MultiplayerSetupScreen()),
       );
     }
   }
@@ -224,10 +233,7 @@ class _MapCard extends StatelessWidget {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: AppAssetImage(
-                      map['image']!,
-                      fit: BoxFit.cover,
-                    ),
+                    child: AppAssetImage(map['image']!, fit: BoxFit.cover),
                   ),
                   Positioned.fill(
                     child: Container(
@@ -298,7 +304,11 @@ class _HatchPainter extends CustomPainter {
       ..strokeWidth = 0.6;
     const spacing = 22.0;
     for (double i = -size.height; i < size.width + size.height; i += spacing) {
-      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
+      canvas.drawLine(
+        Offset(i, 0),
+        Offset(i + size.height, size.height),
+        paint,
+      );
     }
   }
 
@@ -327,16 +337,31 @@ class _StonePanel extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF1A1510), Color(0xFF0F0D0A)],
         ),
-        border: Border.all(color: accentColor.withValues(alpha: 0.28), width: 1.2),
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.28),
+          width: 1.2,
+        ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 18, offset: const Offset(0, 6)),
-          BoxShadow(color: accentColor.withValues(alpha: 0.06), blurRadius: 24, spreadRadius: 2),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.55),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: accentColor.withValues(alpha: 0.06),
+            blurRadius: 24,
+            spreadRadius: 2,
+          ),
         ],
       ),
       child: Stack(
         children: [
           Positioned.fill(
-            child: CustomPaint(painter: _HatchPainter(color: Colors.white.withValues(alpha: 0.018))),
+            child: CustomPaint(
+              painter: _HatchPainter(
+                color: Colors.white.withValues(alpha: 0.018),
+              ),
+            ),
           ),
           ..._corners(ornamentColor),
           Padding(padding: padding, child: child),
@@ -349,42 +374,53 @@ class _StonePanel extends StatelessWidget {
     const sz = 24.0;
     return [
       Positioned(
-          top: 0,
-          left: 0,
-          child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.rotationZ(math.pi / 2),
-              child: SizedBox(
-                  width: sz,
-                  height: sz,
-                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
-      Positioned(
-          top: 0,
-          right: 0,
-          child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.rotationZ(math.pi),
-              child: SizedBox(
-                  width: sz,
-                  height: sz,
-                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
-      Positioned(
-          bottom: 0,
-          left: 0,
+        top: 0,
+        left: 0,
+        child: Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.rotationZ(math.pi / 2),
           child: SizedBox(
-              width: sz,
-              height: sz,
-              child: AppAssetImage(AppAssets.borderEdge, color: color))),
+            width: sz,
+            height: sz,
+            child: AppAssetImage(AppAssets.borderEdge, color: color),
+          ),
+        ),
+      ),
       Positioned(
-          bottom: 0,
-          right: 0,
-          child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.rotationZ(-math.pi / 2),
-              child: SizedBox(
-                  width: sz,
-                  height: sz,
-                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
+        top: 0,
+        right: 0,
+        child: Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.rotationZ(math.pi),
+          child: SizedBox(
+            width: sz,
+            height: sz,
+            child: AppAssetImage(AppAssets.borderEdge, color: color),
+          ),
+        ),
+      ),
+      Positioned(
+        bottom: 0,
+        left: 0,
+        child: SizedBox(
+          width: sz,
+          height: sz,
+          child: AppAssetImage(AppAssets.borderEdge, color: color),
+        ),
+      ),
+      Positioned(
+        bottom: 0,
+        right: 0,
+        child: Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.rotationZ(-math.pi / 2),
+          child: SizedBox(
+            width: sz,
+            height: sz,
+            child: AppAssetImage(AppAssets.borderEdge, color: color),
+          ),
+        ),
+      ),
     ];
   }
 }
@@ -400,9 +436,19 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Container(width: 18, height: 1.5, color: color.withValues(alpha: 0.5)),
         const SizedBox(width: 8),
-        Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 2.8)),
+        Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2.8,
+          ),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: Container(height: 1.5, color: color.withValues(alpha: 0.5))),
+        Expanded(
+          child: Container(height: 1.5, color: color.withValues(alpha: 0.5)),
+        ),
       ],
     );
   }
@@ -413,7 +459,11 @@ class _AnimatedPressButton extends StatefulWidget {
   final VoidCallback onTap;
   final Color accentColor;
 
-  const _AnimatedPressButton({required this.child, required this.onTap, required this.accentColor});
+  const _AnimatedPressButton({
+    required this.child,
+    required this.onTap,
+    required this.accentColor,
+  });
 
   @override
   State<_AnimatedPressButton> createState() => _AnimatedPressButtonState();
@@ -432,18 +482,26 @@ class _AnimatedPressButtonState extends State<_AnimatedPressButton>
       duration: const Duration(milliseconds: 110),
       reverseDuration: const Duration(milliseconds: 180),
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.96)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.96,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) { _ctrl.reverse(); widget.onTap(); },
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap();
+      },
       onTapCancel: () => _ctrl.reverse(),
       child: ScaleTransition(scale: _scale, child: widget.child),
     );

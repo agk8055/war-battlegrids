@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_assets.dart';
 import '../../providers/game_settings_provider.dart';
+import 'tutorial_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Painters (shared aesthetic from profile screen)
@@ -267,7 +268,74 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 48),
+                                const SizedBox(height: 24),
+                                _StonePanel(
+                                  accentColor: primary,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _SectionLabel('CADET ACADEMY', color: primary),
+                                      const SizedBox(height: 16),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'COMBAT TUTORIAL',
+                                                  style: GoogleFonts.sairaStencilOne(
+                                                    color: Colors.white,
+                                                    fontSize: 14,
+                                                    letterSpacing: 1.5,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Replay the interactive battle drill on the Northern Forest front.',
+                                                  style: TextStyle(
+                                                    color: Colors.white.withValues(alpha: 0.4),
+                                                    fontSize: 11,
+                                                    height: 1.3,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          ElevatedButton.icon(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: primary,
+                                              foregroundColor: Colors.black,
+                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => const TutorialScreen(),
+                                                ),
+                                              );
+                                            },
+                                            icon: const Icon(Icons.school_rounded, size: 16),
+                                            label: const Text(
+                                              'PLAY DRILL',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                letterSpacing: 1.2,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 40),
                                 _buildFooter(primary),
                                 const SizedBox(height: 40),
                               ],

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_assets.dart';
 import '../../providers/game_settings_provider.dart';
 import 'main_menu_screen.dart';
+import 'tutorial_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Painters (shared aesthetic)
@@ -198,8 +199,19 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> with TickerProvid
 
     if (!mounted) return;
 
+    final bool hasCompletedTutorial = prefs.getBool('has_completed_tutorial') ?? false;
+    final Widget nextScreen = hasCompletedTutorial
+        ? const GameHomeScreen()
+        : const TutorialScreen();
+
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const GameHomeScreen()),
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 600),
+      ),
     );
   }
 

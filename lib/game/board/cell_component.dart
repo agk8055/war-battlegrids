@@ -4,11 +4,12 @@ import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_assets.dart';
 import '../../core/enums/cell_state.dart';
-import '../kingdom_game.dart';
+import '../../simulation/board.dart';
 
-class CellComponent extends PositionComponent with TapCallbacks, HasGameRef<KingdomGame> {
+class CellComponent extends PositionComponent with TapCallbacks {
   final int gridX;
   final int gridY;
+  final Board simulationBoard;
   final CellState initialState;
   final void Function(int x, int y) onTapCell;
   final String playerSymbol;
@@ -25,6 +26,7 @@ class CellComponent extends PositionComponent with TapCallbacks, HasGameRef<King
   CellComponent({
     required this.gridX,
     required this.gridY,
+    required this.simulationBoard,
     required this.initialState,
     required this.onTapCell,
     required this.playerSymbol,
@@ -160,7 +162,7 @@ class CellComponent extends PositionComponent with TapCallbacks, HasGameRef<King
   void _renderLinkages(Canvas canvas) {
     if (_linkSprite == null) return;
 
-    final board = gameRef.simulationBoard;
+    final board = simulationBoard;
     final currentCoord = (gridX, gridY);
 
     // To avoid double-drawing, we only draw links to neighbors that are "after" us in grid order

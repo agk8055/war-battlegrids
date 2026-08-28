@@ -103,6 +103,7 @@ class BoardComponent extends PositionComponent {
         final cell = CellComponent(
           gridX: x,
           gridY: y,
+          simulationBoard: simulationBoard,
           initialState: simulationBoard.getCell(x, y),
           onTapCell: isPlayable ? onCellTapped : (x, y) {}, // Disable tap for non-playable
           playerSymbol: playerSymbol,
