@@ -23,6 +23,9 @@ class AppAssets {
   static const String sangaNagaram = 'assets/images/sanga_nagaram.png';
   static const String warAppIcon = 'assets/images/war_app_icon.png';
   static const String plainBlack = 'assets/images/plain_black.png';
+  static const String onDevice = 'assets/images/on_device.png';
+  static const String bluetooth = 'assets/images/bluetooth.png';
+  static const String online = 'assets/images/online.png';
 
   // --- ICONS ---
   static const String borderEdge = 'assets/icons/border-edge.png';
