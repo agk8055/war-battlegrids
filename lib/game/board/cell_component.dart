@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +20,6 @@ class CellComponent extends PositionComponent with TapCallbacks {
   bool _isSiegeBlocked = false;
   Sprite? _playerSprite;
   Sprite? _opponentSprite;
-  Sprite? _linkSprite;
 
   CellComponent({
     required this.gridX,
@@ -37,6 +35,7 @@ class CellComponent extends PositionComponent with TapCallbacks {
     required Vector2 position,
   }) : super(size: size, position: position) {
     _currentState = initialState;
+    priority = 0; // Base tile rendering under linkages (priority 5)
   }
 
   @override
@@ -44,7 +43,9 @@ class CellComponent extends PositionComponent with TapCallbacks {
     super.onLoad();
     _playerSprite = await AppAssets.loadSpriteSafely(playerSymbol);
     _opponentSprite = await AppAssets.loadSpriteSafely(opponentSymbol);
-    _linkSprite = await AppAssets.loadSpriteSafely(AppAssets.link);
+
+    // Add Symbol overlay child component to render unit sigil on top of linkages
+    add(CellSymbolComponent(this));
   }
 
   void updateState(CellState newState, {bool isSiegeBlocked = false, Board? currentBoard}) {
@@ -122,11 +123,10 @@ class CellComponent extends PositionComponent with TapCallbacks {
         redBorderPaint,
       );
     }
+  }
 
-    // Render Linkages (Drawn before symbols to be "under")
-    _renderLinkages(canvas);
-
-    // If there is a unit on this tile, draw the symbol (sigil) or fallback shape
+  /// Renders the unit sigil sprite on top of the link rings.
+  void renderSymbol(Canvas canvas) {
     if (_currentState == CellState.player) {
       if (_playerSprite != null) {
         _playerSprite!.render(
@@ -162,92 +162,25 @@ class CellComponent extends PositionComponent with TapCallbacks {
     }
   }
 
-  void _renderLinkages(Canvas canvas) {
-    final board = simulationBoard;
-    final currentCoord = (gridX, gridY);
-
-    // To avoid double-drawing, we only draw links to neighbors that are "after" us in grid order
-    final neighbors = [
-      (gridX + 1, gridY),     // Right
-      (gridX, gridY + 1),     // Bottom
-      (gridX + 1, gridY + 1), // Bottom-Right Diagonal
-      (gridX - 1, gridY + 1), // Bottom-Left Diagonal
-    ];
-
-    for (final neighbor in neighbors) {
-      if (neighbor.$1 < 0 || neighbor.$1 >= board.width || neighbor.$2 < 0 || neighbor.$2 >= board.height) continue;
-      if (!board.isWithinPlayableArea(neighbor.$1, neighbor.$2)) continue;
-
-      final neighborState = board.getCell(neighbor.$1, neighbor.$2);
-      // Only draw links if both cells are occupied by a unit or a kingdom zone
-      if (_currentState == CellState.empty || _currentState == CellState.capturedGrid || _currentState == CellState.obstacle) continue;
-      if (neighborState == CellState.empty || neighborState == CellState.capturedGrid || neighborState == CellState.obstacle) continue;
-
-      // Check if there's a linkage between current and neighbor
-      final pair = (currentCoord.$1 < neighbor.$1 || (currentCoord.$1 == neighbor.$1 && currentCoord.$2 < neighbor.$2))
-          ? (currentCoord, neighbor)
-          : (neighbor, currentCoord);
-
-      final hasLinkage = board.linkages.contains(pair) ||
-          board.linkages.contains((currentCoord, neighbor)) ||
-          board.linkages.contains((neighbor, currentCoord));
-
-      if (hasLinkage) {
-        // Calculate the vector to the neighbor
-        final dx = (neighbor.$1 - gridX).toDouble();
-        final dy = (neighbor.$2 - gridY).toDouble();
-        
-        // Calculate distance and angle in radians
-        final distance = sqrt(dx * dx + dy * dy) * size.x;
-        final double angle = atan2(dy, dx);
-
-        // Determine player color based on current state
-        // (Blockage cells have the same color)
-        final bool isPlayer = _currentState == CellState.player || _currentState == CellState.playerZone;
-        final Color linkColor = isPlayer ? playerColor : opponentColor;
-
-        // Position at the center of the current cell
-        final double centerX = size.x / 2;
-        final double centerY = size.y / 2;
-        
-        // Scale the link icon: 
-        // Height (along the link): spans the distance between centers
-        // Width (perpendicular): 40% of cell size
-        final double linkThickness = size.x * 0.4;
-
-        if (_linkSprite != null) {
-          canvas.save();
-          canvas.translate(centerX, centerY);
-          canvas.rotate(angle);
-          
-          // Render the link icon stretched from center (0,0) to center of neighbor (distance, 0)
-          _linkSprite!.render(
-            canvas,
-            position: Vector2(0, -linkThickness / 2),
-            size: Vector2(distance, linkThickness),
-            overridePaint: Paint()..colorFilter = ColorFilter.mode(linkColor, BlendMode.srcIn),
-          );
-          
-          canvas.restore();
-        } else {
-          // Fallback vector linkage line if sprite is still loading
-          final startOffset = Offset(centerX, centerY);
-          final endOffset = Offset(centerX + dx * size.x, centerY + dy * size.y);
-          canvas.drawLine(
-            startOffset,
-            endOffset,
-            Paint()
-              ..color = linkColor.withValues(alpha: 0.85)
-              ..strokeWidth = 3.5
-              ..strokeCap = StrokeCap.round,
-          );
-        }
-      }
-    }
-  }
-
   @override
   void onTapUp(TapUpEvent event) {
     onTapCell(gridX, gridY);
+  }
+}
+
+/// Child component attached to CellComponent that renders the unit sigil
+/// with priority 10 (above LinkagesLayerComponent's priority 5).
+class CellSymbolComponent extends PositionComponent {
+  final CellComponent cell;
+
+  CellSymbolComponent(this.cell) {
+    priority = 10;
+    size = cell.size;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    cell.renderSymbol(canvas);
   }
 }

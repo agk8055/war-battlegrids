@@ -175,11 +175,21 @@ class _TutorialGameInstance extends FlameGame with ScaleDetector {
     beaconComponent.setTarget(gridX, gridY);
   }
 
-  void syncBoard({bool kingdomAttackUnlocked = false}) {
+  void syncBoard({
+    bool kingdomAttackUnlocked = false,
+    Set<((int, int), (int, int))>? newLinkages,
+    (int, int)? lastPlacedCoord,
+    List<(int, int)>? capturedCells,
+    Color? capturerColor,
+  }) {
     boardComponent.syncWithSimulation(
       simulationBoard,
       effectiveTurn: Turn.player,
       kingdomAttackUnlocked: kingdomAttackUnlocked,
+      newLinkages: newLinkages,
+      lastPlacedCoord: lastPlacedCoord,
+      capturedCells: capturedCells,
+      capturerColor: capturerColor,
     );
   }
 
@@ -369,7 +379,13 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> with TickerProv
         ref.read(audioServiceProvider).playSfx(AppAssets.sfxCapture);
         _playerScore += 100;
 
-        _game?.syncBoard(kingdomAttackUnlocked: _kingdomAttackUnlocked);
+        _game?.syncBoard(
+          kingdomAttackUnlocked: _kingdomAttackUnlocked,
+          newLinkages: captureResult.linkages,
+          lastPlacedCoord: (x, y),
+          capturedCells: captureResult.capturedCells,
+          capturerColor: const Color(0xFF2196F3),
+        );
         _game?.setBeaconTarget(null, null);
 
         CaptureToast.showCapture(
@@ -388,12 +404,19 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> with TickerProv
         _board.setCell(x, y, CellState.player);
 
         final winResult = GameRules.checkWinCondition(_board, Turn.player, kingdomAttackUnlocked: true);
+        Set<((int, int), (int, int))> winLinkages = {};
         if (winResult.isWin && winResult.blockage != null) {
-          _board.linkages.addAll(CaptureUtils.getLinkagesFromBlockage(winResult.blockage!));
+          winLinkages = CaptureUtils.getLinkagesFromBlockage(winResult.blockage!);
+          _board.linkages.addAll(winLinkages);
         }
 
         ref.read(audioServiceProvider).playSfx(AppAssets.sfxCapture);
-        _game?.syncBoard(kingdomAttackUnlocked: true);
+        _game?.syncBoard(
+          kingdomAttackUnlocked: true,
+          newLinkages: winLinkages,
+          lastPlacedCoord: (x, y),
+          capturerColor: const Color(0xFF2196F3),
+        );
         _game?.setBeaconTarget(null, null);
 
         await Future.delayed(const Duration(milliseconds: 800));

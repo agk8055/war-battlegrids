@@ -42,6 +42,11 @@ class GameSimulation {
   int playerMaxCombo = 0;
   int aiMaxCombo = 0;
 
+  (int, int)? lastPlacedCoord;
+  List<(int, int)> lastCapturedCells = [];
+  Set<((int, int), (int, int))> lastNewLinkages = {};
+  Turn? lastMovedTurn;
+
   GameSimulation({LevelConfig? config, DateTime? startTime})
     : config = config ?? LevelConfig.standard(),
       startTime = startTime ?? DateTime.now(),
@@ -64,6 +69,11 @@ class GameSimulation {
       return (false, false); // Invalid move
     }
 
+    lastPlacedCoord = (x, y);
+    lastCapturedCells = [];
+    lastNewLinkages = {};
+    lastMovedTurn = currentTurn;
+
     // Place the piece
     final pieceState = isPlayer ? CellState.player : CellState.ai;
     board.setCell(x, y, pieceState);
@@ -84,6 +94,8 @@ class GameSimulation {
     if (captureResult.capturedCells.isNotEmpty) {
       _handleCaptures(captureResult.capturedCells);
       board.linkages.addAll(captureResult.linkages);
+      lastCapturedCells = List.from(captureResult.capturedCells);
+      lastNewLinkages = Set.from(captureResult.linkages);
       captureOccurred = true;
     }
 
@@ -99,7 +111,9 @@ class GameSimulation {
     
     if (winResult.isWin) {
       if (winResult.blockage != null) {
-        board.linkages.addAll(CaptureUtils.getLinkagesFromBlockage(winResult.blockage!));
+        final winLinkages = CaptureUtils.getLinkagesFromBlockage(winResult.blockage!);
+        board.linkages.addAll(winLinkages);
+        lastNewLinkages.addAll(winLinkages);
       }
       currentPhase = GamePhase.gameOver;
       winner = currentTurn;
@@ -361,6 +375,10 @@ class GameSimulation {
     cloned.aiCaptureEvents = aiCaptureEvents;
     cloned.playerMaxCombo = playerMaxCombo;
     cloned.aiMaxCombo = aiMaxCombo;
+    cloned.lastPlacedCoord = lastPlacedCoord;
+    cloned.lastCapturedCells = List.from(lastCapturedCells);
+    cloned.lastNewLinkages = Set.from(lastNewLinkages);
+    cloned.lastMovedTurn = lastMovedTurn;
     return cloned;
   }
 }

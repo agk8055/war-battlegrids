@@ -173,10 +173,18 @@ class KingdomGame extends FlameGame with ScaleDetector {
       attackUnlocked = sim.playerKingdomAttackUnlocked;
     }
 
+    final capturerColor = (sim.lastMovedTurn == Turn.ai)
+        ? boardComponent.opponentColor
+        : boardComponent.playerColor;
+
     boardComponent.syncWithSimulation(
       sim.board,
       effectiveTurn: effectiveTurn,
       kingdomAttackUnlocked: attackUnlocked,
+      newLinkages: sim.lastNewLinkages,
+      lastPlacedCoord: sim.lastPlacedCoord,
+      capturedCells: sim.lastCapturedCells,
+      capturerColor: capturerColor,
     );
   }
 

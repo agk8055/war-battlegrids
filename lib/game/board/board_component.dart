@@ -10,6 +10,7 @@ import '../../core/enums/cell_state.dart';
 import '../../core/enums/turn.dart';
 import '../../core/constants/board_constants.dart';
 import 'cell_component.dart';
+import 'linkages_layer_component.dart';
 
 class BoardComponent extends PositionComponent {
   Board simulationBoard;
@@ -24,6 +25,7 @@ class BoardComponent extends PositionComponent {
 
   List<List<CellComponent>> _cellGrid = [];
   TiledComponent? tiledComponent;
+  late LinkagesLayerComponent linkagesLayer;
 
   BoardComponent({
     required this.simulationBoard,
@@ -83,7 +85,16 @@ class BoardComponent extends PositionComponent {
       );
     }
 
-    // 3. Generate Interaction Grid (CellComponents)
+    // 3. Add Linkages Layer (priority 5, between base cells and unit sigils)
+    linkagesLayer = LinkagesLayerComponent(
+      cellSize: cellSize,
+      simulationBoard: simulationBoard,
+      playerColor: playerColor,
+      opponentColor: opponentColor,
+    );
+    add(linkagesLayer);
+
+    // 4. Generate Interaction Grid (CellComponents)
     // ONLY add interactive cells within the playable boundaries
     _cellGrid = List.generate(
       simulationBoard.height,
@@ -123,7 +134,7 @@ class BoardComponent extends PositionComponent {
       }),
     );
 
-    // 4. Add Visual Grid Border over the playable region with resolved map grid color
+    // 5. Add Visual Grid Border over the playable region with resolved map grid color
     add(GridLinesComponent(
       gridMinX: simulationBoard.playableMinX,
       gridMinY: simulationBoard.playableMinY,
@@ -133,7 +144,7 @@ class BoardComponent extends PositionComponent {
       gridColor: _resolveGridColor(),
     ));
 
-    // 5. Add Palace Overlays
+    // 6. Add Palace Overlays
     _addPalaceOverlays();
   }
 
@@ -301,8 +312,20 @@ class BoardComponent extends PositionComponent {
     Board currentBoard, {
     Turn effectiveTurn = Turn.player,
     bool kingdomAttackUnlocked = false,
+    Set<((int, int), (int, int))>? newLinkages,
+    (int, int)? lastPlacedCoord,
+    List<(int, int)>? capturedCells,
+    Color? capturerColor,
   }) {
     simulationBoard = currentBoard;
+    linkagesLayer.syncLinkages(
+      currentBoard.linkages,
+      newLinkages: newLinkages,
+      lastPlacedCoord: lastPlacedCoord,
+      capturedCells: capturedCells,
+      capturerColor: capturerColor,
+    );
+
     if (_cellGrid.isEmpty) return;
     for (int y = 0; y < currentBoard.height; y++) {
       for (int x = 0; x < currentBoard.width; x++) {
