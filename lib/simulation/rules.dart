@@ -259,6 +259,10 @@ class GameRules {
               foundAnchors.contains(AnchorType.topRight) ||
               foundAnchors.contains(AnchorType.endGap);
 
+          final hasLeftAnchor = foundAnchors.contains(AnchorType.leftEdge) || foundAnchors.contains(AnchorType.topLeft);
+          final hasRightAnchor = foundAnchors.contains(AnchorType.rightEdge) || foundAnchors.contains(AnchorType.topRight);
+          final hasEndGap = foundAnchors.contains(AnchorType.endGap);
+
           // Evaluate win by category
           switch (category) {
             case _WinCategory.uShape:
@@ -268,28 +272,25 @@ class GameRules {
                   : groupVisited.any((c) => c.$2 < board.playerPalaceStartY);
               if (!reachesAttackerSide) break;
 
-              // 1. Full U-shape: connects both flanks of the opponent palace (or through end gaps)
-              final hasLeftFlank = foundAnchors.contains(AnchorType.topLeft) || foundAnchors.contains(AnchorType.endGap);
-              final hasRightFlank = foundAnchors.contains(AnchorType.topRight) || foundAnchors.contains(AnchorType.endGap);
-              final isFullUShape = hasLeftFlank && hasRightFlank && (
-                (foundAnchors.contains(AnchorType.topLeft) && foundAnchors.contains(AnchorType.topRight)) ||
-                (foundAnchors.contains(AnchorType.endGap) && foundAnchors.length >= 2)
-              );
+              // 1. Full U-shape: connects both flanks of the opponent palace (topLeft to topRight)
+              final isFullUShape = foundAnchors.contains(AnchorType.topLeft) && foundAnchors.contains(AnchorType.topRight);
 
-              // 2. Half U-shape / Gap-End Enclosure: connects a board side edge to the opponent top boundary
-              final touchesSideEdge = foundAnchors.contains(AnchorType.leftEdge) || foundAnchors.contains(AnchorType.rightEdge);
+              // 2. Half U-shape: connects one board edge to the OPPOSITE flank of the opponent palace
+              // (leftEdge to topRight) OR (rightEdge to topLeft)
+              final isHalfUShape = (foundAnchors.contains(AnchorType.leftEdge) && foundAnchors.contains(AnchorType.topRight)) ||
+                  (foundAnchors.contains(AnchorType.rightEdge) && foundAnchors.contains(AnchorType.topLeft));
 
-              final isHalfUShape = reachesOpponentEnd && touchesSideEdge && groupVisited.length >= 3 &&
-                  ((foundAnchors.contains(AnchorType.leftEdge) && (foundAnchors.contains(AnchorType.topRight) || foundAnchors.contains(AnchorType.endGap) || groupVisited.any((c) => c.$1 >= oppLeftPalaceX - 1))) ||
-                   (foundAnchors.contains(AnchorType.rightEdge) && (foundAnchors.contains(AnchorType.topLeft) || foundAnchors.contains(AnchorType.endGap) || groupVisited.any((c) => c.$1 <= oppRightPalaceX + 1))));
+              // 3. Palace Breach Enclosure (via endGap inside/at the palace):
+              // Reaches endGap while connecting both left and right sides
+              final isEndGapBreach = hasEndGap && hasLeftAnchor && hasRightAnchor;
 
-              if (isFullUShape || isHalfUShape) {
+              if (isFullUShape || isHalfUShape || isEndGapBreach) {
                 return WinResult(true, groupVisited);
               }
               break;
 
             case _WinCategory.parallel:
-              // Parallel requires connecting left and right edges
+              // Parallel requires connecting left and right board edges (leftEdge to rightEdge)
               if (foundAnchors.contains(AnchorType.leftEdge) && foundAnchors.contains(AnchorType.rightEdge)) {
                 final midY = (board.playableMinY + board.playableMaxY) / 2.0;
                 bool isOffensiveWall = false;
@@ -307,9 +308,13 @@ class GameRules {
               break;
 
             case _WinCategory.kingdomAssisted:
-              // Kingdom-assisted: uses own kingdom zone and reaches the opponent's boundary/anchors
-              if (requireKingdom && usesKingdom && reachesOpponentEnd && foundAnchors.length >= 2) {
-                return WinResult(true, groupVisited);
+              // Kingdom-assisted: uses own kingdom zone, reaches the opponent's boundary/anchors, and covers both sides (left & right)
+              if (requireKingdom && usesKingdom && reachesOpponentEnd) {
+                final coversBothSides = (hasLeftAnchor && hasRightAnchor) ||
+                    (hasEndGap && (hasLeftAnchor || hasRightAnchor || foundAnchors.length >= 2));
+                if (coversBothSides) {
+                  return WinResult(true, groupVisited);
+                }
               }
               break;
           }

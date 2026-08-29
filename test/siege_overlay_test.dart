@@ -229,7 +229,7 @@ void main() {
       expect(winLocked.isWin, isFalse);
     });
 
-    test('Attacking player achieves win by breaching top boundary through gap / flank', () {
+    test('Connecting only left edge to top-left flank (left side only) does NOT win without right side blockage', () {
       // Opponent (AI) covered row 5, but there is a gap on the top edge at (x=5, y=3)
       for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
         if (x != 5) board.setCell(x, 5, CellState.ai);
@@ -238,11 +238,44 @@ void main() {
       board.setCell(3, 6, CellState.player);
       board.setCell(4, 5, CellState.player);
       board.setCell(5, 4, CellState.player);
-      board.setCell(5, 3, CellState.player); // Reaches top boundary at x=5 (left of AI palace at 6..8)
+      board.setCell(5, 3, CellState.player); // Only reaches left flank at x=5 (left of AI palace at 6..8)
 
-      // Touches leftEdge at (3,6) and top boundary at (5,3)
+      // Touches leftEdge at (3,6) and topLeft at (5,3) - both on LEFT side of kingdom! Right side is unblocked.
       final winResult = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
-      expect(winResult.isWin, isTrue);
+      expect(winResult.isWin, isFalse);
+
+      // Now if player connects across the top to the right flank at (9, 3) (> aiPalaceEndX=8)
+      board.setCell(6, 3, CellState.player);
+      board.setCell(7, 3, CellState.player);
+      board.setCell(8, 3, CellState.player);
+      board.setCell(9, 3, CellState.player);
+
+      // Now both left and right sides of opponent kingdom are blocked!
+      final fullBlockWin = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
+      expect(fullBlockWin.isWin, isTrue);
+    });
+
+    test('Incomplete parallel chain not reaching the right edge does NOT activate parallel win', () {
+      // AI covered row 5 completely (blocking U-shape access to AI palace)
+      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
+        board.setCell(x, 5, CellState.ai);
+      }
+      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.uShape), isFalse);
+
+      // Player builds a line starting at left edge (3, 7) across to (8, 7), but stops before right edge (11, 7)
+      for (int x = 3; x <= 8; x++) {
+        board.setCell(x, 7, CellState.player);
+      }
+
+      // Player chain does not reach rightEdge (11) and does not reach topRight flank
+      final winResult = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
+      expect(winResult.isWin, isFalse);
+
+      // Placing at non-connecting cells does not falsely trigger siege lock
+      expect(
+        GameRules.isPlacementBlockedBySiege(board, 6, 8, Turn.player, false),
+        isFalse,
+      );
     });
 
     test('Full GameSimulation: Opponent covers kingdom, player parallel block wins with siege ready', () {
