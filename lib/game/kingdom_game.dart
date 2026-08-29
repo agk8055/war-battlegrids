@@ -95,7 +95,7 @@ class KingdomGame extends FlameGame with ScaleDetector {
       // Single player
       bottomSymbol = settings.player1Symbol;
       topSymbol = selectedKingdom?.symbolAsset ?? AppAssets.eagle;
-      bottomColor = Colors.blue;
+      bottomColor = Color(settings.player1Color);
       topColor = selectedKingdom?.primaryColor ?? Colors.red;
     }
 

@@ -16,8 +16,8 @@ class LinkagesLayerComponent extends PositionComponent {
   Sprite? _linkSprite;
   double _globalTime = 0.0;
 
-  // Set of all linkages that have already completed animation or were initialized
-  final Set<((int, int), (int, int))> _establishedLinkages = {};
+  // Map of all established linkages to their respective capturer colors
+  final Map<((int, int), (int, int)), Color> _establishedLinkages = {};
 
   // Active animated linkages in progress
   final List<_AnimatedLink> _animatedLinks = [];
@@ -66,7 +66,7 @@ class LinkagesLayerComponent extends PositionComponent {
     if (newLinkages != null && newLinkages.isNotEmpty) {
       for (final link in newLinkages) {
         final canonical = _canonical(link.$1, link.$2);
-        if (!_establishedLinkages.contains(canonical) &&
+        if (!_establishedLinkages.containsKey(canonical) &&
             !_animatedLinks.any((l) => l.isSamePair(canonical.$1, canonical.$2))) {
           toAnimate.add(canonical);
         }
@@ -75,7 +75,7 @@ class LinkagesLayerComponent extends PositionComponent {
       // Find diff between current and known
       for (final link in currentLinkages) {
         final canonical = _canonical(link.$1, link.$2);
-        if (!_establishedLinkages.contains(canonical) &&
+        if (!_establishedLinkages.containsKey(canonical) &&
             !_animatedLinks.any((l) => l.isSamePair(canonical.$1, canonical.$2))) {
           toAnimate.add(canonical);
         }
@@ -93,7 +93,7 @@ class LinkagesLayerComponent extends PositionComponent {
 
     // Ensure all established linkages that are no longer in board are cleaned up (if any)
     final canonicalCurrent = currentLinkages.map((l) => _canonical(l.$1, l.$2)).toSet();
-    _establishedLinkages.removeWhere((l) => !canonicalCurrent.contains(l));
+    _establishedLinkages.removeWhere((l, _) => !canonicalCurrent.contains(l));
   }
 
   /// Orders newly formed linkages into a sequential topological chain starting from [startCoord]
@@ -207,7 +207,7 @@ class LinkagesLayerComponent extends PositionComponent {
       anim.update(dt, _random, _particles);
 
       if (anim.isCompleted) {
-        _establishedLinkages.add(_canonical(anim.from, anim.to));
+        _establishedLinkages[_canonical(anim.from, anim.to)] = anim.color;
         _animatedLinks.removeAt(i);
       }
     }
@@ -236,12 +236,14 @@ class LinkagesLayerComponent extends PositionComponent {
     super.render(canvas);
 
     // 1. Render Established Linkages (Static/Ambient)
-    for (final link in _establishedLinkages) {
+    for (final entry in _establishedLinkages.entries) {
+      final link = entry.key;
+      final color = entry.value;
       _renderSingleLink(
         canvas,
         link.$1,
         link.$2,
-        _resolveLinkColor(link.$1),
+        color,
         scaleProgress: 1.0,
         glowIntensity: 0.15 + 0.10 * math.sin(_globalTime * 3.5 + (link.$1.$1 + link.$2.$2)),
         isEstablished: true,
@@ -279,16 +281,27 @@ class LinkagesLayerComponent extends PositionComponent {
     }
   }
 
-  Color _resolveLinkColor((int, int) coord) {
+  Color _resolveLinkColor((int, int) from, (int, int) to) {
+    final c1 = _checkNodeColor(from);
+    if (c1 != null) return c1;
+    final c2 = _checkNodeColor(to);
+    if (c2 != null) return c2;
+    return playerColor;
+  }
+
+  Color? _checkNodeColor((int, int) coord) {
     if (coord.$1 < 0 || coord.$1 >= simulationBoard.width ||
         coord.$2 < 0 || coord.$2 >= simulationBoard.height) {
-      return playerColor;
+      return null;
     }
     final cell = simulationBoard.getCell(coord.$1, coord.$2);
+    if (cell == CellState.player || cell == CellState.playerZone) {
+      return playerColor;
+    }
     if (cell == CellState.ai || cell == CellState.aiZone) {
       return opponentColor;
     }
-    return playerColor;
+    return null;
   }
 
   /// Renders a single link sprite with mathematical circular end alignment.
