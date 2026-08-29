@@ -277,96 +277,77 @@ class _AnimatedCaptureBannerState extends State<_AnimatedCaptureBanner>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // 1. Prominent icon on top with transparent background & glowing aura
-        SizedBox(
-          width: 64,
-          height: 64,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Vibrant radial aura behind the icon
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: _tierInfo.primaryGlow.withValues(alpha: 0.65),
-                      blurRadius: 22,
-                      spreadRadius: 6,
-                    ),
-                  ],
-                ),
-              ),
-              Image.asset(
-                _tierInfo.iconPath,
-                width: 58,
-                height: 58,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.shield,
-                    color: _tierInfo.primaryGlow,
-                    size: 46,
-                  );
-                },
-              ),
-            ],
-          ),
+        // 1. Icon on top
+        Image.asset(
+          _tierInfo.iconPath,
+          width: 54,
+          height: 54,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.shield,
+              color: Color(0xFFFFD700),
+              size: 44,
+            );
+          },
         ),
 
-        const SizedBox(height: 6),
-
-        // 2. Text and points displayed inside a sleek glowing box like AiThinkingOverlay
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF141414),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _tierInfo.primaryGlow.withValues(alpha: 0.28),
-              width: 1.2,
+        // 2. Text and points displayed plain inside the capture_toast banner ribbon (gap removed)
+        Transform.translate(
+          offset: const Offset(0, -14),
+          child: SizedBox(
+            width: 320,
+            height: 64,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // The banner image
+                Image.asset(
+                  AppAssets.captureToast,
+                  width: 320,
+                  height: 64,
+                  fit: BoxFit.fill,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const SizedBox.shrink();
+                  },
+                ),
+                // Content on top of banner
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 46),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _tierInfo.tierTitle,
+                          style: GoogleFonts.sairaStencilOne(
+                            fontSize: 12,
+                            color: const Color(0xFFFFD700),
+                            letterSpacing: 1.4,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.none,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '+${widget.pointsGained} PTS',
+                        style: GoogleFonts.sairaStencilOne(
+                          fontSize: 12,
+                          color: const Color(0xFFFFE066),
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            boxShadow: [
-              // Ambient pulse-like glow
-              BoxShadow(
-                color: _tierInfo.primaryGlow.withValues(alpha: 0.22),
-                blurRadius: 20,
-                spreadRadius: 2,
-              ),
-              // Depth shadow
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _tierInfo.tierTitle,
-                style: GoogleFonts.sairaStencilOne(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.95),
-                  letterSpacing: 1.6,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '+${widget.pointsGained} PTS',
-                style: GoogleFonts.sairaStencilOne(
-                  fontSize: 11,
-                  color: _tierInfo.accentColor,
-                  letterSpacing: 1.2,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-            ],
           ),
         ),
       ],
@@ -474,47 +455,50 @@ class _AnimatedStatusBannerState extends State<_AnimatedStatusBanner>
                 child: Opacity(
                   opacity: _fadeAnimation.value.clamp(0.0, 1.0),
                   child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF141414),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: widget.color.withValues(alpha: 0.28),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: widget.color.withValues(alpha: 0.22),
-                            blurRadius: 18,
-                            spreadRadius: 2,
-                          ),
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    child: SizedBox(
+                      width: 320,
+                      height: 64,
+                      child: Stack(
+                        alignment: Alignment.center,
                         children: [
-                          Icon(
-                            widget.icon,
-                            color: widget.color,
-                            size: 14,
+                          // The banner image
+                          Image.asset(
+                            AppAssets.captureToast,
+                            width: 320,
+                            height: 64,
+                            fit: BoxFit.fill,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const SizedBox.shrink();
+                            },
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            widget.message,
-                            style: GoogleFonts.sairaStencilOne(
-                              color: Colors.white.withValues(alpha: 0.95),
-                              fontSize: 11,
-                              letterSpacing: 1.4,
-                              decoration: TextDecoration.none,
+                          // Content on top of banner
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 46),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  widget.icon,
+                                  color: const Color(0xFFFFD700),
+                                  size: 15,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    widget.message,
+                                    style: GoogleFonts.sairaStencilOne(
+                                      color: const Color(0xFFFFD700),
+                                      fontSize: 12,
+                                      letterSpacing: 1.3,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.none,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
