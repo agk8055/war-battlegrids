@@ -32,6 +32,7 @@ class AppAssets {
   static const String online = 'assets/images/online.png';
   static const String profile = 'assets/images/profile.png';
   static const String captureToast = 'assets/images/capture_toast.png';
+  static const String pauseBg = 'assets/images/pause_bg.png';
 
   // --- ICONS (UI Elements) ---
   static const String borderEdge = 'assets/icons/border-edge.png';

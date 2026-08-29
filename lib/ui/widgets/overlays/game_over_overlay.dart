@@ -59,6 +59,9 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
   void initState() {
     super.initState();
 
+    // Start playing Crown of the Morning Sky from 0:58 sec
+    ref.read(audioServiceProvider).playGameOverTheme();
+
     // 1. Entrance animation (Clean, smooth slide-up from bottom + flare expansion)
     _entranceController = AnimationController(
       vsync: this,

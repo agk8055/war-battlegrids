@@ -2,7 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../../core/constants/app_assets.dart';
 import '../../../core/enums/game_mode.dart';
+import '../../../core/services/audio_service.dart';
 import '../../../providers/game_settings_provider.dart';
 import '../../../providers/simulation_provider.dart';
 
@@ -33,13 +36,13 @@ class _PauseOverlayState extends ConsumerState<PauseOverlay>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 280),
     );
     _fadeAnim = CurvedAnimation(
       parent: _animController,
       curve: Curves.easeOutCubic,
     );
-    _scaleAnim = Tween<double>(begin: 0.95, end: 1.0).animate(
+    _scaleAnim = Tween<double>(begin: 0.92, end: 1.0).animate(
       CurvedAnimation(
         parent: _animController,
         curve: Curves.easeOutBack,
@@ -52,6 +55,10 @@ class _PauseOverlayState extends ConsumerState<PauseOverlay>
   void dispose() {
     _animController.dispose();
     super.dispose();
+  }
+
+  void _playClickSfx() {
+    ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
   }
 
   String _getSubtitleText(WidgetRef ref) {
@@ -77,120 +84,196 @@ class _PauseOverlayState extends ConsumerState<PauseOverlay>
         color: Colors.transparent,
         child: Stack(
           children: [
-            // Dark vignette backdrop
+            // 1. Dark vignette backdrop with blur feel
             Positioned.fill(
               child: GestureDetector(
-                onTap: widget.onResume,
+                onTap: () {
+                  _playClickSfx();
+                  widget.onResume();
+                },
                 behavior: HitTestBehavior.opaque,
                 child: Container(
-                  color: Colors.black.withValues(alpha: 0.78),
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.center,
+                      radius: 1.1,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.65),
+                        Colors.black.withValues(alpha: 0.85),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
 
-            // Center Pause Slate / Card
+            // 2. Center Parchment Pause Slate
             Center(
               child: ScaleTransition(
                 scale: _scaleAnim,
                 child: Container(
-                  width: 360,
+                  width: 380,
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: CustomPaint(
-                    painter: const _HadesCardPainter(),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 16, 28, 14),
-                      child: SingleChildScrollView(
-                        physics: const ClampingScrollPhysics(),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Crimson PAUSE Title
-                            Text(
-                              "PAUSE",
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.sairaStencilOne(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                color: const Color(0xFFE52538),
-                                letterSpacing: 5.0,
-                                height: 1.0,
-                                shadows: const [
-                                  Shadow(
-                                    color: Color(0x99E52538),
-                                    blurRadius: 16,
-                                  ),
-                                  Shadow(
-                                    color: Color(0x66000000),
-                                    offset: Offset(0, 2),
-                                    blurRadius: 3,
-                                  ),
-                                ],
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Parchment Background Image
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.7),
+                                blurRadius: 24,
+                                spreadRadius: 4,
+                                offset: const Offset(0, 10),
                               ),
-                            ),
-
-                            const SizedBox(height: 3),
-
-                            // Subtitle / Status
-                            Text(
-                              subtitle,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.sairaStencilOne(
-                                fontSize: 10.5,
-                                color: const Color(0xFFC4B59D).withValues(alpha: 0.75),
-                                letterSpacing: 2.0,
+                              BoxShadow(
+                                color: const Color(0xFFD4AF37).withValues(alpha: 0.15),
+                                blurRadius: 30,
+                                spreadRadius: 0,
                               ),
-                            ),
-
-                            const SizedBox(height: 8),
-
-                            // Ornamental Divider with Diamond Star
-                            const SizedBox(
-                              width: double.infinity,
-                              height: 12,
-                              child: CustomPaint(
-                                painter: _OrnamentDividerPainter(
-                                  color: Color(0xFF8C7343),
+                            ],
+                          ),
+                          child: Image.asset(
+                            AppAssets.pauseBg,
+                            fit: BoxFit.fill,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF231B15),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: const Color(0xFF8C7343),
+                                    width: 3,
+                                  ),
                                 ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Menu Items List (Big & Uniform Size)
-                            _HadesMenuItem(
-                              label: "Resume",
-                              onTap: widget.onResume,
-                            ),
-
-                            const SizedBox(height: 8),
-
-                            _HadesMenuItem(
-                              label: "Settings",
-                              onTap: widget.onSettings,
-                            ),
-
-                            const SizedBox(height: 8),
-
-                            _HadesMenuItem(
-                              label: "Abandon Battle",
-                              isDanger: true,
-                              onTap: widget.onQuit,
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Bottom Ruby Spark Accent
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CustomPaint(
-                                painter: _RubySparkPainter(),
-                              ),
-                            ),
-                          ],
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
+
+                      // Content inside parchment (padding keeps clear of carved side borders)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(44, 24, 44, 26),
+                        child: SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Top Parchment PAUSE Title
+                              Text(
+                                "PAUSE",
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.sairaStencilOne(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(0xFF2C160E),
+                                  letterSpacing: 4.5,
+                                  height: 1.0,
+                                  shadows: [
+                                    Shadow(
+                                      color: const Color(0xFFE8D4B0).withValues(alpha: 0.9),
+                                      offset: const Offset(0, 1.2),
+                                      blurRadius: 1,
+                                    ),
+                                    Shadow(
+                                      color: const Color(0xFF5A3118).withValues(alpha: 0.4),
+                                      offset: const Offset(0, 2),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 3),
+
+                              // Subtitle / Battle Status Badge
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF422817).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  subtitle,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.sairaStencilOne(
+                                    fontSize: 10.5,
+                                    color: const Color(0xFF6B482A),
+                                    letterSpacing: 2.0,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              // Ornamental Filigree Divider
+                              const SizedBox(
+                                width: double.infinity,
+                                height: 12,
+                                child: CustomPaint(
+                                  painter: _ScrollDividerPainter(
+                                    color: Color(0xFF7A5833),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              // Resume Button
+                              _ScrollMenuButton(
+                                label: "RESUME",
+                                icon: Icons.play_arrow_rounded,
+                                isPrimary: true,
+                                onTap: () {
+                                  _playClickSfx();
+                                  widget.onResume();
+                                },
+                              ),
+
+                              const SizedBox(height: 9),
+
+                              // Settings Button
+                              _ScrollMenuButton(
+                                label: "SETTINGS",
+                                icon: Icons.tune_rounded,
+                                onTap: () {
+                                  _playClickSfx();
+                                  widget.onSettings();
+                                },
+                              ),
+
+                              const SizedBox(height: 9),
+
+                              // Abandon Battle Button
+                              _ScrollMenuButton(
+                                label: "ABANDON BATTLE",
+                                icon: Icons.flag_outlined,
+                                isDanger: true,
+                                onTap: () {
+                                  _playClickSfx();
+                                  widget.onQuit();
+                                },
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Bottom Antique Rune Accent
+                              const SizedBox(
+                                width: 22,
+                                height: 16,
+                                child: CustomPaint(
+                                  painter: _ParchmentSealPainter(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -203,25 +286,29 @@ class _PauseOverlayState extends ConsumerState<PauseOverlay>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Hades Menu Item with interactive hover & tap feedback
+//  Parchment Carved Plaque Button with interactive feedback & audio
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _HadesMenuItem extends StatefulWidget {
+class _ScrollMenuButton extends StatefulWidget {
   final String label;
+  final IconData icon;
   final VoidCallback onTap;
+  final bool isPrimary;
   final bool isDanger;
 
-  const _HadesMenuItem({
+  const _ScrollMenuButton({
     required this.label,
+    required this.icon,
     required this.onTap,
+    this.isPrimary = false,
     this.isDanger = false,
   });
 
   @override
-  State<_HadesMenuItem> createState() => _HadesMenuItemState();
+  State<_ScrollMenuButton> createState() => _ScrollMenuButtonState();
 }
 
-class _HadesMenuItemState extends State<_HadesMenuItem> {
+class _ScrollMenuButtonState extends State<_ScrollMenuButton> {
   bool _isHovered = false;
   bool _isPressed = false;
 
@@ -229,18 +316,28 @@ class _HadesMenuItemState extends State<_HadesMenuItem> {
   Widget build(BuildContext context) {
     final bool active = _isHovered || _isPressed;
 
+    // Palette tuned for ancient parchment look
+    final Color baseBg;
+    final Color borderColor;
     final Color textColor;
-    if (widget.isDanger) {
-      textColor = active
-          ? const Color(0xFFFF5252)
-          : const Color(0xFFC07676).withValues(alpha: 0.85);
-    } else {
-      textColor = active
-          ? const Color(0xFFFFFFFF)
-          : const Color(0xFFEBE0CD);
-    }
+    final Color iconColor;
 
-    const double fontSize = 21.0;
+    if (widget.isDanger) {
+      baseBg = active ? const Color(0xFF4A1418) : const Color(0xFF3B1619);
+      borderColor = active ? const Color(0xFFE53935) : const Color(0xFF7A2E33);
+      textColor = active ? const Color(0xFFFFEBEE) : const Color(0xFFEF9A9A);
+      iconColor = active ? const Color(0xFFFF5252) : const Color(0xFFE57373);
+    } else if (widget.isPrimary) {
+      baseBg = active ? const Color(0xFF382613) : const Color(0xFF2C1D0E);
+      borderColor = active ? const Color(0xFFFFD54F) : const Color(0xFFC59B3F);
+      textColor = active ? const Color(0xFFFFFDE7) : const Color(0xFFFFE082);
+      iconColor = active ? const Color(0xFFFFD54F) : const Color(0xFFFFCA28);
+    } else {
+      baseBg = active ? const Color(0xFF2C2219) : const Color(0xFF241B13);
+      borderColor = active ? const Color(0xFFC4A46C) : const Color(0xFF6B5336);
+      textColor = active ? const Color(0xFFFFF8E7) : const Color(0xFFD7CCC8);
+      iconColor = active ? const Color(0xFFD7CCC8) : const Color(0xFFA1887F);
+    }
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -254,71 +351,87 @@ class _HadesMenuItemState extends State<_HadesMenuItem> {
         },
         onTapCancel: () => setState(() => _isPressed = false),
         child: AnimatedScale(
-          scale: _isPressed ? 0.95 : (_isHovered ? 1.05 : 1.0),
-          duration: const Duration(milliseconds: 140),
+          scale: _isPressed ? 0.96 : (_isHovered ? 1.02 : 1.0),
+          duration: const Duration(milliseconds: 120),
           curve: Curves.easeOutCubic,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 20),
-            decoration: BoxDecoration(
-              color: active
-                  ? (widget.isDanger
-                      ? const Color(0xFFE52538).withValues(alpha: 0.12)
-                      : const Color(0xFFD4AF37).withValues(alpha: 0.10))
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Left diamond indicator on active
-                AnimatedOpacity(
-                  opacity: active ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 140),
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: _buildDiamondBullet(
-                      widget.isDanger
-                          ? const Color(0xFFFF5252)
-                          : const Color(0xFFFFD56B),
+            width: 230,
+            alignment: Alignment.center,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: baseBg,
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(
+                  color: borderColor,
+                  width: active ? 1.8 : 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    offset: const Offset(0, 3),
+                    blurRadius: 5,
+                  ),
+                  if (active)
+                    BoxShadow(
+                      color: borderColor.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  // Left diamond accent
+                  _buildDiamondBullet(
+                    borderColor.withValues(alpha: active ? 1.0 : 0.4),
+                    size: active ? 6.5 : 5,
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Icon
+                  Icon(
+                    widget.icon,
+                    size: 15,
+                    color: iconColor,
+                  ),
+                  const SizedBox(width: 6),
+
+                  // Button Text
+                  Flexible(
+                    child: Text(
+                      widget.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.sairaStencilOne(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                        letterSpacing: 1.5,
+                        shadows: active
+                            ? [
+                                Shadow(
+                                  color: borderColor.withValues(alpha: 0.6),
+                                  blurRadius: 8,
+                                ),
+                              ]
+                            : null,
+                      ),
                     ),
                   ),
-                ),
 
-                // Item Text (Big uniform size)
-                Text(
-                  widget.label,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.sairaStencilOne(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                    letterSpacing: 2.2,
-                    shadows: active
-                        ? [
-                            Shadow(
-                              color: textColor.withValues(alpha: 0.5),
-                              blurRadius: 12,
-                            ),
-                          ]
-                        : null,
+                  const SizedBox(width: 8),
+                  // Right diamond accent
+                  _buildDiamondBullet(
+                    borderColor.withValues(alpha: active ? 1.0 : 0.4),
+                    size: active ? 6.5 : 5,
                   ),
-                ),
-
-                // Right diamond indicator on active
-                AnimatedOpacity(
-                  opacity: active ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 140),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 12),
-                    child: _buildDiamondBullet(
-                      widget.isDanger
-                          ? const Color(0xFFFF5252)
-                          : const Color(0xFFFFD56B),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -326,20 +439,14 @@ class _HadesMenuItemState extends State<_HadesMenuItem> {
     );
   }
 
-  Widget _buildDiamondBullet(Color color) {
+  Widget _buildDiamondBullet(Color color, {double size = 6}) {
     return Transform.rotate(
       angle: math.pi / 4,
       child: Container(
-        width: 9,
-        height: 9,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           color: color,
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.8),
-              blurRadius: 7,
-            ),
-          ],
         ),
       ),
     );
@@ -347,103 +454,13 @@ class _HadesMenuItemState extends State<_HadesMenuItem> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Custom Slate Frame Painter (Hades-styled dark parchment slate + brass trim)
+//  Ornamental Scroll Divider (Tapered antique line + central diamond knot)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _HadesCardPainter extends CustomPainter {
-  const _HadesCardPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-
-    // 1. Base dark background fill (charcoal obsidian)
-    final bgPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFF191410),
-          Color(0xFF100D0A),
-          Color(0xFF0D0B08),
-        ],
-      ).createShader(rect);
-
-    canvas.drawRect(rect, bgPaint);
-
-    // 2. Stylized jagged angular dark shade accents on the left & right sides (Hades aesthetic)
-    final shadePaint = Paint()
-      ..color = const Color(0xFF080604).withValues(alpha: 0.85)
-      ..style = PaintingStyle.fill;
-
-    // Left dark angular torn silhouette
-    final leftShadePath = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width * 0.30, 0)
-      ..lineTo(size.width * 0.12, size.height * 0.22)
-      ..lineTo(size.width * 0.04, size.height * 0.40)
-      ..lineTo(0, size.height * 0.50)
-      ..close();
-    canvas.drawPath(leftShadePath, shadePaint);
-
-    // Right dark angular torn silhouette
-    final rightShadePath = Path()
-      ..moveTo(size.width, size.height * 0.45)
-      ..lineTo(size.width * 0.85, size.height * 0.65)
-      ..lineTo(size.width * 0.72, size.height * 0.82)
-      ..lineTo(size.width * 0.82, size.height)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(rightShadePath, shadePaint);
-
-    // 3. Inner border vignette & subtle warm ambient glow
-    final innerVignettePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..color = const Color(0xFFD4AF37).withValues(alpha: 0.12);
-    canvas.drawRect(rect.deflate(5.0), innerVignettePaint);
-
-    // 4. Antique Brass/Gold Main Outer Frame
-    final framePaint = Paint()
-      ..color = const Color(0xFF7A5F2D)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4;
-
-    canvas.drawRect(rect, framePaint);
-
-    // Corner brass notches & ornamental marks
-    final cornerMarkPaint = Paint()
-      ..color = const Color(0xFFC49A45)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    const notch = 12.0;
-    // Top-left notch
-    canvas.drawLine(const Offset(0, notch), const Offset(0, 0), cornerMarkPaint);
-    canvas.drawLine(const Offset(0, 0), const Offset(notch, 0), cornerMarkPaint);
-    // Top-right notch
-    canvas.drawLine(Offset(size.width - notch, 0), Offset(size.width, 0), cornerMarkPaint);
-    canvas.drawLine(Offset(size.width, 0), Offset(size.width, notch), cornerMarkPaint);
-    // Bottom-left notch
-    canvas.drawLine(Offset(0, size.height - notch), Offset(0, size.height), cornerMarkPaint);
-    canvas.drawLine(Offset(0, size.height), Offset(notch, size.height), cornerMarkPaint);
-    // Bottom-right notch
-    canvas.drawLine(Offset(size.width - notch, size.height), Offset(size.width, size.height), cornerMarkPaint);
-    canvas.drawLine(Offset(size.width, size.height - notch), Offset(size.width, size.height), cornerMarkPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Ornamental Horizontal Divider Painter (Tapered line + central diamond star)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _OrnamentDividerPainter extends CustomPainter {
+class _ScrollDividerPainter extends CustomPainter {
   final Color color;
 
-  const _OrnamentDividerPainter({required this.color});
+  const _ScrollDividerPainter({required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -451,16 +468,30 @@ class _OrnamentDividerPainter extends CustomPainter {
     final w = size.width;
 
     final linePaint = Paint()
-      ..color = color.withValues(alpha: 0.7)
-      ..strokeWidth = 1.4
+      ..color = color.withValues(alpha: 0.65)
+      ..strokeWidth = 1.3
       ..style = PaintingStyle.stroke;
 
-    // Draw horizontal line
-    canvas.drawLine(Offset(12, cy), Offset(w - 12, cy), linePaint);
+    // Center break for diamond knot
+    const knotWidth = 18.0;
+    final midLeft = (w / 2) - knotWidth;
+    final midRight = (w / 2) + knotWidth;
 
-    // Draw Left and Right End Diamond Stars (Hades style)
-    _drawStar(canvas, Offset(8, cy), 6, color);
-    _drawStar(canvas, Offset(w - 8, cy), 6, color);
+    // Draw horizontal lines left & right
+    canvas.drawLine(Offset(10, cy), Offset(midLeft, cy), linePaint);
+    canvas.drawLine(Offset(midRight, cy), Offset(w - 10, cy), linePaint);
+
+    // End dots
+    final dotPaint = Paint()
+      ..color = color.withValues(alpha: 0.8)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(8, cy), 1.8, dotPaint);
+    canvas.drawCircle(Offset(w - 8, cy), 1.8, dotPaint);
+
+    // Central Diamond Star
+    _drawStar(canvas, Offset(w / 2, cy), 6, color);
+    _drawStar(canvas, Offset(w / 2 - 10, cy), 3.2, color.withValues(alpha: 0.7));
+    _drawStar(canvas, Offset(w / 2 + 10, cy), 3.2, color.withValues(alpha: 0.7));
   }
 
   void _drawStar(Canvas canvas, Offset center, double radius, Color starColor) {
@@ -479,22 +510,21 @@ class _OrnamentDividerPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _OrnamentDividerPainter oldDelegate) =>
+  bool shouldRepaint(covariant _ScrollDividerPainter oldDelegate) =>
       oldDelegate.color != color;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Ruby Spark Painter (The 4-pointed radiant crimson star at bottom)
+//  Parchment Seal Painter (Antique brass/bronze rune knot at bottom)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _RubySparkPainter extends CustomPainter {
-  const _RubySparkPainter();
+class _ParchmentSealPainter extends CustomPainter {
+  const _ParchmentSealPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    const radius = 10.0;
-    const innerRadius = 2.2;
+    const radius = 7.0;
 
     final path = Path()
       ..moveTo(center.dx, center.dy - radius)
@@ -504,26 +534,17 @@ class _RubySparkPainter extends CustomPainter {
       ..quadraticBezierTo(center.dx, center.dy, center.dx, center.dy - radius)
       ..close();
 
-    // Outer glow
-    final glowPaint = Paint()
-      ..color = const Color(0xFFE52538).withValues(alpha: 0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-    canvas.drawPath(path, glowPaint);
-
-    // Inner filled star
-    final starPaint = Paint()
-      ..color = const Color(0xFFE52538)
+    final paint = Paint()
+      ..color = const Color(0xFF8C6239)
       ..style = PaintingStyle.fill;
-    canvas.drawPath(path, starPaint);
+    canvas.drawPath(path, paint);
 
-    // Core bright highlight
     final corePaint = Paint()
-      ..color = const Color(0xFFFF8A80)
+      ..color = const Color(0xFFDEB887)
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, innerRadius, corePaint);
+    canvas.drawCircle(center, 1.8, corePaint);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

@@ -45,8 +45,18 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   void initState() {
     super.initState();
     _game = KingdomGame(ref, onToast: _showGameToast);
-    // Ensure music is playing
-    ref.read(audioServiceProvider).playMainTheme();
+    // Stop main theme when entering game screen
+    ref.read(audioServiceProvider).stopMusicForMatch();
+  }
+
+  @override
+  void dispose() {
+    // Resume menu theme if exiting without game over
+    final audio = ref.read(audioServiceProvider);
+    if (audio.isStoppedForMatch) {
+      audio.resumeMusicAfterMatch();
+    }
+    super.dispose();
   }
 
   void _showGameToast(String message, Color color) {
@@ -146,6 +156,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   }
 
   void _handleRematch() {
+    ref.read(audioServiceProvider).stopMusicForMatch();
     ref.read(simulationProvider.notifier).reset();
     setState(() {
       _showPostBattle = false;

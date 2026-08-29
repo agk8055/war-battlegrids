@@ -65,12 +65,14 @@ class AudioService with WidgetsBindingObserver {
     }
   }
 
-  Future<void> playMainTheme() async {
+  bool get isStoppedForMatch => _isStoppedForMatch;
+
+  Future<void> playMainTheme({Duration? position}) async {
     final settings = _ref.read(gameSettingsProvider);
     if (!settings.musicEnabled || _isStoppedForMatch) return;
     
     // If it's already playing, just ensure volume is correct and return
-    if (_musicPlayer.state == PlayerState.playing) {
+    if (_musicPlayer.state == PlayerState.playing && position == null) {
       await _musicPlayer.setVolume(settings.musicVolume);
       return;
     }
@@ -79,9 +81,34 @@ class AudioService with WidgetsBindingObserver {
       // Ensure we are stopped before starting fresh
       await _musicPlayer.stop();
       await _musicPlayer.setVolume(settings.musicVolume);
-      await _musicPlayer.play(AssetSource(AppAssets.mainThemePath));
+      await _musicPlayer.play(
+        AssetSource(AppAssets.mainThemePath),
+        position: position,
+      );
+      if (position != null && position > Duration.zero) {
+        await _musicPlayer.seek(position);
+      }
     } catch (e) {
       debugPrint('AudioService: Failed to play main theme: $e');
+    }
+  }
+
+  Future<void> playGameOverTheme() async {
+    _isStoppedForMatch = false;
+    final settings = _ref.read(gameSettingsProvider);
+    if (!settings.musicEnabled) return;
+
+    try {
+      await _musicPlayer.stop();
+      await _musicPlayer.setVolume(settings.musicVolume);
+      const startPosition = Duration(seconds: 57);
+      await _musicPlayer.play(
+        AssetSource(AppAssets.mainThemePath),
+        position: startPosition,
+      );
+      await _musicPlayer.seek(startPosition);
+    } catch (e) {
+      debugPrint('AudioService: Failed to play game over theme: $e');
     }
   }
 
