@@ -1,10 +1,10 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_assets.dart';
 import '../../providers/game_settings_provider.dart';
 import '../../core/enums/game_mode.dart';
+import '../../core/services/audio_service.dart';
 import 'multiplayer_setup_screen.dart';
 
 class MapSelectionScreen extends ConsumerStatefulWidget {
@@ -25,9 +25,12 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
     super.initState();
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 500),
     );
-    _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _fadeAnim = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOutCubic,
+    );
     _fadeController.forward();
   }
 
@@ -40,31 +43,52 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    final currentSelectedMap = ref.watch(gameSettingsProvider).selectedMapPath;
 
-    final List<Map<String, String>> availableMaps = [
+    final List<Map<String, dynamic>> availableMaps = [
       {
-        'name': 'ShadowWoods 15x15',
+        'name': 'ShadowWoods',
+        'dimension': '15 × 15',
+        'scale': 'SMALL',
+        'category': 'SKIRMISH',
+        'icon': Icons.forest_rounded,
         'path': AppAssets.northernForestMap,
-        'description': 'A dense 15x15 forest environment.',
+        'description': 'Dense forest canopy with narrow tactical chokepoints.',
         'image': AppAssets.northernForest,
+        'accentColor': const Color(0xFF66BB6A),
       },
       {
-        'name': 'Hellfire 19x19',
+        'name': 'Hellfire',
+        'dimension': '19 × 19',
+        'scale': 'MEDIUM',
+        'category': 'DESERT DUEL',
+        'icon': Icons.local_fire_department_rounded,
         'path': AppAssets.desertMap,
-        'description': 'An arid 19x19 battlefield of dunes.',
+        'description': 'Arid scorching dunes primed for fierce flanking maneuvers.',
         'image': AppAssets.pyramid,
+        'accentColor': const Color(0xFFFF9800),
       },
       {
-        'name': 'Arcadia 25x25',
+        'name': 'Arcadia',
+        'dimension': '25 × 25',
+        'scale': 'BALANCED',
+        'category': 'EXPEDITION',
+        'icon': Icons.shield_rounded,
         'path': AppAssets.defaultMap,
-        'description': 'A balanced 25x25 grid for local warfare.',
+        'description': 'Classic highland plains tailored for multi-front warfare.',
         'image': AppAssets.grasslandArmy,
+        'accentColor': primary,
       },
       {
-        'name': 'Hardhome 30x30',
+        'name': 'Hardhome',
+        'dimension': '30 × 30',
+        'scale': 'COLOSSUS',
+        'category': 'EPIC SIEGE',
+        'icon': Icons.ac_unit_rounded,
         'path': AppAssets.icelandsMap,
-        'description': 'A frozen 30x30 glacial battlefield.',
+        'description': 'Frozen glacial realm demanding endurance siege warfare.',
         'image': AppAssets.winterCastle,
+        'accentColor': const Color(0xFF4FC3F7),
       },
     ];
 
@@ -72,19 +96,23 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
       backgroundColor: const Color(0xFF0A0804),
       body: Stack(
         children: [
-          // Ambient radial glow
+          // Ambient Radial Glow
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: RadialGradient(
-                  center: const Alignment(0, -0.4),
-                  radius: 0.9,
-                  colors: [primary.withValues(alpha: 0.08), Colors.transparent],
+                  center: const Alignment(0, -0.35),
+                  radius: 1.2,
+                  colors: [
+                    primary.withValues(alpha: 0.12),
+                    Colors.transparent,
+                  ],
                 ),
               ),
             ),
           ),
-          // Hatch pattern background
+
+          // Tactical Grid Hatch Pattern
           Positioned.fill(
             child: CustomPaint(
               painter: _HatchPainter(
@@ -92,41 +120,57 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
               ),
             ),
           ),
+
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnim,
               child: Column(
                 children: [
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildTopBar(primary),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: _SectionLabel(
-                      'AVAILABLE BATTLEFIELDS',
-                      color: primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: _SectionHeader(
+                      title: 'SELECT BATTLEFIELD THEATRE',
+                      subtitle: 'CHOOSE YOUR STRATEGIC COMBAT GRID',
+                      accentColor: primary,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Expanded(
-                    child: GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 1.45,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 860),
+                        child: GridView.builder(
+                          padding: const EdgeInsets.fromLTRB(18, 4, 18, 24),
+                          physics: const BouncingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics(),
                           ),
-                      itemCount: availableMaps.length,
-                      itemBuilder: (context, index) {
-                        final map = availableMaps[index];
-                        return _MapCard(
-                          map: map,
-                          primary: primary,
-                          onTap: () => _handleMapSelection(map),
-                        );
-                      },
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 14,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 2.55,
+                          ),
+                          itemCount: availableMaps.length,
+                          itemBuilder: (context, index) {
+                            final map = availableMaps[index];
+                            final isSelected = currentSelectedMap == map['path'];
+                            return _MapCard(
+                              map: map,
+                              primary: primary,
+                              isSelected: isSelected,
+                              onTap: () {
+                                ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
+                                _handleMapSelection(map);
+                              },
+                            );
+                          },
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -140,48 +184,58 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
 
   Widget _buildTopBar(Color primary) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
+          // Back Button
+          _AnimatedPressButton(
+            onTap: () {
+              ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
+              Navigator.pop(context);
+            },
             child: Container(
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
+                color: const Color(0xFF16120C),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: primary.withValues(alpha: 0.3),
-                  width: 1,
+                  color: primary.withValues(alpha: 0.35),
+                  width: 1.2,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: Icon(Icons.chevron_left, color: primary, size: 20),
+              child: Icon(Icons.chevron_left_rounded, color: primary, size: 22),
             ),
           ),
           const SizedBox(width: 14),
+
+          // Titles
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'WAR ROOM',
-                  style: TextStyle(
+                  style: GoogleFonts.sairaStencilOne(
                     color: primary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 3.5,
+                    fontSize: 16,
+                    letterSpacing: 2.5,
                   ),
                 ),
                 Text(
-                  widget.isBluetoothMode
-                      ? "Bluetooth Deployment"
-                      : "Multiplayer Deployment",
+                  "Designate battlefield for supreme realm conquest",
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.35),
-                    fontSize: 9,
-                    letterSpacing: 1.0,
-                    fontStyle: FontStyle.italic,
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 9.5,
+                    letterSpacing: 0.4,
                   ),
                 ),
               ],
@@ -192,12 +246,20 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
     );
   }
 
-  void _handleMapSelection(Map<String, String> map) {
+  void _handleMapSelection(Map<String, dynamic> map) {
+    final mapPath = map['path'] as String;
     ref.read(gameSettingsProvider.notifier).setMode(GameMode.multiplayer);
-    ref.read(gameSettingsProvider.notifier).setSelectedMap(map['path']!);
+    ref.read(gameSettingsProvider.notifier).setSelectedMap(mapPath);
+
+    final selectedMapData = {
+      'name': map['name'] as String,
+      'path': mapPath,
+      'description': map['description'] as String,
+      'image': map['image'] as String,
+    };
 
     if (widget.isBluetoothMode) {
-      Navigator.pop(context, map);
+      Navigator.pop(context, selectedMapData);
     } else {
       Navigator.push(
         context,
@@ -210,82 +272,257 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Horizontal Rectangle Map Card (Full-Bleed Image Coverage + Rounded Corners)
+// ─────────────────────────────────────────────────────────────────────────────
 class _MapCard extends StatelessWidget {
-  final Map<String, String> map;
+  final Map<String, dynamic> map;
   final Color primary;
+  final bool isSelected;
   final VoidCallback onTap;
 
   const _MapCard({
     required this.map,
     required this.primary,
+    required this.isSelected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final Color mapAccent = (map['accentColor'] as Color?) ?? primary;
+    const borderRadius = BorderRadius.all(Radius.circular(16));
+
     return _AnimatedPressButton(
       onTap: onTap,
-      accentColor: primary,
-      child: _StonePanel(
-        accentColor: primary,
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: AppAssetImage(map['image']!, fit: BoxFit.cover),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          border: Border.all(
+            color: isSelected ? primary : primary.withValues(alpha: 0.35),
+            width: isSelected ? 1.8 : 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.7),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+            if (isSelected)
+              BoxShadow(
+                color: primary.withValues(alpha: 0.28),
+                blurRadius: 18,
+                spreadRadius: 1.5,
+              ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.all(Radius.circular(14.5)),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. Full Tile Covered Background Image
+              AppAssetImage(
+                map['image']!,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              ),
+
+              // 2. Dark Scrim & Atmospheric Gradient for Legibility
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.0, 0.35, 0.7, 1.0],
+                    colors: [
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.black.withValues(alpha: 0.45),
+                      Colors.black.withValues(alpha: 0.78),
+                      const Color(0xFF0A0804).withValues(alpha: 0.96),
+                    ],
                   ),
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.8),
+                ),
+              ),
+
+              // 3. Subtle Hatch Grid Pattern
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _HatchPainter(
+                    color: Colors.white.withValues(alpha: 0.015),
+                  ),
+                ),
+              ),
+
+              // 4. Content Overlay
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Top Row: Only Grid Size & Active status on Top Right
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (isSelected) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: primary.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: primary,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 10,
+                                  color: primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'ACTIVE',
+                                  style: TextStyle(
+                                    color: primary,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        // Grid Size Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected
+                                  ? primary.withValues(alpha: 0.7)
+                                  : Colors.white24,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.grid_4x4_rounded,
+                                size: 11,
+                                color: isSelected ? primary : Colors.white70,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                map['dimension']!,
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const Spacer(),
+
+                    // Left Bottom: Name & Details
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Name & Category Badge
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              (map['name']! as String).toUpperCase(),
+                              style: GoogleFonts.sairaStencilOne(
+                                color: isSelected ? primary : Colors.white,
+                                fontSize: 14.5,
+                                letterSpacing: 1.2,
+                                shadows: const [
+                                  Shadow(
+                                    color: Colors.black,
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: mapAccent.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: mapAccent.withValues(alpha: 0.5),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                map['category']!,
+                                style: TextStyle(
+                                  color: mapAccent,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 3),
+
+                        // Details / Description
+                        Text(
+                          map['description']!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 9,
+                            height: 1.25,
+                            letterSpacing: 0.2,
+                            shadows: const [
+                              Shadow(
+                                color: Colors.black,
+                                blurRadius: 6,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              color: const Color(0xFF0F0D0A),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    map['name']!.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.sairaStencilOne(
-                      color: primary,
-                      fontSize: 13,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    map['description']!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      fontSize: 9,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -293,9 +530,53 @@ class _MapCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Shared Aesthetic Components
+//  Section Header with Tactical Accents
 // ─────────────────────────────────────────────────────────────────────────────
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Color accentColor;
 
+  const _SectionHeader({
+    required this.title,
+    required this.subtitle,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 18,
+          height: 1.5,
+          color: accentColor.withValues(alpha: 0.6),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            color: accentColor,
+            fontSize: 10.5,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2.2,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Container(
+            height: 1.5,
+            color: accentColor.withValues(alpha: 0.35),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Tactical Grid Background Hatch Painter
+// ─────────────────────────────────────────────────────────────────────────────
 class _HatchPainter extends CustomPainter {
   final Color color;
   const _HatchPainter({required this.color});
@@ -319,153 +600,16 @@ class _HatchPainter extends CustomPainter {
   bool shouldRepaint(_HatchPainter old) => old.color != color;
 }
 
-class _StonePanel extends StatelessWidget {
-  final Widget child;
-  final Color accentColor;
-  final EdgeInsetsGeometry padding;
-
-  const _StonePanel({
-    required this.child,
-    required this.accentColor,
-    this.padding = const EdgeInsets.all(20),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ornamentColor = accentColor.withValues(alpha: 0.5);
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1510), Color(0xFF0F0D0A)],
-        ),
-        border: Border.all(
-          color: accentColor.withValues(alpha: 0.28),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.55),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: accentColor.withValues(alpha: 0.06),
-            blurRadius: 24,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _HatchPainter(
-                color: Colors.white.withValues(alpha: 0.018),
-              ),
-            ),
-          ),
-          ..._corners(ornamentColor),
-          Padding(padding: padding, child: child),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _corners(Color color) {
-    const sz = 24.0;
-    return [
-      Positioned(
-        top: 0,
-        left: 0,
-        child: Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.rotationZ(math.pi / 2),
-          child: SizedBox(
-            width: sz,
-            height: sz,
-            child: AppAssetImage(AppAssets.borderEdge, color: color),
-          ),
-        ),
-      ),
-      Positioned(
-        top: 0,
-        right: 0,
-        child: Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.rotationZ(math.pi),
-          child: SizedBox(
-            width: sz,
-            height: sz,
-            child: AppAssetImage(AppAssets.borderEdge, color: color),
-          ),
-        ),
-      ),
-      Positioned(
-        bottom: 0,
-        left: 0,
-        child: SizedBox(
-          width: sz,
-          height: sz,
-          child: AppAssetImage(AppAssets.borderEdge, color: color),
-        ),
-      ),
-      Positioned(
-        bottom: 0,
-        right: 0,
-        child: Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.rotationZ(-math.pi / 2),
-          child: SizedBox(
-            width: sz,
-            height: sz,
-            child: AppAssetImage(AppAssets.borderEdge, color: color),
-          ),
-        ),
-      ),
-    ];
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  final Color color;
-  const _SectionLabel(this.text, {required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(width: 18, height: 1.5, color: color.withValues(alpha: 0.5)),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 2.8,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Container(height: 1.5, color: color.withValues(alpha: 0.5)),
-        ),
-      ],
-    );
-  }
-}
-
+// ─────────────────────────────────────────────────────────────────────────────
+//  Press-scale button wrapper
+// ─────────────────────────────────────────────────────────────────────────────
 class _AnimatedPressButton extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
-  final Color accentColor;
 
   const _AnimatedPressButton({
     required this.child,
     required this.onTap,
-    required this.accentColor,
   });
 
   @override
@@ -482,8 +626,8 @@ class _AnimatedPressButtonState extends State<_AnimatedPressButton>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 110),
-      reverseDuration: const Duration(milliseconds: 180),
+      duration: const Duration(milliseconds: 100),
+      reverseDuration: const Duration(milliseconds: 160),
     );
     _scale = Tween<double>(
       begin: 1.0,
