@@ -9,7 +9,7 @@ import '../../simulation/board.dart';
 class CellComponent extends PositionComponent with TapCallbacks {
   final int gridX;
   final int gridY;
-  final Board simulationBoard;
+  Board simulationBoard;
   final CellState initialState;
   final void Function(int x, int y) onTapCell;
   final String playerSymbol;
@@ -47,9 +47,12 @@ class CellComponent extends PositionComponent with TapCallbacks {
     _linkSprite = await AppAssets.loadSpriteSafely(AppAssets.link);
   }
 
-  void updateState(CellState newState, {bool isSiegeBlocked = false}) {
+  void updateState(CellState newState, {bool isSiegeBlocked = false, Board? currentBoard}) {
     _currentState = newState;
     _isSiegeBlocked = isSiegeBlocked;
+    if (currentBoard != null) {
+      simulationBoard = currentBoard;
+    }
   }
 
   @override
@@ -160,8 +163,6 @@ class CellComponent extends PositionComponent with TapCallbacks {
   }
 
   void _renderLinkages(Canvas canvas) {
-    if (_linkSprite == null) return;
-
     final board = simulationBoard;
     final currentCoord = (gridX, gridY);
 
@@ -187,7 +188,11 @@ class CellComponent extends PositionComponent with TapCallbacks {
           ? (currentCoord, neighbor)
           : (neighbor, currentCoord);
 
-      if (board.linkages.contains(pair)) {
+      final hasLinkage = board.linkages.contains(pair) ||
+          board.linkages.contains((currentCoord, neighbor)) ||
+          board.linkages.contains((neighbor, currentCoord));
+
+      if (hasLinkage) {
         // Calculate the vector to the neighbor
         final dx = (neighbor.$1 - gridX).toDouble();
         final dy = (neighbor.$2 - gridY).toDouble();
@@ -210,19 +215,33 @@ class CellComponent extends PositionComponent with TapCallbacks {
         // Width (perpendicular): 40% of cell size
         final double linkThickness = size.x * 0.4;
 
-        canvas.save();
-        canvas.translate(centerX, centerY);
-        canvas.rotate(angle);
-        
-        // Render the link icon stretched from center (0,0) to center of neighbor (distance, 0)
-        _linkSprite!.render(
-          canvas,
-          position: Vector2(0, -linkThickness / 2),
-          size: Vector2(distance, linkThickness),
-          overridePaint: Paint()..colorFilter = ColorFilter.mode(linkColor, BlendMode.srcIn),
-        );
-        
-        canvas.restore();
+        if (_linkSprite != null) {
+          canvas.save();
+          canvas.translate(centerX, centerY);
+          canvas.rotate(angle);
+          
+          // Render the link icon stretched from center (0,0) to center of neighbor (distance, 0)
+          _linkSprite!.render(
+            canvas,
+            position: Vector2(0, -linkThickness / 2),
+            size: Vector2(distance, linkThickness),
+            overridePaint: Paint()..colorFilter = ColorFilter.mode(linkColor, BlendMode.srcIn),
+          );
+          
+          canvas.restore();
+        } else {
+          // Fallback vector linkage line if sprite is still loading
+          final startOffset = Offset(centerX, centerY);
+          final endOffset = Offset(centerX + dx * size.x, centerY + dy * size.y);
+          canvas.drawLine(
+            startOffset,
+            endOffset,
+            Paint()
+              ..color = linkColor.withValues(alpha: 0.85)
+              ..strokeWidth = 3.5
+              ..strokeCap = StrokeCap.round,
+          );
+        }
       }
     }
   }

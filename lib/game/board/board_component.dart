@@ -1,8 +1,7 @@
-import 'dart:ui';
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame_tiled/flame_tiled.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../../core/constants/app_assets.dart';
 import '../../simulation/board.dart';
 import '../../simulation/rules.dart';
@@ -12,7 +11,7 @@ import '../../core/constants/board_constants.dart';
 import 'cell_component.dart';
 
 class BoardComponent extends PositionComponent {
-  final Board simulationBoard;
+  Board simulationBoard;
   final void Function(int x, int y) onCellTapped;
   final double cellSize;
   final String mapPath;
@@ -20,6 +19,7 @@ class BoardComponent extends PositionComponent {
   final String opponentSymbol;
   final Color playerColor;
   final Color opponentColor;
+  final Color? gridColor;
 
   List<List<CellComponent>> _cellGrid = [];
   TiledComponent? tiledComponent;
@@ -33,6 +33,7 @@ class BoardComponent extends PositionComponent {
     required this.playerColor,
     required this.opponentColor,
     this.cellSize = 40.0,
+    this.gridColor,
   }) {
     // Initial size based on simulation board
     size = Vector2(
@@ -121,17 +122,69 @@ class BoardComponent extends PositionComponent {
       }),
     );
 
-    // 4. Add Visual Grid Border over the playable region
+    // 4. Add Visual Grid Border over the playable region with resolved map grid color
     add(GridLinesComponent(
       gridMinX: simulationBoard.playableMinX,
       gridMinY: simulationBoard.playableMinY,
       gridMaxX: simulationBoard.playableMaxX,
       gridMaxY: simulationBoard.playableMaxY,
       cellSize: cellSize,
+      gridColor: _resolveGridColor(),
     ));
 
     // 5. Add Palace Overlays
     _addPalaceOverlays();
+  }
+
+  Color _resolveGridColor() {
+    if (gridColor != null) {
+      return gridColor!;
+    }
+
+    if (tiledComponent != null) {
+      final tileMap = tiledComponent!.tileMap.map;
+      
+      // Try to read gridColor / GridColor / grid_color from TMX map properties
+      final dynamic rawColor = tileMap.properties.getValue('gridColor') ??
+          tileMap.properties.getValue('GridColor') ??
+          tileMap.properties.getValue('grid_color');
+
+      if (rawColor != null) {
+        final parsed = parseColor(rawColor.toString());
+        if (parsed != null) return parsed;
+      }
+    }
+
+    // Default per-map overrides if not explicitly defined in TMX properties
+    if (mapPath.contains('iceland') || mapPath == AppAssets.icelandsMap) {
+      return Colors.black;
+    }
+
+    return const Color(0xFFFFFFFF);
+  }
+
+  static Color? parseColor(String value) {
+    final trimmed = value.trim().toLowerCase();
+    if (trimmed == 'black') return Colors.black;
+    if (trimmed == 'white') return Colors.white;
+    if (trimmed == 'red') return Colors.red;
+    if (trimmed == 'blue') return Colors.blue;
+    if (trimmed == 'green') return Colors.green;
+    if (trimmed == 'transparent') return Colors.transparent;
+
+    final hex = trimmed.replaceAll('#', '').replaceAll('0x', '');
+    if (hex.length == 6) {
+      final intVal = int.tryParse('FF$hex', radix: 16);
+      if (intVal != null) return Color(intVal);
+    } else if (hex.length == 8) {
+      final intVal = int.tryParse(hex, radix: 16);
+      if (intVal != null) return Color(intVal);
+    } else if (hex.length == 3) {
+      final expanded = '${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}';
+      final intVal = int.tryParse('FF$expanded', radix: 16);
+      if (intVal != null) return Color(intVal);
+    }
+    return null;
   }
 
   void _addPalaceOverlays() {
@@ -248,6 +301,7 @@ class BoardComponent extends PositionComponent {
     Turn effectiveTurn = Turn.player,
     bool kingdomAttackUnlocked = false,
   }) {
+    simulationBoard = currentBoard;
     if (_cellGrid.isEmpty) return;
     for (int y = 0; y < currentBoard.height; y++) {
       for (int x = 0; x < currentBoard.width; x++) {
@@ -262,6 +316,7 @@ class BoardComponent extends PositionComponent {
           _cellGrid[y][x].updateState(
             currentBoard.getCell(x, y),
             isSiegeBlocked: isBlocked,
+            currentBoard: currentBoard,
           );
         }
       }
@@ -275,16 +330,10 @@ class GridLinesComponent extends PositionComponent {
   final int gridMaxX;
   final int gridMaxY;
   final double cellSize;
+  final Color gridColor;
 
-  final Paint _gridPaint = Paint()
-    ..color = const Color(0x40FFFFFF) // Semi-transparent white
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 0.5;
-
-  final Paint _borderPaint = Paint()
-    ..color = const Color(0x80FFFFFF) // Slightly more opaque border
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 2.0;
+  late final Paint _gridPaint;
+  late final Paint _borderPaint;
 
   GridLinesComponent({
     required this.gridMinX,
@@ -292,13 +341,27 @@ class GridLinesComponent extends PositionComponent {
     required this.gridMaxX,
     required this.gridMaxY,
     required this.cellSize,
-  }) {
+    Color? gridColor,
+  }) : gridColor = gridColor ?? const Color(0x40FFFFFF) {
     position = Vector2(gridMinX * cellSize, gridMinY * cellSize);
     size = Vector2(
       (gridMaxX - gridMinX + 1) * cellSize,
       (gridMaxY - gridMinY + 1) * cellSize,
     );
     priority = 10; // Ensure it's drawn above cells
+
+    final double lineAlpha = (this.gridColor.a == 1.0) ? 0.35 : this.gridColor.a;
+    final double borderAlpha = (this.gridColor.a == 1.0) ? 0.75 : (this.gridColor.a * 2.0).clamp(0.0, 1.0);
+
+    _gridPaint = Paint()
+      ..color = this.gridColor.withValues(alpha: lineAlpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    _borderPaint = Paint()
+      ..color = this.gridColor.withValues(alpha: borderAlpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
   }
 
   @override

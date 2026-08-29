@@ -201,7 +201,10 @@ class _MapSelectionScreenState extends ConsumerState<MapSelectionScreen>
     } else {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const MultiplayerSetupScreen()),
+        MaterialPageRoute(
+          settings: const RouteSettings(name: '/multiplayer_setup'),
+          builder: (context) => const MultiplayerSetupScreen(),
+        ),
       );
     }
   }

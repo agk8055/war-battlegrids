@@ -11,6 +11,7 @@ import '../../core/enums/connection_type.dart';
 import '../../core/enums/game_mode.dart';
 import 'bluetooth_lobby_screen.dart';
 import 'online_lobby_screen.dart';
+import 'multiplayer_setup_screen.dart';
 import 'settings_screen.dart';
 
 import '../../core/enums/game_phase.dart';
@@ -120,8 +121,26 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     } else if (settings.mode == GameMode.story) {
       ref.read(gameSettingsProvider.notifier).restoreCampaignSettings();
       Navigator.of(context).popUntil((route) => route.settings.name == '/overworld');
+    } else if (settings.mode == GameMode.multiplayer) {
+      // Same-device / on-device multiplayer: return back to MultiplayerSetupScreen
+      bool poppedToSetup = false;
+      Navigator.of(context).popUntil((route) {
+        if (route.settings.name == '/multiplayer_setup') {
+          poppedToSetup = true;
+          return true;
+        }
+        return route.isFirst;
+      });
+      if (!poppedToSetup) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            settings: const RouteSettings(name: '/multiplayer_setup'),
+            builder: (context) => const MultiplayerSetupScreen(),
+          ),
+        );
+      }
     } else {
-      Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
+      Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection' || route.isFirst);
     }
   }
 
@@ -172,11 +191,26 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           ),
         );
       } else {
-        // Same-device multiplayer: return to mode selection
-        Navigator.of(context).popUntil((route) => route.settings.name == '/multiplayer_mode');
+        // Same-device multiplayer: return to multiplayer setup
+        bool poppedToSetup = false;
+        Navigator.of(context).popUntil((route) {
+          if (route.settings.name == '/multiplayer_setup') {
+            poppedToSetup = true;
+            return true;
+          }
+          return route.isFirst;
+        });
+        if (!poppedToSetup) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              settings: const RouteSettings(name: '/multiplayer_setup'),
+              builder: (context) => const MultiplayerSetupScreen(),
+            ),
+          );
+        }
       }
     } else {
-      Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection');
+      Navigator.of(context).popUntil((route) => route.settings.name == '/map_selection' || route.isFirst);
     }
   }
 

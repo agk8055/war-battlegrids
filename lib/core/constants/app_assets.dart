@@ -1,3 +1,4 @@
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
@@ -6,6 +7,8 @@ import 'package:flutter/material.dart';
 /// the application continues to run without throwing unhandled exceptions.
 class AppAssets {
   AppAssets._();
+
+  static final Images _flameImages = Images(prefix: '');
 
   // --- IMAGES ---
   static const String homeBanner = 'assets/images/home_banner.png';
@@ -113,10 +116,20 @@ class AppAssets {
   /// Safe Flame Sprite loader that handles missing assets gracefully.
   static Future<Sprite?> loadSpriteSafely(String path) async {
     try {
-      return await Sprite.load(path);
+      String cleanPath = path.trim();
+      if (!cleanPath.startsWith('assets/')) {
+        cleanPath = 'assets/$cleanPath';
+      }
+      final image = await _flameImages.load(cleanPath);
+      return Sprite(image);
     } catch (e) {
-      debugPrint('AppAssets Warning: Failed to load sprite "$path": $e');
-      return null;
+      try {
+        final fallbackImage = await _flameImages.load(path.trim());
+        return Sprite(fallbackImage);
+      } catch (e2) {
+        debugPrint('AppAssets Warning: Failed to load sprite "$path": $e2');
+        return null;
+      }
     }
   }
 }
