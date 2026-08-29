@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame_tiled/flame_tiled.dart';
@@ -406,6 +407,9 @@ class PalaceOverlayComponent extends PositionComponent {
   final String symbolAsset;
   final Color color;
 
+  Sprite? _sprite;
+  double _time = 0.0;
+
   PalaceOverlayComponent({
     required this.startX,
     required this.endX,
@@ -420,30 +424,197 @@ class PalaceOverlayComponent extends PositionComponent {
       (endX - startX + 1) * cellSize,
       (endY - startY + 1) * cellSize,
     );
+    priority = 12; // Ensure overlay draws clearly above grid and cells
   }
 
   @override
   Future<void> onLoad() async {
-    // Add the Border
-    add(RectangleComponent(
-      size: size,
-      paint: Paint()
-        ..color = color.withValues(alpha: 0.5)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0,
-    ));
+    await super.onLoad();
+    _sprite = await AppAssets.loadSpriteSafely(symbolAsset);
+  }
 
-    // Add the Symbol in the center using safe sprite loader
-    final sprite = await AppAssets.loadSpriteSafely(symbolAsset);
-    if (sprite != null) {
-      final symbolSize = size.y * 0.6;
-      add(SpriteComponent(
-        sprite: sprite,
-        size: Vector2.all(symbolSize),
-        position: size / 2,
-        anchor: Anchor.center,
-        paint: Paint()..colorFilter = ColorFilter.mode(color, BlendMode.srcIn),
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _time += dt;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+
+    final pulse = 0.5 + 0.5 * math.sin(_time * 2.8);
+    final width = size.x;
+    final height = size.y;
+    final centerX = width / 2;
+    final centerY = height / 2;
+
+    // 1. Subtle ambient kingdom zone tint with breathing radial gradient
+    final zoneGlowPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: 0.12 + 0.06 * pulse),
+          color.withValues(alpha: 0.03),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.7, 1.0],
+      ).createShader(Rect.fromCircle(
+        center: Offset(centerX, centerY),
+        radius: math.max(width, height) * 0.6,
       ));
+    canvas.drawRect(Rect.fromLTWH(0, 0, width, height), zoneGlowPaint);
+
+    // 2. Thick Kingdom Area Border with multi-layer glow
+    // (a) Outer soft luminous glow
+    final outerGlowPaint = Paint()
+      ..color = color.withValues(alpha: 0.25 + 0.15 * pulse)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7.0;
+    canvas.drawRect(Rect.fromLTWH(0, 0, width, height), outerGlowPaint);
+
+    // (b) Main prominent thick border
+    final mainBorderPaint = Paint()
+      ..color = color.withValues(alpha: 0.95)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.5;
+    canvas.drawRect(Rect.fromLTWH(0, 0, width, height), mainBorderPaint);
+
+    // (c) Inner sharp accent line
+    final innerAccentPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.35 + 0.25 * pulse)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    canvas.drawRect(
+      Rect.fromLTWH(2.5, 2.5, width - 5, height - 5),
+      innerAccentPaint,
+    );
+
+    // (d) Reinforced ornate corner brackets
+    final cornerLength = math.min(14.0, cellSize * 0.45);
+    final cornerPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.85 + 0.15 * pulse)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.square;
+
+    // Top-Left
+    canvas.drawLine(const Offset(0, 0), Offset(cornerLength, 0), cornerPaint);
+    canvas.drawLine(const Offset(0, 0), Offset(0, cornerLength), cornerPaint);
+    // Top-Right
+    canvas.drawLine(Offset(width, 0), Offset(width - cornerLength, 0), cornerPaint);
+    canvas.drawLine(Offset(width, 0), Offset(width, cornerLength), cornerPaint);
+    // Bottom-Left
+    canvas.drawLine(Offset(0, height), Offset(cornerLength, height), cornerPaint);
+    canvas.drawLine(Offset(0, height), Offset(0, height - cornerLength), cornerPaint);
+    // Bottom-Right
+    canvas.drawLine(Offset(width, height), Offset(width - cornerLength, height), cornerPaint);
+    canvas.drawLine(Offset(width, height), Offset(width, height - cornerLength), cornerPaint);
+
+    // 3. Shining Kingdom Icon in the Center
+    final symbolSize = math.min(width, height) * 0.72;
+    final iconRect = Rect.fromCenter(
+      center: Offset(centerX, centerY),
+      width: symbolSize,
+      height: symbolSize,
+    );
+
+    // (a) Radial glow backdrop for icon
+    final iconBackdropGlow = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: 0.40 + 0.20 * pulse),
+          color.withValues(alpha: 0.12),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.65, 1.0],
+      ).createShader(Rect.fromCircle(
+        center: Offset(centerX, centerY),
+        radius: symbolSize * (0.85 + 0.15 * pulse),
+      ));
+    canvas.drawCircle(Offset(centerX, centerY), symbolSize * (0.85 + 0.15 * pulse), iconBackdropGlow);
+
+    if (_sprite != null) {
+      // Save layer to constrain shine overlay to the icon's silhouette
+      canvas.saveLayer(iconRect.inflate(8), Paint());
+
+      // 1. Base vibrant kingdom icon (rendered in full brightness)
+      _sprite!.renderRect(
+        canvas,
+        iconRect,
+        overridePaint: Paint()
+          ..colorFilter = ColorFilter.mode(
+            color,
+            BlendMode.srcIn,
+          ),
+      );
+
+      // 2. Specular shine beam sweeping across icon every 2.4s
+      const shinePeriod = 2.4;
+      final shineProgress = (_time % shinePeriod) / shinePeriod; // 0.0 -> 1.0
+      // Beam moves diagonally across icon
+      final sweepOffset = -1.2 + (shineProgress * 3.4);
+      final beamWidth = symbolSize * 0.45;
+      final beamCenter = Offset(
+        iconRect.left + sweepOffset * iconRect.width,
+        iconRect.top + sweepOffset * iconRect.height,
+      );
+
+      final shineShader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.transparent,
+          Colors.white.withValues(alpha: 0.15),
+          Colors.white.withValues(alpha: 0.95),
+          Colors.white.withValues(alpha: 0.15),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+      ).createShader(Rect.fromCenter(
+        center: beamCenter,
+        width: beamWidth * 2.5,
+        height: beamWidth * 2.5,
+      ));
+
+      // BlendMode.srcATop overlays the shine directly on top of the icon pixels
+      // without masking out or erasing the rest of the icon!
+      final shinePaint = Paint()
+        ..shader = shineShader
+        ..blendMode = BlendMode.srcATop;
+
+      canvas.drawRect(iconRect.inflate(8), shinePaint);
+
+      // 3. Bright sparkling glint flare when beam passes across the center
+      if (shineProgress > 0.30 && shineProgress < 0.70) {
+        final glintProgress = (shineProgress - 0.30) / 0.40; // 0.0 -> 1.0
+        final glintIntensity = math.sin(glintProgress * math.pi);
+        final glintPos = Offset(
+          iconRect.left + iconRect.width * (0.30 + 0.40 * glintProgress),
+          iconRect.top + iconRect.height * (0.30 + 0.40 * glintProgress),
+        );
+
+        final glintCore = Paint()
+          ..color = Colors.white.withValues(alpha: 0.95 * glintIntensity)
+          ..blendMode = BlendMode.srcATop;
+        canvas.drawCircle(glintPos, 3.0 * glintIntensity, glintCore);
+
+        final glintRay = Paint()
+          ..color = Colors.white.withValues(alpha: 0.85 * glintIntensity)
+          ..strokeWidth = 1.5
+          ..style = PaintingStyle.stroke
+          ..blendMode = BlendMode.srcATop;
+        final rayLen = 8.0 * glintIntensity;
+        canvas.drawLine(Offset(glintPos.dx - rayLen, glintPos.dy), Offset(glintPos.dx + rayLen, glintPos.dy), glintRay);
+        canvas.drawLine(Offset(glintPos.dx, glintPos.dy - rayLen), Offset(glintPos.dx, glintPos.dy + rayLen), glintRay);
+      }
+
+      canvas.restore();
+    } else {
+      // Fallback royal emblem if sprite is unavailable
+      final fallbackPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(Offset(centerX, centerY), symbolSize * 0.28, fallbackPaint);
     }
   }
 }
