@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,128 +9,45 @@ import '../../campaign/data/kingdoms_data.dart';
 import 'splash_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Painters (shared aesthetic from setup screen)
+//  Modern Frosted Glass Panel
 // ─────────────────────────────────────────────────────────────────────────────
-class _HatchPainter extends CustomPainter {
-  final Color color;
-  const _HatchPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 0.6;
-    const spacing = 22.0;
-    for (double i = -size.height; i < size.width + size.height; i += spacing) {
-      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_HatchPainter old) => old.color != color;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  _StonePanel
-// ─────────────────────────────────────────────────────────────────────────────
-class _StonePanel extends StatelessWidget {
+class _GlassCard extends StatelessWidget {
   final Widget child;
-  final Color accentColor;
   final EdgeInsetsGeometry padding;
+  final Color? borderColor;
 
-  const _StonePanel({
+  const _GlassCard({
     required this.child,
-    required this.accentColor,
     this.padding = const EdgeInsets.all(20),
+    this.borderColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final ornamentColor = accentColor.withValues(alpha: 0.5);
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1510), Color(0xFF0F0D0A)],
-        ),
-        border: Border.all(color: accentColor.withValues(alpha: 0.28), width: 1.2),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 18, offset: const Offset(0, 6)),
-          BoxShadow(color: accentColor.withValues(alpha: 0.06), blurRadius: 24, spreadRadius: 2),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(painter: _HatchPainter(color: Colors.white.withValues(alpha: 0.018))),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F1218).withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: borderColor ?? Colors.white.withValues(alpha: 0.12),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          ..._corners(ornamentColor),
-          Padding(padding: padding, child: child),
-        ],
+          child: child,
+        ),
       ),
-    );
-  }
-
-  List<Widget> _corners(Color color) {
-    const sz = 24.0;
-    return [
-      Positioned(
-          top: 0,
-          left: 0,
-          child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.rotationZ(math.pi / 2),
-              child: SizedBox(
-                  width: sz,
-                  height: sz,
-                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
-      Positioned(
-          top: 0,
-          right: 0,
-          child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.rotationZ(math.pi),
-              child: SizedBox(
-                  width: sz,
-                  height: sz,
-                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
-      Positioned(
-          bottom: 0,
-          left: 0,
-          child: SizedBox(
-              width: sz,
-              height: sz,
-              child: AppAssetImage(AppAssets.borderEdge, color: color))),
-      Positioned(
-          bottom: 0,
-          right: 0,
-          child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.rotationZ(-math.pi / 2),
-              child: SizedBox(
-                  width: sz,
-                  height: sz,
-                  child: AppAssetImage(AppAssets.borderEdge, color: color)))),
-    ];
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  final Color color;
-  const _SectionLabel(this.text, {required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(width: 18, height: 1.5, color: color.withValues(alpha: 0.5)),
-        const SizedBox(width: 8),
-        Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 2.8)),
-        const SizedBox(width: 8),
-        Expanded(child: Container(height: 1.5, color: color.withValues(alpha: 0.5))),
-      ],
     );
   }
 }
@@ -147,15 +64,12 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with TickerProviderStateMixin {
-
   final List<String> _availableSymbols = AppAssets.availableSymbols;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
-  late AnimationController _crestPulseController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
-  late Animation<double> _crestPulse;
 
   @override
   void initState() {
@@ -166,18 +80,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       }
     });
 
-    _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 650));
-    _slideController = AnimationController(vsync: this, duration: const Duration(milliseconds: 580));
-    _crestPulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))
-      ..repeat(reverse: true);
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
 
-    _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.07), end: Offset.zero)
+    _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
         .animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
-    _crestPulse = Tween<double>(begin: 0.85, end: 1.0)
-        .animate(CurvedAnimation(parent: _crestPulseController, curve: Curves.easeInOut));
 
-    Future.delayed(const Duration(milliseconds: 80), () {
+    Future.delayed(const Duration(milliseconds: 60), () {
       if (mounted) {
         _fadeController.forward();
         _slideController.forward();
@@ -189,11 +105,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   void dispose() {
     _fadeController.dispose();
     _slideController.dispose();
-    _crestPulseController.dispose();
     super.dispose();
   }
 
-  // ── Logic (unchanged) ──────────────────────────────────────────────────────
+  // ── Logic Handlers ─────────────────────────────────────────────────────────
   Future<void> _resetProfile(BuildContext context) async {
     await ref.read(campaignProvider.notifier).resetProgress();
     final prefs = ref.read(sharedPreferencesProvider);
@@ -212,39 +127,67 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final controller = TextEditingController(text: currentName);
     showDialog(
       context: context,
-      builder: (ctx) => _AncientDialog(
-        title: 'RENAME THY KINGDOM',
+      builder: (ctx) => _ModernDialog(
+        title: 'RENAME REALM',
+        subtitle: 'Enter a moniker for thy sovereign dominion',
         accentColor: primary,
-        content: TextField(
-          controller: controller,
-          style: const TextStyle(color: Colors.white, letterSpacing: 1.5),
-          maxLength: 15,
-          textCapitalization: TextCapitalization.characters,
-          decoration: InputDecoration(
-            counterStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: primary.withValues(alpha: 0.4)),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                letterSpacing: 1.5,
+                fontFamily: GoogleFonts.sairaStencilOne().fontFamily,
+              ),
+              maxLength: 15,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.06),
+                counterStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: primary, width: 1.5),
+                ),
+                hintText: 'e.g. VALORIA',
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  fontFamily: null,
+                  letterSpacing: 1,
+                ),
+              ),
             ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: primary, width: 2),
-            ),
-            hintText: 'Enter name…',
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2), letterSpacing: 1),
-          ),
+          ],
         ),
         actions: [
-          _DialogButton(
+          _ModernDialogButton(
             label: 'CANCEL',
-            color: Colors.white30,
+            isPrimary: false,
             onTap: () => Navigator.pop(ctx),
           ),
-          _DialogButton(
-            label: 'PROCLAIM',
-            color: primary,
+          _ModernDialogButton(
+            label: 'SAVE NAME',
+            isPrimary: true,
+            accentColor: primary,
             onTap: () {
-              if (controller.text.trim().isNotEmpty) {
-                ref.read(gameSettingsProvider.notifier)
-                    .setPlayer1Name(controller.text.trim().toUpperCase());
+              final trimmed = controller.text.trim();
+              if (trimmed.isNotEmpty) {
+                ref.read(gameSettingsProvider.notifier).setPlayer1Name(trimmed.toUpperCase());
               }
               Navigator.pop(ctx);
             },
@@ -258,17 +201,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final primary = Theme.of(context).colorScheme.primary;
     showDialog(
       context: context,
-      builder: (ctx) => _AncientDialog(
-        title: 'CHOOSE THY HOUSE SIGIL',
+      builder: (ctx) => _ModernDialog(
+        title: 'HOUSE EMBLEM',
+        subtitle: 'Select the sigil to lead thy banners into war',
         accentColor: primary,
         content: SizedBox(
-          width: double.maxFinite,
+          width: 360,
           child: GridView.builder(
             shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
+              childAspectRatio: 1.0,
             ),
             itemCount: _availableSymbols.length,
             itemBuilder: (context, index) {
@@ -280,28 +226,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   Navigator.pop(ctx);
                 },
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  padding: const EdgeInsets.all(10),
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    gradient: isSelected
-                        ? LinearGradient(colors: [
-                            primary.withValues(alpha: 0.25),
-                            primary.withValues(alpha: 0.1),
-                          ])
-                        : null,
-                    color: isSelected ? null : Colors.white.withValues(alpha: 0.05),
+                    color: isSelected
+                        ? primary.withValues(alpha: 0.18)
+                        : Colors.white.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isSelected ? primary : Colors.white.withValues(alpha: 0.1),
-                      width: isSelected ? 1.5 : 1,
+                      width: isSelected ? 2 : 1,
                     ),
                     boxShadow: isSelected
-                        ? [BoxShadow(color: primary.withValues(alpha: 0.3), blurRadius: 10)]
-                        : [],
+                        ? [
+                            BoxShadow(
+                              color: primary.withValues(alpha: 0.35),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            )
+                          ]
+                        : null,
                   ),
                   child: AppAssetImage(
                     symbol,
-                    color: isSelected ? primary : Colors.white.withValues(alpha: 0.55),
+                    color: isSelected ? primary : Colors.white.withValues(alpha: 0.6),
                   ),
                 ),
               );
@@ -309,10 +257,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           ),
         ),
         actions: [
-          _DialogButton(
+          _ModernDialogButton(
             label: 'DISMISS',
-            color: Colors.white30,
+            isPrimary: false,
             onTap: () => Navigator.pop(ctx),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showResetConfirm(BuildContext context, Color primary) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _ModernDialog(
+        title: 'ABDICATE THE THRONE?',
+        subtitle: 'Irreversible Campaign Reset',
+        accentColor: Colors.redAccent,
+        content: Text(
+          'All conquered realms, campaign progress, and sovereign identity records will be permanently erased.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 13,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          _ModernDialogButton(
+            label: 'KEEP THRONE',
+            isPrimary: false,
+            onTap: () => Navigator.pop(ctx),
+          ),
+          _ModernDialogButton(
+            label: 'ABDICATE',
+            isPrimary: true,
+            accentColor: Colors.redAccent,
+            onTap: () {
+              Navigator.pop(ctx);
+              _resetProfile(context);
+            },
           ),
         ],
       ),
@@ -327,21 +310,59 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0804),
+      backgroundColor: const Color(0xFF07090D),
       body: Stack(
         children: [
-          // Ambient radial glow
+          // Background Image with Scenic Landscape
+          Positioned.fill(
+            child: AppAssetImage(
+              AppAssets.profile,
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+          ),
+
+          // Modern Dark Atmospheric Scrim / Vignette Overlay
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(0, -0.4),
-                  radius: 0.9,
-                  colors: [primary.withValues(alpha: 0.07), Colors.transparent],
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF080B10).withValues(alpha: 0.75),
+                    const Color(0xFF080B10).withValues(alpha: 0.85),
+                    const Color(0xFF05070A).withValues(alpha: 0.95),
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
               ),
             ),
           ),
+
+          // Subtle Radial Accent Glow
+          Positioned(
+            top: -100,
+            left: 0,
+            right: 0,
+            height: 380,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(0, -0.3),
+                    radius: 0.85,
+                    colors: [
+                      primary.withValues(alpha: 0.12),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Foreground Content
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnim,
@@ -349,28 +370,53 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 position: _slideAnim,
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
-                    _buildTopBar(primary),
+                    _buildHeader(primary),
                     Expanded(
-                      child: Center(
-                        child: SingleChildScrollView(
-                          child: Container(
-                            constraints: const BoxConstraints(maxWidth: 600),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const SizedBox(height: 8),
-                                _buildCrestSection(context, settings, primary),
-                                const SizedBox(height: 32),
-                                _buildStatsPanel(primary, campaign),
-                                const SizedBox(height: 24),
-                                _buildDangerZone(context, primary),
-                                const SizedBox(height: 40),
-                              ],
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isWide = constraints.maxWidth >= 700;
+                          return Center(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 880),
+                                child: isWide
+                                    ? Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Left Hero Card (Sigil & Name)
+                                          Expanded(
+                                            flex: 5,
+                                            child: _buildHeroCard(context, settings, primary),
+                                          ),
+                                          const SizedBox(width: 20),
+                                          // Right Stats & Danger Zone
+                                          Expanded(
+                                            flex: 6,
+                                            child: Column(
+                                              children: [
+                                                _buildStatsPanel(primary, campaign),
+                                                const SizedBox(height: 16),
+                                                _buildDangerZone(context, primary),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : Column(
+                                        children: [
+                                          _buildHeroCard(context, settings, primary),
+                                          const SizedBox(height: 16),
+                                          _buildStatsPanel(primary, campaign),
+                                          const SizedBox(height: 16),
+                                          _buildDangerZone(context, primary),
+                                          const SizedBox(height: 20),
+                                        ],
+                                      ),
+                              ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -383,196 +429,243 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     );
   }
 
-  Widget _buildTopBar(Color primary) {
+  // ── Top Navigation Bar ─────────────────────────────────────────────────────
+  Widget _buildHeader(Color primary) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
       child: Row(
         children: [
-          GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: primary.withValues(alpha: 0.3), width: 1),
-            ),
-            child: Icon(Icons.chevron_left, color: primary, size: 22),
+          _ModernIconButton(
+            icon: Icons.chevron_left,
+            color: primary,
+            onTap: () => Navigator.pop(context),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
+          const SizedBox(width: 14),
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'ROYAL COURT',
-                style: TextStyle(
-                  color: primary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 3.5,
-                ),
-              ),
-              Text(
-                "Thy kingdom's seal and name",
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.35),
-                  fontSize: 11,
-                  letterSpacing: 1.2,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Crest + Name ───────────────────────────────────────────────────────────
-  Widget _buildCrestSection(BuildContext context, dynamic settings, Color primary) {
-    return Column(
-      children: [
-        // Sigil crest
-        GestureDetector(
-          onTap: () => _showSymbolDialog(context, settings.player1Symbol),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Outer pulsing ring
-              AnimatedBuilder(
-                animation: _crestPulse,
-                builder: (_, __) => Container(
-                  width: 120 * _crestPulse.value,
-                  height: 120 * _crestPulse.value,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: primary.withValues(alpha: 0.12 * _crestPulse.value),
-                      width: 1,
+              Row(
+                children: [
+                  Text(
+                    'WARLORD PROFILE',
+                    style: TextStyle(
+                      color: primary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 3,
                     ),
                   ),
-                ),
-              ),
-              // Glow halo
-              Container(
-                width: 106,
-                height: 106,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(color: primary.withValues(alpha: 0.22), blurRadius: 32, spreadRadius: 4),
-                  ],
-                ),
-              ),
-              // Main crest container
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      primary.withValues(alpha: 0.18),
-                      const Color(0xFF0F0D0A),
-                    ],
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: primary.withValues(alpha: 0.3), width: 0.8),
+                    ),
+                    child: Text(
+                      'STATUS: SOVEREIGN',
+                      style: TextStyle(
+                        color: primary,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
                   ),
-                  border: Border.all(color: primary.withValues(alpha: 0.6), width: 2),
-                ),
-                padding: const EdgeInsets.all(18),
-                child: AppAssetImage(
-                  settings.player1Symbol,
-                  color: primary,
-                ),
+                ],
               ),
-              // Edit badge
-              Positioned(
-                right: 14,
-                bottom: 14,
-                child: Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF0A0804), width: 2),
-                    boxShadow: [BoxShadow(color: primary.withValues(alpha: 0.5), blurRadius: 8)],
-                  ),
-                  child: const Icon(Icons.edit, size: 12, color: Colors.black),
+              const SizedBox(height: 2),
+              Text(
+                'Thy Royal Sigil, Moniker & Military Standing',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45),
+                  fontSize: 11,
+                  letterSpacing: 0.8,
                 ),
               ),
             ],
           ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Kingdom name
-        GestureDetector(
-          onTap: () => _showNameDialog(context, settings.player1Name),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: primary.withValues(alpha: 0.2), width: 1),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
-                    child: Text(
-                      settings.player1Name.toUpperCase(),
-                      key: ValueKey(settings.player1Name),
-                      style: GoogleFonts.sairaStencilOne(
-                        fontSize: 30,
-                        color: primary,
-                        letterSpacing: 2,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: primary.withValues(alpha: 0.4), width: 1),
-                  ),
-                  child: Icon(Icons.edit, size: 12, color: primary),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 8),
-        Text(
-          'THE REIGNING POWER',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.35),
-            fontSize: 11,
-            letterSpacing: 3.5,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // ── Stats / Info Panel ─────────────────────────────────────────────────────
+  // ── Left Card: Hero Crest & Name ───────────────────────────────────────────
+  Widget _buildHeroCard(BuildContext context, dynamic settings, Color primary) {
+    return _GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      borderColor: primary.withValues(alpha: 0.25),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Sigil Avatar with glowing aura and edit badge
+          GestureDetector(
+            onTap: () => _showSymbolDialog(context, settings.player1Symbol),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  // Ambient Radial Glow
+                  Container(
+                    width: 104,
+                    height: 104,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: primary.withValues(alpha: 0.25),
+                          blurRadius: 24,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Core Sigil Orb
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF1C222D),
+                          const Color(0xFF0E1218),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: primary.withValues(alpha: 0.7),
+                        width: 2,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: AppAssetImage(
+                      settings.player1Symbol,
+                      color: primary,
+                    ),
+                  ),
+
+                  // Edit Badge
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF0F1218), width: 2.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.edit_rounded,
+                        size: 13,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Realm Name Pill
+          GestureDetector(
+            onTap: () => _showNameDialog(context, settings.player1Name),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: primary.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        settings.player1Name.toUpperCase(),
+                        style: GoogleFonts.sairaStencilOne(
+                          fontSize: 22,
+                          color: primary,
+                          letterSpacing: 2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.edit_note_rounded,
+                      size: 18,
+                      color: primary.withValues(alpha: 0.8),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            'SUPREME RULER',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.4),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 2.5,
+            ),
+          ),
+
+          const SizedBox(height: 18),
+          Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+          const SizedBox(height: 14),
+
+          // Quick Action buttons row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _ModernOutlineButton(
+                icon: Icons.shield_outlined,
+                label: 'Change Sigil',
+                onTap: () => _showSymbolDialog(context, settings.player1Symbol),
+              ),
+              const SizedBox(width: 10),
+              _ModernOutlineButton(
+                icon: Icons.edit_outlined,
+                label: 'Rename',
+                onTap: () => _showNameDialog(context, settings.player1Name),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Right Card: Chronicles & Stats ─────────────────────────────────────────
   Widget _buildStatsPanel(Color primary, CampaignState campaign) {
     final conqueredCount = campaign.conqueredKingdomIds.length;
     final totalCount = kKingdoms.length;
-    final progressPercent = totalCount > 0 ? conqueredCount / totalCount : 0.0;
-    
+    final progressPercent = totalCount > 0 ? (conqueredCount / totalCount).clamp(0.0, 1.0) : 0.0;
+
     String title = 'Rising Warlord';
     if (progressPercent >= 1.0) {
       title = 'Eternal Emperor';
@@ -584,8 +677,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       title = 'Noble Duke';
     }
 
-    // Find last conquered kingdom name
-    String lastConquest = 'None';
+    String lastConquest = 'None Yet';
     if (campaign.conqueredKingdomIds.isNotEmpty) {
       for (final k in kKingdoms.reversed) {
         if (campaign.conqueredKingdomIds.contains(k.id)) {
@@ -595,165 +687,239 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       }
     }
 
-    return _StonePanel(
-      accentColor: primary,
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+    return _GlassCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionLabel('KINGDOM CHRONICLES', color: primary),
-          const SizedBox(height: 18),
-          _buildStatRow(
-            icon: Icons.military_tech,
-            label: 'ROYAL TITLE',
-            value: title,
-            primary: primary,
+          // Section Title
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'KINGDOM CHRONICLES',
+                style: TextStyle(
+                  color: primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 14),
-          _buildStatRow(
-            icon: Icons.castle_outlined,
-            label: 'CONQUEST PROGRESS',
-            value: '$conqueredCount / $totalCount Kingdoms',
-            primary: primary,
+
+          const SizedBox(height: 16),
+
+          // Conquest Progress Bar
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'CONQUEST CAMPAIGN',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    Text(
+                      '$conqueredCount / $totalCount Realms (${(progressPercent * 100).toInt()}%)',
+                      style: TextStyle(
+                        color: primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progressPercent,
+                    minHeight: 6,
+                    backgroundColor: Colors.white.withValues(alpha: 0.08),
+                    valueColor: AlwaysStoppedAnimation<Color>(primary),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
-          _buildStatRow(
-            icon: Icons.star_border_rounded,
-            label: 'LATEST VICTORY',
-            value: lastConquest,
-            primary: primary,
+
+          const SizedBox(height: 12),
+
+          // Stat items in a clean grid
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatTile(
+                  icon: Icons.military_tech_rounded,
+                  label: 'ROYAL TITLE',
+                  value: title,
+                  accentColor: primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildStatTile(
+                  icon: Icons.flag_rounded,
+                  label: 'LAST VICTORY',
+                  value: lastConquest,
+                  accentColor: primary,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatRow({
+  Widget _buildStatTile({
     required IconData icon,
     required String label,
     required String value,
-    required Color primary,
+    required Color accentColor,
   }) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: primary.withValues(alpha: 0.2), width: 1),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: accentColor),
           ),
-          child: Icon(icon, color: primary.withValues(alpha: 0.7), size: 18),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.35),
-                  fontSize: 9,
-                  letterSpacing: 2.2,
-                  fontWeight: FontWeight.bold,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 13,
-                  letterSpacing: 0.5,
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   // ── Danger Zone ────────────────────────────────────────────────────────────
   Widget _buildDangerZone(BuildContext context, Color primary) {
-    return _StonePanel(
-      accentColor: Colors.redAccent,
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return _GlassCard(
+      padding: const EdgeInsets.all(16),
+      borderColor: Colors.redAccent.withValues(alpha: 0.25),
+      child: Row(
         children: [
-          _SectionLabel('ABDICATION', color: Colors.redAccent),
-          const SizedBox(height: 12),
-          Text(
-            'Dissolve thy kingdom and return to the dawn of time. All records shall be stricken from the annals.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.4),
-              fontSize: 12,
-              height: 1.6,
-              fontStyle: FontStyle.italic,
-              letterSpacing: 0.3,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.redAccent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.restart_alt_rounded,
+              color: Colors.redAccent,
+              size: 20,
             ),
           ),
-          const SizedBox(height: 20),
-          _AnimatedPressButton(
-            onTap: () => _showResetConfirm(context, primary),
-            accentColor: Colors.redAccent,
-            child: Container(
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.redAccent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5), width: 1.2),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.refresh_rounded, color: Colors.redAccent.withValues(alpha: 0.85), size: 18),
-                  const SizedBox(width: 10),
-                  Text(
-                    'ABANDON THE THRONE',
-                    style: TextStyle(
-                      color: Colors.redAccent.withValues(alpha: 0.9),
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'RESET CAMPAIGN & IDENTITY',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Wipe kingdom records & start afresh',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showResetConfirm(BuildContext context, Color primary) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _AncientDialog(
-        title: 'ABDICATE THE THRONE?',
-        accentColor: Colors.redAccent,
-        content: Text(
-          "This act is irreversible. Thy kingdom's name, sigil, and legacy shall be erased from history.",
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.55),
-            fontSize: 13,
-            height: 1.6,
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-        actions: [
-          _DialogButton(label: 'HOLD FAST', color: Colors.white30, onTap: () => Navigator.pop(ctx)),
-          _DialogButton(
-            label: 'ABDICATE',
-            color: Colors.redAccent,
-            onTap: () {
-              Navigator.pop(ctx);
-              _resetProfile(context);
-            },
+          const SizedBox(width: 8),
+          _ModernPressButton(
+            onTap: () => _showResetConfirm(context, primary),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.redAccent.withValues(alpha: 0.5),
+                  width: 1,
+                ),
+              ),
+              child: const Text(
+                'ABDICATE',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -762,16 +928,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Ancient-themed Dialog
+//  Modern Minimal Dialog
 // ─────────────────────────────────────────────────────────────────────────────
-class _AncientDialog extends StatelessWidget {
+class _ModernDialog extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final Color accentColor;
   final Widget content;
   final List<Widget> actions;
 
-  const _AncientDialog({
+  const _ModernDialog({
     required this.title,
+    this.subtitle,
     required this.accentColor,
     required this.content,
     required this.actions,
@@ -781,59 +949,209 @@ class _AncientDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 380),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1E1810), Color(0xFF0F0D0A)],
-          ),
-          border: Border.all(color: accentColor.withValues(alpha: 0.35), width: 1.2),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 30, offset: const Offset(0, 10)),
-            BoxShadow(color: accentColor.withValues(alpha: 0.1), blurRadius: 30, spreadRadius: 4),
-          ],
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: CustomPaint(painter: _HatchPainter(color: Colors.white.withValues(alpha: 0.015))),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 420),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F1218).withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: accentColor.withValues(alpha: 0.3),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: accentColor.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title row
-                  Row(
-                    children: [
-                      Container(width: 14, height: 1.5, color: accentColor.withValues(alpha: 0.5)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            color: accentColor,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2.2,
-                          ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      width: 3,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          color: accentColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  content,
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: actions
-                        .map((a) => Padding(padding: const EdgeInsets.only(left: 10), child: a))
-                        .toList(),
+                    ),
+                  ],
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 11),
+                    child: Text(
+                      subtitle!,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.45),
+                        fontSize: 11,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                 ],
+                const SizedBox(height: 18),
+                content,
+                const SizedBox(height: 22),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: actions
+                      .map((a) => Padding(padding: const EdgeInsets.only(left: 8), child: a))
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModernDialogButton extends StatelessWidget {
+  final String label;
+  final bool isPrimary;
+  final Color? accentColor;
+  final VoidCallback onTap;
+
+  const _ModernDialogButton({
+    required this.label,
+    required this.isPrimary,
+    this.accentColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = accentColor ?? Theme.of(context).colorScheme.primary;
+    return _ModernPressButton(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isPrimary ? color : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isPrimary ? color : Colors.white.withValues(alpha: 0.15),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isPrimary ? Colors.black : Colors.white70,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Modern Buttons & Components
+// ─────────────────────────────────────────────────────────────────────────────
+class _ModernIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _ModernIconButton({
+    required this.icon,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = color ?? Theme.of(context).colorScheme.primary;
+    return _ModernPressButton(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: primary.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Icon(icon, color: primary, size: 22),
+      ),
+    );
+  }
+}
+
+class _ModernOutlineButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ModernOutlineButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _ModernPressButton(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.12),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: Colors.white70),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
               ),
             ),
           ],
@@ -843,48 +1161,17 @@ class _AncientDialog extends StatelessWidget {
   }
 }
 
-class _DialogButton extends StatelessWidget {
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _DialogButton({required this.label, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.4), width: 1),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 2),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Press-scale button wrapper
-// ─────────────────────────────────────────────────────────────────────────────
-class _AnimatedPressButton extends StatefulWidget {
+class _ModernPressButton extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
-  final Color accentColor;
 
-  const _AnimatedPressButton({required this.child, required this.onTap, required this.accentColor});
+  const _ModernPressButton({required this.child, required this.onTap});
 
   @override
-  State<_AnimatedPressButton> createState() => _AnimatedPressButtonState();
+  State<_ModernPressButton> createState() => _ModernPressButtonState();
 }
 
-class _AnimatedPressButtonState extends State<_AnimatedPressButton>
+class _ModernPressButtonState extends State<_ModernPressButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _scale;
@@ -894,23 +1181,32 @@ class _AnimatedPressButtonState extends State<_AnimatedPressButton>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 110),
-      reverseDuration: const Duration(milliseconds: 180),
+      duration: const Duration(milliseconds: 90),
+      reverseDuration: const Duration(milliseconds: 140),
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.96)
+    _scale = Tween<double>(begin: 1.0, end: 0.95)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) { _ctrl.reverse(); widget.onTap(); },
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap();
+      },
       onTapCancel: () => _ctrl.reverse(),
-      child: ScaleTransition(scale: _scale, child: widget.child),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: ScaleTransition(scale: _scale, child: widget.child),
+      ),
     );
   }
 }
