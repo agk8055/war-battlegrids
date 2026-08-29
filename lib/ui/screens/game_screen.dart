@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/app_assets.dart';
 import '../../game/kingdom_game.dart';
 import '../../providers/simulation_provider.dart';
 import '../../providers/turn_provider.dart';
@@ -365,6 +366,21 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
+          // Battlefield Scroll Background Image
+          Positioned.fill(
+            child: Image.asset(
+              AppAssets.bgImage,
+              fit: BoxFit.cover,
+              errorBuilder: AppAssets.defaultErrorBuilder,
+            ),
+          ),
+          // Overall Black Overlay
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.6),
+            ),
+          ),
+
           // The Game World
           if (_game != null) GameWidget(game: _game!),
 

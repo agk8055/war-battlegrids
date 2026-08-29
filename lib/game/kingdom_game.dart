@@ -36,6 +36,9 @@ class KingdomGame extends FlameGame with ScaleDetector {
   KingdomGame(this.ref, {this.onToast});
 
   @override
+  Color backgroundColor() => const Color(0x00000000);
+
+  @override
   Future<void> onLoad() async {
     images.prefix = ''; // Allow loading from any assets/ folder
     super.onLoad();

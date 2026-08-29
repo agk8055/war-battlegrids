@@ -11,6 +11,7 @@ class AppAssets {
   static final Images _flameImages = Images(prefix: '');
 
   // --- IMAGES ---
+  static const String bgImage = 'assets/images/bg_image.jpg';
   static const String homeBanner = 'assets/images/home_banner.png';
   static const String warSplashScreen = 'assets/images/war_splash_screen.png';
   static const String overworldMap = 'assets/images/overworld_map.png';

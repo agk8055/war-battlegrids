@@ -122,6 +122,21 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
 
           return Stack(
             children: [
+              // Battlefield Scroll Background Image
+              Positioned.fill(
+                child: Image.asset(
+                  AppAssets.bgImage,
+                  fit: BoxFit.cover,
+                  errorBuilder: AppAssets.defaultErrorBuilder,
+                ),
+              ),
+              // Overall Black Overlay
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.6),
+                ),
+              ),
+
               Positioned.fill(
                 child: InteractiveViewer(
                   transformationController: _transformationController,
