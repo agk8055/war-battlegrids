@@ -316,55 +316,58 @@ class _AnimatedCaptureBannerState extends State<_AnimatedCaptureBanner>
           ),
         ),
 
-        const SizedBox(height: 2),
+        const SizedBox(height: 6),
 
-        // 2. Small aesthetic text and points in the same row
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              _tierInfo.tierTitle,
-              style: GoogleFonts.cinzel(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                color: _tierInfo.primaryGlow.withValues(alpha: 0.95),
-                letterSpacing: 1.2,
-                shadows: const [
-                  Shadow(
-                    blurRadius: 4,
-                    color: Colors.black,
-                    offset: Offset(0, 1),
-                  ),
-                  Shadow(
-                    blurRadius: 8,
-                    color: Colors.black,
-                  ),
-                ],
-              ),
+        // 2. Text and points displayed inside a sleek glowing box like AiThinkingOverlay
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF141414),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _tierInfo.primaryGlow.withValues(alpha: 0.28),
+              width: 1.2,
             ),
-            const SizedBox(width: 5),
-            Text(
-              '+${widget.pointsGained} PTS',
-              style: GoogleFonts.outfit(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFFFFE082),
-                letterSpacing: 0.8,
-                shadows: const [
-                  Shadow(
-                    blurRadius: 4,
-                    color: Colors.black,
-                    offset: Offset(0, 1),
-                  ),
-                  Shadow(
-                    blurRadius: 8,
-                    color: Colors.black,
-                  ),
-                ],
+            boxShadow: [
+              // Ambient pulse-like glow
+              BoxShadow(
+                color: _tierInfo.primaryGlow.withValues(alpha: 0.22),
+                blurRadius: 20,
+                spreadRadius: 2,
               ),
-            ),
-          ],
+              // Depth shadow
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.6),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _tierInfo.tierTitle,
+                style: GoogleFonts.sairaStencilOne(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.95),
+                  letterSpacing: 1.6,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '+${widget.pointsGained} PTS',
+                style: GoogleFonts.sairaStencilOne(
+                  fontSize: 11,
+                  color: _tierInfo.accentColor,
+                  letterSpacing: 1.2,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -473,21 +476,26 @@ class _AnimatedStatusBannerState extends State<_AnimatedStatusBanner>
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
+                        horizontal: 14,
+                        vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.75),
+                        color: const Color(0xFF141414),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: widget.color.withValues(alpha: 0.6),
-                          width: 1,
+                          color: widget.color.withValues(alpha: 0.28),
+                          width: 1.2,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: widget.color.withValues(alpha: 0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
+                            color: widget.color.withValues(alpha: 0.22),
+                            blurRadius: 18,
+                            spreadRadius: 2,
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -499,14 +507,14 @@ class _AnimatedStatusBannerState extends State<_AnimatedStatusBanner>
                             color: widget.color,
                             size: 14,
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           Text(
                             widget.message,
-                            style: GoogleFonts.outfit(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 10,
-                              letterSpacing: 0.6,
+                            style: GoogleFonts.sairaStencilOne(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              fontSize: 11,
+                              letterSpacing: 1.4,
+                              decoration: TextDecoration.none,
                             ),
                           ),
                         ],

@@ -30,35 +30,35 @@ class AppAssets {
   static const String bluetooth = 'assets/images/bluetooth.png';
   static const String online = 'assets/images/online.png';
 
-  // --- ICONS ---
+  // --- ICONS (UI Elements) ---
   static const String borderEdge = 'assets/icons/border-edge.png';
-  static const String bull = 'assets/icons/bull.png';
-  static const String deer = 'assets/icons/deer.png';
-  static const String dragon = 'assets/icons/dragon.png';
-  static const String eagle = 'assets/icons/eagle.png';
-  static const String hacker = 'assets/icons/hacker.png';
+  static const String excalibur = 'assets/icons/excalibur.png';
   static const String link = 'assets/icons/link.png';
-  static const String lion = 'assets/icons/lion.png';
+  static const String medieval = 'assets/icons/medieval.png';
   static const String multiplayerIcon = 'assets/icons/multiplayer_icon.png';
-  static const String ottomanSigil = 'assets/icons/ottoman_sigil.png';
-  static const String pharaoh = 'assets/icons/pharaoh.png';
-  static const String risingSun = 'assets/icons/rising_sun.png';
-  static const String romanHelmet = 'assets/icons/roman_helmet.png';
   static const String settingsIcon = 'assets/icons/settings_icon.png';
   static const String shieldSword = 'assets/icons/shield_sword.png';
-  static const String shuriken = 'assets/icons/shuriken.png';
   static const String storyModeIcon = 'assets/icons/story_mode_icon.png';
-  static const String excalibur = 'assets/icons/excalibur.png';
-  static const String medieval = 'assets/icons/medieval.png';
   static const String swordFight = 'assets/icons/sword-fight.png';
   static const String throne = 'assets/icons/throne.png';
-  static const String vikingHelmet = 'assets/icons/viking_helmet.png';
-  static const String wolf = 'assets/icons/wolf.png';
 
-  // --- SYMBOLS ---
+  // --- SYMBOLS (Kingdom & Player Sigils) ---
+  static const String bull = 'assets/symbols/bull.png';
+  static const String deer = 'assets/symbols/deer.png';
+  static const String dragon = 'assets/symbols/dragon.png';
+  static const String eagle = 'assets/symbols/eagle.png';
   static const String fire = 'assets/symbols/fire.png';
   static const String flash = 'assets/symbols/flash.png';
+  static const String hacker = 'assets/symbols/hacker.png';
+  static const String lion = 'assets/symbols/lion.png';
+  static const String ottomanSigil = 'assets/symbols/ottoman_sigil.png';
+  static const String pharaoh = 'assets/symbols/pharaoh.png';
+  static const String risingSun = 'assets/symbols/rising_sun.png';
+  static const String romanHelmet = 'assets/symbols/roman_helmet.png';
+  static const String shuriken = 'assets/symbols/shuriken.png';
   static const String tiger = 'assets/symbols/tiger.png';
+  static const String vikingHelmet = 'assets/symbols/viking_helmet.png';
+  static const String wolf = 'assets/symbols/wolf.png';
 
   /// List of customizable player symbols available in profile/lobby
   static const List<String> availableSymbols = [
