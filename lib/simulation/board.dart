@@ -271,6 +271,32 @@ class Board {
       }
     }
 
+    // If allowZones is enabled, also ensure cells adjacent to/inside the opponent's palace boundary are evaluated
+    if (allowZones) {
+      for (int y = playerPalaceStartY; y <= playerPalaceEndY; y++) {
+        for (int x = playerPalaceStartX; x <= playerPalaceEndX; x++) {
+          if (isWithinPlayableArea(x, y) && !visited.contains((x, y))) {
+            visited.add((x, y));
+            final cell = getCell(x, y);
+            if (cell == CellState.playerZone || cell == CellState.empty) {
+              restrictedCells.add((x, y));
+            }
+          }
+        }
+      }
+      for (int y = aiPalaceStartY; y <= aiPalaceEndY; y++) {
+        for (int x = aiPalaceStartX; x <= aiPalaceEndX; x++) {
+          if (isWithinPlayableArea(x, y) && !visited.contains((x, y))) {
+            visited.add((x, y));
+            final cell = getCell(x, y);
+            if (cell == CellState.aiZone || cell == CellState.empty) {
+              restrictedCells.add((x, y));
+            }
+          }
+        }
+      }
+    }
+
     return restrictedCells;
   }
 }

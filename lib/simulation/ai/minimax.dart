@@ -30,9 +30,6 @@ class ThreatMove {
  * The _transpositionTable and _killerMoves are static for performance but are 
  * explicitly cleared at the start of every getBestMove call to ensure 
  * isolation between different moves and campaign battles.
- * 
- * IMPORTANT: RuleEngine and other callers must always enter through 
- * getBestMove and never call _minimax directly to guarantee this clean state.
  */
 class MinimaxAI {
   static const int _maxTableSize = 100000;
@@ -53,6 +50,7 @@ class MinimaxAI {
     (int, int)? bestMove;
 
     final availableMoves = _generateCandidateMoves(sim, maxDepth, strategy);
+    if (availableMoves.isEmpty) return null;
 
     int alpha = -9999999;
     int beta = 9999999;
@@ -72,7 +70,7 @@ class MinimaxAI {
       if (beta <= alpha) break;
     }
 
-    return bestMove ?? (availableMoves.isNotEmpty ? availableMoves.first : null);
+    return bestMove ?? availableMoves.first;
   }
 
   static int _minimax(
@@ -101,6 +99,9 @@ class MinimaxAI {
     }
 
     final availableMoves = _generateCandidateMoves(sim, depth, strategy);
+    if (availableMoves.isEmpty) {
+      return HeuristicEvaluator.evaluate(sim, strategy);
+    }
 
     int originalAlpha = alpha;
     bool firstMove = true;
@@ -129,7 +130,7 @@ class MinimaxAI {
           break;
         }
       }
-      
+
       _storeEntry(hash, maxEval, depth, originalAlpha, beta);
       return maxEval == -9999999 ? HeuristicEvaluator.evaluate(sim, strategy) : maxEval;
     } else {
@@ -162,27 +163,71 @@ class MinimaxAI {
     }
   }
 
-  /// Threat-Space Search (TSS) move generation with fallback.
+  /// Threat-Space Search (TSS) move generation with comprehensive ordering.
   static List<(int, int)> _generateCandidateMoves(GameSimulation sim, int depth, AIStrategy strategy) {
-    final rawMoves = sim.board.getRestrictedAvailableCells(radius: 2, allowZones: false);
-    final List<ThreatMove> threats = [];
-
     final currentTurn = sim.currentTurn;
-    final opponentTurn = currentTurn == Turn.player ? Turn.ai : Turn.player;
-    
-    final attackerState = currentTurn == Turn.player ? CellState.player : CellState.ai;
-    final defenderState = currentTurn == Turn.player ? CellState.ai : CellState.player;
+    final isPlayer = currentTurn == Turn.player;
+    final attackUnlocked = isPlayer ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
+    final activeCondition = isPlayer ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
+
+    final rawMoves = sim.board.getRestrictedAvailableCells(
+      radius: 2,
+      allowZones: attackUnlocked,
+    );
+
+    final List<ThreatMove> threats = [];
+    final opponentTurn = isPlayer ? Turn.ai : Turn.player;
+    final oppAttackUnlocked = isPlayer ? sim.aiKingdomAttackUnlocked : sim.playerKingdomAttackUnlocked;
+    final oppActiveCondition = isPlayer ? sim.aiActiveWinCondition : sim.playerActiveWinCondition;
+
+    final attackerState = isPlayer ? CellState.player : CellState.ai;
+    final defenderState = isPlayer ? CellState.ai : CellState.player;
 
     for (final move in rawMoves) {
-      // 0. Validity Check (Don't score illegal moves)
-      final attackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
-      if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked)) {
+      if (!GameRules.isValidPlacement(
+        sim.board,
+        move.$1,
+        move.$2,
+        currentTurn,
+        attackUnlocked,
+        activeCondition: activeCondition,
+      )) {
         continue;
       }
 
       int severity = 0;
 
-      // Temporarily place to check for immediate captures
+      // 1. Immediate Win Check (Maximum urgency)
+      if (attackUnlocked) {
+        sim.board.setCell(move.$1, move.$2, attackerState);
+        final winCheck = GameRules.checkWinCondition(
+          sim.board,
+          currentTurn,
+          kingdomAttackUnlocked: true,
+          activeCondition: activeCondition,
+        );
+        sim.board.setCell(move.$1, move.$2, CellState.empty);
+        if (winCheck.isWin && (winCheck.blockage?.contains(move) ?? true)) {
+          severity += 20000;
+        }
+      }
+
+      // 2. Opponent Immediate Win Block (Critical defense)
+      if (oppAttackUnlocked) {
+        sim.board.setCell(move.$1, move.$2, defenderState);
+        final oppWinCheck = GameRules.checkWinCondition(
+          sim.board,
+          opponentTurn,
+          kingdomAttackUnlocked: true,
+          activeCondition: oppActiveCondition,
+        );
+        sim.board.setCell(move.$1, move.$2, CellState.empty);
+        if (oppWinCheck.isWin && (oppWinCheck.blockage?.contains(move) ?? true)) {
+          severity += 15000;
+        }
+      }
+
+      // 3. Capture Evaluation
       sim.board.setCell(move.$1, move.$2, attackerState);
       try {
         final captureResult = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
@@ -193,62 +238,87 @@ class MinimaxAI {
               if (sim.board.getCell(c.$1, c.$2) == defenderState) enemyCount++;
             }
 
-            severity += 100 + (enemyCount * 10);
-            
-            // Double Threat Logic (Immediate)
+            severity += 200 + (enemyCount * 40);
+
+            // Double threat bonus
             if (strategy.prioritizeDoubleThreats && enemyCount >= 2) {
               severity += 150;
             }
+
+            // Threshold unlock bonus
+            final myScore = isPlayer ? sim.playerScore : sim.aiScore;
+            final threshold = isPlayer
+                ? sim.config.playerKingdomAttackThreshold
+                : sim.config.aiKingdomAttackThreshold;
+            if (!attackUnlocked && (myScore + enemyCount * 10) >= threshold) {
+              severity += 600; // Unlocks Kingdom Attack!
+            }
           } else {
-            // Suicidal move into an existing opponent enclosure
-            severity -= 200;
+            // Suicidal entrapment
+            severity -= 1500;
           }
         }
 
-        // Fork Logic: A move is a fork if it is adjacent to multiple separate enemy groups
-        // that are now vulnerable. Local check is faster than board-wide search.
+        // Fork logic
         if (strategy.focusOnForks) {
-           int adjacentEnemyGroups = _countAdjacentEnemyGroups(sim.board, move.$1, move.$2, defenderState);
-           if (adjacentEnemyGroups >= 2) {
-             severity += 120;
-           }
+          final adjacentEnemyGroups = _countAdjacentEnemyGroups(sim.board, move.$1, move.$2, defenderState);
+          if (adjacentEnemyGroups >= 2) {
+            severity += 120;
+          }
         }
-
-        // Defensive Logic: Check if opponent could capture here next turn
-        // Instead of heavy BFS, check if opponent has neighbors here
-        if (strategy.avoidHangingPieces) {
-           if (_isAdjacentToState8Way(sim.board, move.$1, move.$2, defenderState)) {
-             severity -= 50; // Discourage placing adjacent to enemies unless it captures
-           }
-        }
-
       } finally {
-        sim.board.setCell(move.$1, move.$2, CellState.empty); // Reset
+        sim.board.setCell(move.$1, move.$2, CellState.empty);
       }
 
-      // Defense Threat: Would the opponent capture if they moved here?
+      // 4. Opponent Threat Defense (Stopping enemy captures)
       sim.board.setCell(move.$1, move.$2, defenderState);
       try {
         final enemyCaptureResult = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn);
         if (enemyCaptureResult.capturedCells.isNotEmpty && enemyCaptureResult.capturerTurn == opponentTurn) {
           int oppEnemyCount = 0;
-          final myState = currentTurn == Turn.player ? CellState.player : CellState.ai;
           for (final c in enemyCaptureResult.capturedCells) {
-             if (sim.board.getCell(c.$1, c.$2) == myState) oppEnemyCount++;
+            if (sim.board.getCell(c.$1, c.$2) == attackerState) oppEnemyCount++;
           }
-          severity += 80 + (oppEnemyCount * 5);
+          severity += 100 + (oppEnemyCount * 25);
         }
       } finally {
-        sim.board.setCell(move.$1, move.$2, CellState.empty); // Reset
+        sim.board.setCell(move.$1, move.$2, CellState.empty);
       }
 
-      // 3. Sigil/Win Threat (Kingdom Attack)
+      // 5. Blockade / Sigil Proximity
       if (_isSigilThreat(sim, move, currentTurn)) {
         severity += strategy.sigilWeight;
       }
-      
       if (_isSigilThreat(sim, move, opponentTurn)) {
-        severity += (strategy.sigilWeight * 1.3).toInt();
+        severity += (strategy.sigilWeight * 1.5).toInt();
+      }
+
+      // 6. Multi-Tier Blockade Defense (Palace corners & chain cuts)
+      if (oppAttackUnlocked && strategy.anticipateBlockades) {
+        final targetPalaceMinY = isPlayer ? sim.board.playerPalaceStartY : sim.board.playableMinY;
+        final leftCornerX = isPlayer ? sim.board.playerPalaceStartX - 1 : sim.board.aiPalaceStartX - 1;
+        final rightCornerX = isPlayer ? sim.board.playerPalaceEndX + 1 : sim.board.aiPalaceEndX + 1;
+
+        if (move.$2 == targetPalaceMinY && (move.$1 == leftCornerX || move.$1 == rightCornerX)) {
+          severity += strategy.flankDefenseWeight * 3;
+        }
+
+        // Parallel chain cuts in central columns
+        final midCol = (sim.board.playableMinX + sim.board.playableMaxX) ~/ 2;
+        if (move.$1 >= midCol - 1 && move.$1 <= midCol + 1 && _isAdjacentToState8Way(sim.board, move.$1, move.$2, defenderState)) {
+          severity += strategy.chainCuttingWeight * 2;
+        }
+      }
+
+      // 7. Chain Connectivity & Anchor bonuses
+      final neighborCount = _countFriendly8WayNeighbors(sim.board, move.$1, move.$2, attackerState);
+      if (neighborCount > 0) {
+        severity += neighborCount * 15;
+      }
+
+      // Edge Anchor bonus
+      if (move.$1 == sim.board.playableMinX || move.$1 == sim.board.playableMaxX) {
+        severity += 25;
       }
 
       if (severity > 0) {
@@ -257,32 +327,41 @@ class MinimaxAI {
     }
 
     if (threats.isEmpty) {
-      // Fallback to radius-based center-prioritized moves (Quiet positions)
-      // We still filter for validity in the fallback
       final validRawMoves = rawMoves.where((m) {
-        final attackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
-        return GameRules.isValidPlacement(sim.board, m.$1, m.$2, currentTurn, attackUnlocked);
+        return GameRules.isValidPlacement(
+          sim.board,
+          m.$1,
+          m.$2,
+          currentTurn,
+          attackUnlocked,
+          activeCondition: activeCondition,
+        );
       }).toList();
 
       _sortMoves(validRawMoves, sim.board, depth);
       return validRawMoves;
     }
 
-    // Sort by severity
+    // Sort moves descending by severity
     threats.sort((a, b) => b.severity.compareTo(a.severity));
-    
+
     final List<(int, int)> sortedMoves = threats.map((t) => t.coord).toList();
-    
-    // Inject Killer moves at the top
+
+    // Inject killer moves
     final killers = _killerMoves[depth] ?? [];
     for (final killer in killers.reversed) {
       if (sortedMoves.contains(killer)) {
         sortedMoves.remove(killer);
         sortedMoves.insert(0, killer);
       } else {
-        // If killer is valid but not a "threat", it still gets high priority
-        final attackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
-        if (GameRules.isValidPlacement(sim.board, killer.$1, killer.$2, currentTurn, attackUnlocked)) {
+        if (GameRules.isValidPlacement(
+          sim.board,
+          killer.$1,
+          killer.$2,
+          currentTurn,
+          attackUnlocked,
+          activeCondition: activeCondition,
+        )) {
           sortedMoves.insert(0, killer);
         }
       }
@@ -292,38 +371,16 @@ class MinimaxAI {
   }
 
   static bool _isSigilThreat(GameSimulation sim, (int, int) move, Turn turn) {
-    // A move is a sigil threat if it would complete a win condition OR is near the palace during an attack.
     final isPlayer = turn == Turn.player;
-    final attackUnlocked = isPlayer ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
-    
     final board = sim.board;
-    final palStartX = isPlayer ? board.aiPalaceStartX : board.playerPalaceStartX;
-    final palEndX = isPlayer ? board.aiPalaceEndX : board.playerPalaceEndX;
-    final palStartY = isPlayer ? board.aiPalaceStartY : board.playerPalaceStartY;
-    final palEndY = isPlayer ? board.aiPalaceEndY : board.playerPalaceEndY;
+    final palStartX = isPlayer ? board.playerPalaceStartX : board.aiPalaceStartX;
+    final palEndX = isPlayer ? board.playerPalaceEndX : board.aiPalaceEndX;
+    final palStartY = isPlayer ? board.playerPalaceStartY : board.aiPalaceStartY;
+    final palEndY = isPlayer ? board.playerPalaceEndY : board.aiPalaceEndY;
 
-    // 1. Proximity to Target Palace (Offensive)
+    // Proximity to Palace perimeter
     if (_isAdjacentToPalace(move.$1, move.$2, palStartX, palEndX, palStartY, palEndY)) {
       return true;
-    }
-
-    // 2. Immediate Win Check (Critical Offensive)
-    if (attackUnlocked) {
-      final state = turn == Turn.player ? CellState.player : CellState.ai;
-      final original = board.getCell(move.$1, move.$2);
-      board.setCell(move.$1, move.$2, state);
-      final wins = GameRules.checkWinCondition(board, turn, kingdomAttackUnlocked: true);
-      board.setCell(move.$1, move.$2, original);
-      if (wins.isWin) return true;
-    }
-
-    // 3. Defensive Blocking (Anti-Blockade)
-    // If we are evaluating the opponent's turn, check if this move would block their win-path
-    if (!isPlayer && sim.playerKingdomAttackUnlocked) {
-       // If player is attacking AI, and this cell is below AI Palace, it's a defensive sigil
-       if (move.$2 > board.aiPalaceEndY && move.$2 < board.height / 2) {
-          return true;
-       }
     }
 
     return false;
@@ -331,11 +388,25 @@ class MinimaxAI {
 
   static bool _isAdjacentToPalace(int x, int y, int palStartX, int palEndX, int palStartY, int palEndY) {
     if (x >= palStartX - 1 && x <= palEndX + 1 && y >= palStartY - 1 && y <= palEndY + 1) {
-      // Ensure it's not inside the palace itself (though rawMoves should exclude that)
       if (x >= palStartX && x <= palEndX && y >= palStartY && y <= palEndY) return false;
       return true;
     }
     return false;
+  }
+
+  static int _countFriendly8WayNeighbors(Board board, int x, int y, CellState friendlyState) {
+    int count = 0;
+    final dirs = [
+      (x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y),
+      (x - 1, y - 1), (x + 1, y - 1), (x - 1, y + 1), (x + 1, y + 1),
+    ];
+    for (final d in dirs) {
+      if (board.isWithinPlayableArea(d.$1, d.$2)) {
+        final st = board.getCell(d.$1, d.$2);
+        if (st == friendlyState || st == CellState.capturedGrid) count++;
+      }
+    }
+    return count;
   }
 
   static void _storeKillerMove((int, int) move, int depth) {
@@ -356,7 +427,7 @@ class MinimaxAI {
     } else if (score >= beta) {
       type = 1;
     }
-    
+
     if (_transpositionTable.length >= _maxTableSize) {
       _transpositionTable.remove(_transpositionTable.keys.first);
     }
@@ -369,13 +440,11 @@ class MinimaxAI {
     final killers = _killerMoves[depth] ?? [];
 
     moves.sort((a, b) {
-      // Killer moves first
       final aIsKiller = killers.contains(a);
       final bIsKiller = killers.contains(b);
       if (aIsKiller && !bIsKiller) return -1;
       if (!aIsKiller && bIsKiller) return 1;
 
-      // Then center-first
       final dxA = a.$1 - centerX;
       final dyA = a.$2 - centerY;
       final distA = dxA * dxA + dyA * dyA;
@@ -394,12 +463,11 @@ class MinimaxAI {
     final neighbors = [
       (x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y),
     ];
-    
+
     for (final neighbor in neighbors) {
-      if (neighbor.$1 >= 0 && neighbor.$1 < board.width && neighbor.$2 >= 0 && neighbor.$2 < board.height) {
+      if (board.isWithinPlayableArea(neighbor.$1, neighbor.$2)) {
         if (board.getCell(neighbor.$1, neighbor.$2) == enemyState && !visited.contains(neighbor)) {
           count++;
-          // Basic flood fill to mark this group as "seen" locally
           _markGroup(board, neighbor, enemyState, visited);
         }
       }
@@ -413,21 +481,16 @@ class MinimaxAI {
       final curr = stack.removeLast();
       if (visited.contains(curr)) continue;
       visited.add(curr);
-      
+
       final neighbors = [
         (curr.$1, curr.$2 - 1), (curr.$1, curr.$2 + 1), (curr.$1 - 1, curr.$2), (curr.$1 + 1, curr.$2),
       ];
       for (final n in neighbors) {
-        if (n.$1 >= 0 && n.$1 < board.width && n.$2 >= 0 && n.$2 < board.height) {
+        if (board.isWithinPlayableArea(n.$1, n.$2)) {
           if (board.getCell(n.$1, n.$2) == state) stack.add(n);
         }
       }
     }
-  }
-
-  /// Deep clones a simulation instance so we can branch without destroying real state.
-  static GameSimulation _cloneSimulation(GameSimulation original) {
-    return original.clone();
   }
 
   static bool _isAdjacentToState8Way(Board board, int x, int y, CellState state) {
@@ -435,13 +498,15 @@ class MinimaxAI {
       (x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y),
       (x - 1, y - 1), (x + 1, y - 1), (x - 1, y + 1), (x + 1, y + 1),
     ];
-    for (var dir in dirs) {
-      if (dir.$1 >= 0 && dir.$1 < board.width && dir.$2 >= 0 && dir.$2 < board.height) {
-        if (board.getCell(dir.$1, dir.$2) == state) {
-          return true;
-        }
+    for (final d in dirs) {
+      if (board.isWithinPlayableArea(d.$1, d.$2)) {
+        if (board.getCell(d.$1, d.$2) == state) return true;
       }
     }
     return false;
+  }
+
+  static GameSimulation _cloneSimulation(GameSimulation original) {
+    return original.clone();
   }
 }

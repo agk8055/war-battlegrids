@@ -1,87 +1,177 @@
 import '../game_simulation.dart';
+import '../board.dart';
 import '../../core/enums/turn.dart';
 import '../../core/enums/cell_state.dart';
+import '../../core/enums/win_condition_type.dart';
 import '../../core/utils/capture_utils.dart';
 import '../rules.dart';
 import 'minimax.dart';
 import 'ai_strategy.dart';
+import 'evaluator.dart';
 
 class RuleEngine {
-  /// NOTE: All simulated placements in this file use direct [setCell] 
-  /// mutations. These are temporary simulations that intentionally 
-  /// bypass Zobrist hash updates to save time. The MinimaxAI handles 
-  /// hashing independently.
-
-  /// Entry point for the hybrid AI.
-  /// Runs through rule-based heuristics first. Fallback to Minimax if no rule applies.
+  /// Entry point for the hybrid tactical AI.
+  /// Evaluates urgent tactical rules in strict priority order based on game stage and strategy.
   static (int, int)? getBestMove(GameSimulation sim, AIStrategy strategy) {
-    final candidates = sim.board.getRestrictedAvailableCells(radius: 2, allowZones: false);
+    final allowZones = sim.currentTurn == Turn.ai
+        ? sim.aiKingdomAttackUnlocked
+        : sim.playerKingdomAttackUnlocked;
+    final candidates = sim.board.getRestrictedAvailableCells(radius: 2, allowZones: allowZones);
 
-    if (strategy.useRuleWinInstantly) {
+    final isAIUnlocked = sim.aiKingdomAttackUnlocked;
+    final isPlayerUnlocked = sim.playerKingdomAttackUnlocked;
+    final stage = _getGameStage(isAIUnlocked, isPlayerUnlocked);
+
+    // 0. URGENT OFFENSE: Immediate Win Check
+    if (strategy.useRuleWinInstantly && isAIUnlocked) {
       final winMove = _findWinningMove(sim, candidates);
       if (winMove != null) return winMove;
     }
 
-    if (strategy.useRuleImmediateCapture) {
-      final immediateCapture = _findImmediateCapture(sim, candidates);
-      if (immediateCapture != null) return immediateCapture;
+    // 1. CRITICAL DEFENSE: Block Opponent's 1-Move Lethal Win
+    if (isPlayerUnlocked) {
+      final blockWinMove = _findBlockOpponentWinMove(sim, candidates);
+      if (blockWinMove != null) return blockWinMove;
     }
 
+    // 2. GLORY THRESHOLD HUNTING: Capture that unlocks Kingdom Attack immediately
+    if (strategy.useRuleImmediateCapture && !isAIUnlocked) {
+      final thresholdUnlockCapture = _findThresholdUnlockingCapture(sim, candidates);
+      if (thresholdUnlockCapture != null) return thresholdUnlockCapture;
+    }
+
+    // 3. MULTI-TIER BLOCKADE DEFENSE: Proactive flank guarding and chain cutting
+    if (strategy.anticipateBlockades && isPlayerUnlocked) {
+      final tierDefenseMove = _findMultiTierBlockadeDefense(sim, candidates, strategy);
+      if (tierDefenseMove != null) return tierDefenseMove;
+    }
+
+    // 4. SITUATIONAL HIGH-VALUE CAPTURES
+    if (strategy.useRuleImmediateCapture) {
+      final immediateCapture = _findImmediateCapture(sim, candidates);
+      if (immediateCapture != null) {
+        // In Stage 1 (Pre-Siege Race) or Stage 2A (Emergency Defense), high-value captures take precedence
+        if (stage == GameStage.preSiegeRace || stage == GameStage.emergencyDefense) {
+          return immediateCapture;
+        }
+      }
+    }
+
+    // 5. TACTICAL DEFENSE: Rescue Friendly Pieces & Block Opponent Captures
     if (strategy.useRuleBlocking) {
+      final rescueMove = _findRescueMove(sim, candidates);
+      if (rescueMove != null) return rescueMove;
+
       final blockMove = _findBlockingMove(sim, candidates);
       if (blockMove != null) return blockMove;
     }
 
+    // 6. TACTICAL OFFENSE: Double Threat (Fork)
     if (strategy.useRuleDoubleThreat) {
       final doubleThreat = _findDoubleThreat(sim, candidates);
       if (doubleThreat != null) return doubleThreat;
     }
 
-    if (strategy.useRuleSigil) {
-      // 4. Kingdom Attack unlock & Sigil threatened
-      final sigilMove = _findSigilMove(sim, candidates);
-      if (sigilMove != null) return sigilMove;
+    // 7. STRATEGIC BLOCKADE & PALACE BREACH (Kingdom Attack phase)
+    if (strategy.useRuleSigil && isAIUnlocked) {
+      final blockadeMove = _findBlockadeAdvanceMove(sim, candidates);
+      if (blockadeMove != null) return blockadeMove;
     }
 
-    // 5. Fallback: Minimax PVS
+    // 8. DEEP SEARCH FALLBACK: Minimax with Threat-Space Search & PVS
     return MinimaxAI.getBestMove(sim, strategy);
   }
 
-  /// 0. Win instantly if the condition is met.
+  static GameStage _getGameStage(bool aiUnlocked, bool playerUnlocked) {
+    if (!aiUnlocked && !playerUnlocked) return GameStage.preSiegeRace;
+    if (!aiUnlocked && playerUnlocked) return GameStage.emergencyDefense;
+    if (aiUnlocked && !playerUnlocked) return GameStage.siegeAssault;
+    return GameStage.dualSiegeEndgame;
+  }
+
+  /// 0. Win instantly if any valid move completes the active win condition tier.
   static (int, int)? _findWinningMove(GameSimulation sim, List<(int, int)> candidates) {
     final currentTurn = sim.currentTurn;
     final attackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
     if (!attackUnlocked) return null;
 
     final attackerState = currentTurn == Turn.player ? CellState.player : CellState.ai;
+    final activeCondition = currentTurn == Turn.player ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
 
     for (final move in candidates) {
-      if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked)) {
+      if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked, activeCondition: activeCondition)) {
         continue;
       }
-      
+
       final original = sim.board.getCell(move.$1, move.$2);
       sim.board.setCell(move.$1, move.$2, attackerState);
-      final wins = GameRules.checkWinCondition(sim.board, currentTurn, kingdomAttackUnlocked: true);
+      final wins = GameRules.checkWinCondition(
+        sim.board,
+        currentTurn,
+        kingdomAttackUnlocked: true,
+        activeCondition: activeCondition,
+      );
       sim.board.setCell(move.$1, move.$2, original);
 
-      if (wins.isWin) return move;
+      if (wins.isWin && (wins.blockage?.contains(move) ?? true)) {
+        return move;
+      }
     }
     return null;
   }
 
-  /// 1. Finds a move that captures opponent units immediately.
-  /// Returns the move that captures the maximum number of units.
-  static (int, int)? _findImmediateCapture(GameSimulation sim, List<(int, int)> candidates) {
+  /// 1. Blocks the opponent if they have a move that would immediately win on their next turn.
+  static (int, int)? _findBlockOpponentWinMove(GameSimulation sim, List<(int, int)> candidates) {
     final currentTurn = sim.currentTurn;
-    final attackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
-    final attackerState = currentTurn == Turn.player ? CellState.player : CellState.ai;
+    final oppTurn = currentTurn == Turn.player ? Turn.ai : Turn.player;
+    final oppAttackUnlocked = oppTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
 
-    (int, int)? bestMove;
-    int maxCaptures = 0;
+    if (!oppAttackUnlocked) return null;
+
+    final oppState = oppTurn == Turn.player ? CellState.player : CellState.ai;
+    final oppActiveCondition = oppTurn == Turn.player ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
+    final myAttackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
+    final myActiveCondition = currentTurn == Turn.player ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
 
     for (final move in candidates) {
-      if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked)) {
+      if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, oppTurn, oppAttackUnlocked, activeCondition: oppActiveCondition)) {
+        continue;
+      }
+
+      final original = sim.board.getCell(move.$1, move.$2);
+      sim.board.setCell(move.$1, move.$2, oppState);
+      final oppWin = GameRules.checkWinCondition(
+        sim.board,
+        oppTurn,
+        kingdomAttackUnlocked: true,
+        activeCondition: oppActiveCondition,
+      );
+      sim.board.setCell(move.$1, move.$2, original);
+
+      if (oppWin.isWin && (oppWin.blockage?.contains(move) ?? true)) {
+        if (GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, myAttackUnlocked, activeCondition: myActiveCondition)) {
+          return move;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// 2. Finds a capture that immediately crosses the threshold to unlock Kingdom Attack.
+  static (int, int)? _findThresholdUnlockingCapture(GameSimulation sim, List<(int, int)> candidates) {
+    final currentTurn = sim.currentTurn;
+    final attackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
+    final currentScore = currentTurn == Turn.player ? sim.playerScore : sim.aiScore;
+    final threshold = currentTurn == Turn.player
+        ? sim.config.playerKingdomAttackThreshold
+        : sim.config.aiKingdomAttackThreshold;
+
+    final attackerState = currentTurn == Turn.player ? CellState.player : CellState.ai;
+    final defenderState = currentTurn == Turn.player ? CellState.ai : CellState.player;
+    final activeCondition = currentTurn == Turn.player ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
+
+    for (final move in candidates) {
+      if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked, activeCondition: activeCondition)) {
         continue;
       }
 
@@ -89,15 +179,157 @@ class RuleEngine {
       try {
         final result = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
         if (result.capturedCells.isNotEmpty && result.capturerTurn == currentTurn) {
-           int enemyCount = 0;
-           final defState = currentTurn == Turn.player ? CellState.ai : CellState.player;
-           for (final c in result.capturedCells) {
-              if (sim.board.getCell(c.$1, c.$2) == defState) enemyCount++;
-           }
-           if (enemyCount > maxCaptures) {
-             maxCaptures = enemyCount;
-             bestMove = move;
-           }
+          int enemyCount = 0;
+          for (final c in result.capturedCells) {
+            if (sim.board.getCell(c.$1, c.$2) == defenderState) enemyCount++;
+          }
+          if (currentScore + (enemyCount * 10) >= threshold) {
+            return move; // Unlocks Kingdom Attack!
+          }
+        }
+      } finally {
+        sim.board.setCell(move.$1, move.$2, CellState.empty);
+      }
+    }
+    return null;
+  }
+
+  /// 3. Multi-Tier Blockade Defense:
+  /// Proactively counters the opponent's active blockade tier (Full U, Half U, or Parallel).
+  static (int, int)? _findMultiTierBlockadeDefense(
+    GameSimulation sim,
+    List<(int, int)> candidates,
+    AIStrategy strategy,
+  ) {
+    final board = sim.board;
+    final isPlayer = sim.currentTurn == Turn.player;
+    final oppTier = isPlayer ? sim.aiActiveWinCondition : sim.playerActiveWinCondition;
+    final myAttackUnlocked = isPlayer ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
+    final myActiveCondition = isPlayer ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
+
+    // AI palace anchors to protect (when AI is defending at top)
+    final targetPalaceMinY = isPlayer ? board.playerPalaceStartY : board.playableMinY;
+    final leftCornerX = isPlayer ? board.playerPalaceStartX - 1 : board.aiPalaceStartX - 1;
+    final rightCornerX = isPlayer ? board.playerPalaceEndX + 1 : board.aiPalaceEndX + 1;
+
+    switch (oppTier) {
+      case WinConditionType.fullUShape:
+        // Tier 1 Defense: Deny the palace flanks. If opponent occupies or is near one flank,
+        // AI secures the opposite flank to break the Full U-Shape condition!
+        final leftFlankCoord = (leftCornerX, targetPalaceMinY);
+        final rightFlankCoord = (rightCornerX, targetPalaceMinY);
+
+        // Check if left corner is empty and legal
+        if (candidates.contains(leftFlankCoord) &&
+            GameRules.isValidPlacement(board, leftFlankCoord.$1, leftFlankCoord.$2, sim.currentTurn, myAttackUnlocked, activeCondition: myActiveCondition)) {
+          // If player has a piece near right corner, grabbing left corner breaks Full U!
+          if (_hasPlayerPieceNear(board, rightCornerX, targetPalaceMinY)) {
+            return leftFlankCoord;
+          }
+        }
+
+        // Check right corner
+        if (candidates.contains(rightFlankCoord) &&
+            GameRules.isValidPlacement(board, rightFlankCoord.$1, rightFlankCoord.$2, sim.currentTurn, myAttackUnlocked, activeCondition: myActiveCondition)) {
+          if (_hasPlayerPieceNear(board, leftCornerX, targetPalaceMinY)) {
+            return rightFlankCoord;
+          }
+        }
+        break;
+
+      case WinConditionType.halfUShape:
+        // Tier 2 Defense: Player is connecting Left Edge -> Right Palace Flank OR Right Edge -> Left Palace Flank.
+        // AI places in the open palace corner or cuts the diagonal midpoint.
+        final openLeft = (leftCornerX, targetPalaceMinY);
+        final openRight = (rightCornerX, targetPalaceMinY);
+
+        if (candidates.contains(openLeft) &&
+            GameRules.isValidPlacement(board, openLeft.$1, openLeft.$2, sim.currentTurn, myAttackUnlocked, activeCondition: myActiveCondition)) {
+          return openLeft;
+        }
+        if (candidates.contains(openRight) &&
+            GameRules.isValidPlacement(board, openRight.$1, openRight.$2, sim.currentTurn, myAttackUnlocked, activeCondition: myActiveCondition)) {
+          return openRight;
+        }
+        break;
+
+      case WinConditionType.parallel:
+        // Tier 3 Defense: Player is connecting across columns from Left Edge to Right Edge.
+        // AI finds candidate moves that intersect the player's horizontal chain across the central columns.
+        final midCol = (board.playableMinX + board.playableMaxX) ~/ 2;
+        for (final move in candidates) {
+          if (move.$1 >= midCol - 1 && move.$1 <= midCol + 1) {
+            if (_isAdjacentToPlayer8Way(board, move.$1, move.$2) &&
+                GameRules.isValidPlacement(board, move.$1, move.$2, sim.currentTurn, myAttackUnlocked, activeCondition: myActiveCondition)) {
+              return move; // Sever the parallel chain!
+            }
+          }
+        }
+        break;
+
+      case WinConditionType.kingdomAssisted:
+        break;
+    }
+
+    return null;
+  }
+
+  static bool _hasPlayerPieceNear(Board board, int targetX, int targetY) {
+    for (int dy = -1; dy <= 1; dy++) {
+      for (int dx = -1; dx <= 1; dx++) {
+        final nx = targetX + dx;
+        final ny = targetY + dy;
+        if (board.isWithinPlayableArea(nx, ny)) {
+          final cell = board.getCell(nx, ny);
+          if (cell == CellState.player || cell == CellState.capturedGrid) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  static bool _isAdjacentToPlayer8Way(Board board, int x, int y) {
+    final dirs = [
+      (x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y),
+      (x - 1, y - 1), (x + 1, y - 1), (x - 1, y + 1), (x + 1, y + 1),
+    ];
+    for (final d in dirs) {
+      if (board.isWithinPlayableArea(d.$1, d.$2)) {
+        final st = board.getCell(d.$1, d.$2);
+        if (st == CellState.player || st == CellState.capturedGrid) return true;
+      }
+    }
+    return false;
+  }
+
+  /// 4. Finds a move that captures opponent units immediately.
+  static (int, int)? _findImmediateCapture(GameSimulation sim, List<(int, int)> candidates) {
+    final currentTurn = sim.currentTurn;
+    final attackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
+    final attackerState = currentTurn == Turn.player ? CellState.player : CellState.ai;
+    final defenderState = currentTurn == Turn.player ? CellState.ai : CellState.player;
+    final activeCondition = currentTurn == Turn.player ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
+
+    (int, int)? bestMove;
+    int maxCaptures = 0;
+
+    for (final move in candidates) {
+      if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked, activeCondition: activeCondition)) {
+        continue;
+      }
+
+      sim.board.setCell(move.$1, move.$2, attackerState);
+      try {
+        final result = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
+        if (result.capturedCells.isNotEmpty && result.capturerTurn == currentTurn) {
+          int enemyCount = 0;
+          for (final c in result.capturedCells) {
+            if (sim.board.getCell(c.$1, c.$2) == defenderState) enemyCount++;
+          }
+          if (enemyCount > maxCaptures) {
+            maxCaptures = enemyCount;
+            bestMove = move;
+          }
         }
       } finally {
         sim.board.setCell(move.$1, move.$2, CellState.empty);
@@ -107,14 +339,52 @@ class RuleEngine {
     return bestMove;
   }
 
-  /// 2. Finds a move to block an opponent's capture on their next turn.
-  /// Returns a valid placement for us that stops the maximum opponent captures.
+  /// 5a. Finds a move that rescues friendly pieces that have only 1 liberty (in Atari).
+  static (int, int)? _findRescueMove(GameSimulation sim, List<(int, int)> candidates) {
+    final currentTurn = sim.currentTurn;
+    final myState = currentTurn == Turn.player ? CellState.player : CellState.ai;
+    final oppTurn = currentTurn == Turn.player ? Turn.ai : Turn.player;
+    final myAttackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
+    final myActiveCondition = currentTurn == Turn.player ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
+
+    for (final move in candidates) {
+      if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, myAttackUnlocked, activeCondition: myActiveCondition)) {
+        continue;
+      }
+
+      final original = sim.board.getCell(move.$1, move.$2);
+      sim.board.setCell(move.$1, move.$2, myState);
+      bool savesGroup = false;
+
+      try {
+        final selfCheck = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
+        if (selfCheck.capturedCells.isEmpty || selfCheck.capturerTurn == currentTurn) {
+          sim.board.setCell(move.$1, move.$2, CellState.empty);
+          final oppCheck = CaptureUtils.getCapturedUnits(sim.board, move, oppTurn);
+          if (oppCheck.capturedCells.isNotEmpty && oppCheck.capturerTurn == oppTurn) {
+            savesGroup = true;
+          }
+          sim.board.setCell(move.$1, move.$2, myState);
+        }
+      } finally {
+        sim.board.setCell(move.$1, move.$2, original);
+      }
+
+      if (savesGroup) {
+        return move;
+      }
+    }
+    return null;
+  }
+
+  /// 5b. Finds a move to block an opponent's capture on their next turn.
   static (int, int)? _findBlockingMove(GameSimulation sim, List<(int, int)> candidates) {
     final currentTurn = sim.currentTurn;
     final opponentTurn = currentTurn == Turn.player ? Turn.ai : Turn.player;
     final attackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
     final opponentAttackUnlocked = opponentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
-    
+    final myActiveCondition = currentTurn == Turn.player ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
+
     final oppState = opponentTurn == Turn.player ? CellState.player : CellState.ai;
     final myState = currentTurn == Turn.player ? CellState.player : CellState.ai;
 
@@ -122,12 +392,10 @@ class RuleEngine {
     int maxThreatened = 0;
 
     for (final move in candidates) {
-      // Must be a spot the opponent could validly play
       if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, opponentTurn, opponentAttackUnlocked)) {
         continue;
       }
 
-      // Check if opponent placing here threatens our pieces
       sim.board.setCell(move.$1, move.$2, oppState);
       int potentialCaptures = 0;
       try {
@@ -143,37 +411,14 @@ class RuleEngine {
         sim.board.setCell(move.$1, move.$2, CellState.empty);
       }
 
-      // If it blocks a capture AND we can legally place our piece there
       if (potentialCaptures > maxThreatened) {
-        if (GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked)) {
-          // Safety verification check: will this piece just be captured right back next turn?
+        if (GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked, activeCondition: myActiveCondition)) {
           bool getsCaptured = false;
           sim.board.setCell(move.$1, move.$2, myState);
           try {
-            // Check if placing our piece here immediately gets entrapped/captured
             final selfResult = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
             if (selfResult.capturedCells.isNotEmpty && selfResult.capturerTurn == opponentTurn) {
               getsCaptured = true;
-            }
-
-            if (!getsCaptured) {
-              final orthogonalDirs = [
-                (move.$1, move.$2 - 1), (move.$1, move.$2 + 1),
-                (move.$1 - 1, move.$2), (move.$1 + 1, move.$2),
-              ];
-              for (final oppMove in orthogonalDirs) {
-                if (oppMove.$1 < 0 || oppMove.$1 >= sim.board.width || oppMove.$2 < 0 || oppMove.$2 >= sim.board.height) continue;
-                if (sim.board.getCell(oppMove.$1, oppMove.$2) != CellState.empty) continue;
-                if (!GameRules.isValidPlacement(sim.board, oppMove.$1, oppMove.$2, opponentTurn, opponentAttackUnlocked)) continue;
-                
-                sim.board.setCell(oppMove.$1, oppMove.$2, oppState);
-                final oppResult = CaptureUtils.getCapturedUnits(sim.board, oppMove, opponentTurn);
-                sim.board.setCell(oppMove.$1, oppMove.$2, CellState.empty);
-                if (oppResult.capturerTurn == opponentTurn && oppResult.capturedCells.contains(move)) {
-                  getsCaptured = true;
-                  break;
-                }
-              }
             }
           } finally {
             sim.board.setCell(move.$1, move.$2, CellState.empty);
@@ -190,14 +435,15 @@ class RuleEngine {
     return bestBlock;
   }
 
-  /// 3. Finds a move that creates a double threat (fork).
+  /// 6. Finds a move that creates a double threat (fork).
   static (int, int)? _findDoubleThreat(GameSimulation sim, List<(int, int)> candidates) {
     final currentTurn = sim.currentTurn;
     final attackUnlocked = currentTurn == Turn.player ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
     final attackerState = currentTurn == Turn.player ? CellState.player : CellState.ai;
+    final myActiveCondition = currentTurn == Turn.player ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
 
     for (final move in candidates) {
-      if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked)) {
+      if (!GameRules.isValidPlacement(sim.board, move.$1, move.$2, currentTurn, attackUnlocked, activeCondition: myActiveCondition)) {
         continue;
       }
 
@@ -208,90 +454,94 @@ class RuleEngine {
           (move.$1, move.$2 - 1), (move.$1, move.$2 + 1),
           (move.$1 - 1, move.$2), (move.$1 + 1, move.$2),
         ];
-        for(final nextMove in orthogonalDirs) {
-           if (nextMove.$1 < 0 || nextMove.$1 >= sim.board.width || nextMove.$2 < 0 || nextMove.$2 >= sim.board.height) continue;
-           if (sim.board.getCell(nextMove.$1, nextMove.$2) != CellState.empty) continue;
-           if (!GameRules.isValidPlacement(sim.board, nextMove.$1, nextMove.$2, currentTurn, attackUnlocked)) continue;
-           
-           sim.board.setCell(nextMove.$1, nextMove.$2, attackerState);
-           final nextResult = CaptureUtils.getCapturedUnits(sim.board, nextMove, currentTurn);
-           sim.board.setCell(nextMove.$1, nextMove.$2, CellState.empty);
-           
-           if (nextResult.capturedCells.isNotEmpty && nextResult.capturerTurn == currentTurn) {
-             capturingNextMovesCount++;
-           }
+        for (final nextMove in orthogonalDirs) {
+          if (!sim.board.isWithinPlayableArea(nextMove.$1, nextMove.$2)) continue;
+          if (sim.board.getCell(nextMove.$1, nextMove.$2) != CellState.empty) continue;
+          if (!GameRules.isValidPlacement(sim.board, nextMove.$1, nextMove.$2, currentTurn, attackUnlocked, activeCondition: myActiveCondition)) continue;
+
+          sim.board.setCell(nextMove.$1, nextMove.$2, attackerState);
+          final nextResult = CaptureUtils.getCapturedUnits(sim.board, nextMove, currentTurn);
+          sim.board.setCell(nextMove.$1, nextMove.$2, CellState.empty);
+
+          if (nextResult.capturedCells.isNotEmpty && nextResult.capturerTurn == currentTurn) {
+            capturingNextMovesCount++;
+          }
         }
       } finally {
         sim.board.setCell(move.$1, move.$2, CellState.empty);
       }
 
-      // If we have >= 2 future capturing moves, the opponent can only block one.
       if (capturingNextMovesCount >= 2) {
-         return move;
+        return move;
       }
     }
 
     return null;
   }
 
-  /// 4. If Kingdom Attack is unlocked, finds a move that threatens the opponent's sigil.
-  /// Actively prioritizes moves that build a contiguous U-shaped blockade.
-  static (int, int)? _findSigilMove(GameSimulation sim, List<(int, int)> candidates) {
+  /// 7. Strategic Blockade & Palace Breach Move:
+  static (int, int)? _findBlockadeAdvanceMove(GameSimulation sim, List<(int, int)> candidates) {
     final isPlayer = sim.currentTurn == Turn.player;
     final attackUnlocked = isPlayer ? sim.playerKingdomAttackUnlocked : sim.aiKingdomAttackUnlocked;
-    
     if (!attackUnlocked) return null;
 
     final board = sim.board;
-    final palStartX = isPlayer ? board.aiPalaceStartX : board.playerPalaceStartX;
-    final palEndX = isPlayer ? board.aiPalaceEndX : board.playerPalaceEndX;
-    final palStartY = isPlayer ? board.aiPalaceStartY : board.playerPalaceStartY;
-    final palEndY = isPlayer ? board.aiPalaceEndY : board.playerPalaceEndY;
+    final activeTier = isPlayer ? sim.playerActiveWinCondition : sim.aiActiveWinCondition;
+    final myState = isPlayer ? CellState.player : CellState.ai;
 
     (int, int)? bestMove;
-    int bestScore = -1;
+    int bestScore = 0;
 
     for (final move in candidates) {
-      if (!GameRules.isValidPlacement(board, move.$1, move.$2, sim.currentTurn, attackUnlocked)) {
+      if (!GameRules.isValidPlacement(board, move.$1, move.$2, sim.currentTurn, attackUnlocked, activeCondition: activeTier)) {
         continue;
       }
 
-      if (_isAdjacentToPalace(move.$1, move.$2, palStartX, palEndX, palStartY, palEndY)) {
-        int score = 0;
-        final myState = isPlayer ? CellState.player : CellState.ai;
-        
-        // Count friendly neighbors to encourage a contiguous wall (U-Shape)
-        final adjacentDirs = [
-          (move.$1, move.$2 - 1), (move.$1, move.$2 + 1), 
-          (move.$1 - 1, move.$2), (move.$1 + 1, move.$2),
-        ];
+      int score = 0;
+      final x = move.$1;
+      final y = move.$2;
 
-        for (final dir in adjacentDirs) {
-          if (dir.$1 >= 0 && dir.$1 < board.width && dir.$2 >= 0 && dir.$2 < board.height) {
-            if (board.getCell(dir.$1, dir.$2) == myState) {
-               // Higher weight for orthogonal vs diagonal if we want, but 8-way is good for contiguous feel.
-               score += 5; 
-            }
+      // 1. Proximity to opponent palace flanks or breach inside palace
+      if (isPlayer) {
+        if (y == board.playableMinY && (x < board.aiPalaceStartX || x > board.aiPalaceEndX)) {
+          score += 25;
+        }
+        if (x >= board.aiPalaceStartX && x <= board.aiPalaceEndX && y >= board.aiPalaceStartY && y <= board.aiPalaceEndY) {
+          score += 35;
+        }
+      } else {
+        if (y == board.playableMaxY && (x < board.playerPalaceStartX || x > board.playerPalaceEndX)) {
+          score += 25;
+        }
+        if (x >= board.playerPalaceStartX && x <= board.playerPalaceEndX && y >= board.playerPalaceStartY && y <= board.playerPalaceEndY) {
+          score += 35;
+        }
+      }
+
+      // 2. Count 8-way friendly connections to extend chains
+      final adjacentDirs = [
+        (x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y),
+        (x - 1, y - 1), (x + 1, y - 1), (x - 1, y + 1), (x + 1, y + 1),
+      ];
+
+      int friendlyNeighbors = 0;
+      for (final dir in adjacentDirs) {
+        if (board.isWithinPlayableArea(dir.$1, dir.$2)) {
+          final st = board.getCell(dir.$1, dir.$2);
+          if (st == myState || st == CellState.capturedGrid) {
+            friendlyNeighbors++;
           }
         }
-        
-        if (score > bestScore) {
-          bestScore = score;
-          bestMove = move;
-        }
+      }
+
+      score += friendlyNeighbors * 8;
+
+      if (score > bestScore && friendlyNeighbors > 0) {
+        bestScore = score;
+        bestMove = move;
       }
     }
 
     return bestMove;
-  }
-
-
-
-  static bool _isAdjacentToPalace(int x, int y, int palStartX, int palEndX, int palStartY, int palEndY) {
-    if (x >= palStartX - 1 && x <= palEndX + 1 && y >= palStartY - 1 && y <= palEndY + 1) {
-      if (x >= palStartX && x <= palEndX && y >= palStartY && y <= palEndY) return false;
-      return true;
-    }
-    return false;
   }
 }

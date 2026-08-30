@@ -360,7 +360,10 @@ class KingdomGame extends FlameGame with ScaleDetector {
       // If bestMove was null or invalid, attempt fallback moves so turn never hangs
       if (!movePlaced) {
         final currentSim = ref.read(simulationProvider);
-        final candidates = currentSim.board.getRestrictedAvailableCells(radius: 2, allowZones: false);
+        final candidates = currentSim.board.getRestrictedAvailableCells(
+          radius: 2,
+          allowZones: currentSim.aiKingdomAttackUnlocked,
+        );
         
         for (final move in candidates) {
           final result = notifier.placeUnit(move.$1, move.$2);

@@ -2,12 +2,12 @@ import '../../core/enums/turn.dart';
 import '../game_simulation.dart';
 
 enum AIStrategyType {
-  basic,        // Kingdom 1: Only basic capture threats
-  doubleThreat, // Kingdom 2: Creates double threats
-  defensive,    // Kingdom 3: Plays defensively, never leaves pieces hanging
-  aggressive,   // Kingdom 4: Zone dominance
-  forkExpert,   // Kingdom 5: Fork strategy + sigil focus
-  master        // Final Kingdom: Everything sharp
+  basic,        // Novice (Kingdom 1): Basic capture threats and 1-move defense
+  doubleThreat, // Tactician (Kingdom 2): Creates double threats and dual-flank attacks
+  defensive,    // Guardian (Kingdom 3): High anti-blockade anticipation, palace flank protection
+  aggressive,   // Conqueror (Kingdom 4): Glory capture race and deep palace breach assault
+  forkExpert,   // Grandmaster (Kingdom 5): Multi-tier win threats and bottleneck traps
+  master        // Legendary (Kingdoms 6-8): Master of all stages, multi-step blockade prevention
 }
 
 class AIStrategy {
@@ -20,11 +20,15 @@ class AIStrategy {
   final int connectivityWeight;
   final int zoneControlWeight;
   final int sigilWeight;
+  final int flankDefenseWeight;
+  final int chainCuttingWeight;
+  final int gloryHuntWeight;
   
   // Behavioral Flags
   final bool prioritizeDoubleThreats;
   final bool avoidHangingPieces;
   final bool focusOnForks;
+  final bool anticipateBlockades;
   
   // Rule Engine Options
   final bool useRuleWinInstantly;
@@ -33,20 +37,24 @@ class AIStrategy {
   final bool useRuleDoubleThreat;
   final bool useRuleSigil;
   
-  // Search Depth - We still use depth, but it's no longer the ONLY scale.
+  // Search Depth
   final int searchDepth;
 
   const AIStrategy({
     required this.type,
     this.captureWeight = 100,
     this.palaceAttackWeight = 50,
-    this.palaceDefendWeight = 10,
+    this.palaceDefendWeight = 50,
     this.connectivityWeight = 40,
     this.zoneControlWeight = 0,
     this.sigilWeight = 150,
+    this.flankDefenseWeight = 60,
+    this.chainCuttingWeight = 60,
+    this.gloryHuntWeight = 120,
     this.prioritizeDoubleThreats = false,
     this.avoidHangingPieces = false,
     this.focusOnForks = false,
+    this.anticipateBlockades = false,
     this.useRuleWinInstantly = true,
     this.useRuleImmediateCapture = true,
     this.useRuleBlocking = true,
@@ -62,19 +70,27 @@ class AIStrategy {
           type: AIStrategyType.basic,
           captureWeight: 100,
           palaceAttackWeight: 10,
-          palaceDefendWeight: 5,
-          connectivityWeight: 0,
+          palaceDefendWeight: 20,
+          connectivityWeight: 10,
           sigilWeight: 50,
+          flankDefenseWeight: 30,
+          chainCuttingWeight: 30,
+          gloryHuntWeight: 100,
+          anticipateBlockades: false,
           searchDepth: 2,
         );
       case AIStrategyType.doubleThreat:
         return const AIStrategy(
           type: AIStrategyType.doubleThreat,
-          captureWeight: 150, // Increased to prioritize immediate gains
-          palaceAttackWeight: 30,
-          palaceDefendWeight: 15,
-          connectivityWeight: 20,
+          captureWeight: 150,
+          palaceAttackWeight: 40,
+          palaceDefendWeight: 30,
+          connectivityWeight: 25,
+          flankDefenseWeight: 40,
+          chainCuttingWeight: 40,
+          gloryHuntWeight: 140,
           prioritizeDoubleThreats: true,
+          anticipateBlockades: false,
           searchDepth: 2,
         );
       case AIStrategyType.defensive:
@@ -82,44 +98,62 @@ class AIStrategy {
           type: AIStrategyType.defensive,
           captureWeight: 120,
           palaceAttackWeight: 40,
-          palaceDefendWeight: 120, // Heavily prioritized defense
+          palaceDefendWeight: 160,
           connectivityWeight: 50,
+          sigilWeight: 200,
+          flankDefenseWeight: 180,
+          chainCuttingWeight: 150,
+          gloryHuntWeight: 120,
           avoidHangingPieces: true,
+          anticipateBlockades: true,
           searchDepth: 2,
         );
       case AIStrategyType.aggressive:
         return const AIStrategy(
           type: AIStrategyType.aggressive,
-          captureWeight: 130,
-          palaceAttackWeight: 150, // High offensive pressure
-          palaceDefendWeight: 30,
+          captureWeight: 160,
+          palaceAttackWeight: 180,
+          palaceDefendWeight: 40,
           connectivityWeight: 70,
-          zoneControlWeight: 100,
+          zoneControlWeight: 120,
+          sigilWeight: 250,
+          flankDefenseWeight: 50,
+          chainCuttingWeight: 50,
+          gloryHuntWeight: 200,
+          anticipateBlockades: false,
           searchDepth: 2,
         );
       case AIStrategyType.forkExpert:
         return const AIStrategy(
           type: AIStrategyType.forkExpert,
           captureWeight: 140,
-          palaceAttackWeight: 80,
-          palaceDefendWeight: 50,
+          palaceAttackWeight: 90,
+          palaceDefendWeight: 80,
           connectivityWeight: 60,
+          sigilWeight: 400,
+          flankDefenseWeight: 100,
+          chainCuttingWeight: 100,
+          gloryHuntWeight: 150,
           focusOnForks: true,
-          sigilWeight: 400, // Very high focus on win threats
+          anticipateBlockades: true,
           searchDepth: 2,
         );
       case AIStrategyType.master:
         return const AIStrategy(
           type: AIStrategyType.master,
-          captureWeight: 200,
-          palaceAttackWeight: 200,
-          palaceDefendWeight: 150,
+          captureWeight: 220,
+          palaceAttackWeight: 220,
+          palaceDefendWeight: 200,
           connectivityWeight: 100,
           zoneControlWeight: 150,
           sigilWeight: 500,
+          flankDefenseWeight: 220,
+          chainCuttingWeight: 200,
+          gloryHuntWeight: 220,
           prioritizeDoubleThreats: true,
           avoidHangingPieces: true,
           focusOnForks: true,
+          anticipateBlockades: true,
           searchDepth: 2,
         );
     }
