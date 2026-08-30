@@ -14,9 +14,10 @@ import '../../../providers/game_settings_provider.dart';
 import '../../../providers/online_provider.dart';
 import '../../../providers/turn_provider.dart';
 
-/// Cinematic MOBA-style Game Over Overlay (Victory / Defeat)
-/// Displays a high-impact 3D beveled hero title with radiant lens flares,
-/// light bursts, and particles, before transitioning to the Post Battle Screen.
+/// Cinematic AAA FPS / MOBA-style Game Over Overlay (Victory / Defeat / Stalemate).
+/// Features a high-impact top-aligned 3D beveled hero title, glowing tactical
+/// apex insignia, radiant lens flares, anamorphic light bursts, and dynamic
+/// floating square HUD sparks and rising ember particles inspired by Call of Duty: Mobile.
 class GameOverOverlay extends ConsumerStatefulWidget {
   final Turn? winner;
   final GameMode mode;
@@ -42,6 +43,7 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
   late AnimationController _entranceController;
   late AnimationController _ambientController;
   late AnimationController _shimmerController;
+  late AnimationController _particleController;
   late AnimationController _exitController;
 
   late Animation<Offset> _slideAnimation;
@@ -52,6 +54,7 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
   late Animation<double> _pulseAnimation;
   late Animation<double> _hintFadeAnimation;
 
+  final List<_SparkParticle> _particles = [];
   Timer? _autoAdvanceTimer;
   bool _isTransitioning = false;
 
@@ -59,17 +62,17 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
   void initState() {
     super.initState();
 
-    // Start playing Crown of the Morning Sky from 0:58 sec
+    // Play victory / game over theme
     ref.read(audioServiceProvider).playGameOverTheme();
 
-    // 1. Entrance animation (Clean, smooth slide-up from bottom + flare expansion)
+    // 1. Entrance animation (Hero elements slide into top position + flare burst)
     _entranceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 950),
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.40),
+      begin: const Offset(0, -0.30),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _entranceController,
@@ -85,11 +88,11 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
     ));
 
     _scaleAnimation = Tween<double>(
-      begin: 0.88,
+      begin: 0.82,
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _entranceController,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeOutBack,
     ));
 
     _fadeAnimation = CurvedAnimation(
@@ -99,7 +102,7 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
 
     _flareExpandAnimation = CurvedAnimation(
       parent: _entranceController,
-      curve: const Interval(0.15, 0.95, curve: Curves.easeOutQuart),
+      curve: const Interval(0.12, 0.95, curve: Curves.easeOutQuart),
     );
 
     _hintFadeAnimation = CurvedAnimation(
@@ -107,7 +110,7 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
       curve: const Interval(0.50, 1.0, curve: Curves.easeIn),
     );
 
-    // 2. Continuous ambient pulse / ray rotation / particle drift
+    // 2. Continuous ambient pulse
     _ambientController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3000),
@@ -121,10 +124,22 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
     // 3. Shimmer reflection passing through metallic letters
     _shimmerController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 2400),
     )..repeat();
 
-    // 4. Quick exit transition controller
+    // 4. Continuous particle simulation controller
+    _particleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat();
+
+    // Initialize floating square HUD motes and ember sparks
+    final rand = math.Random();
+    for (int i = 0; i < 48; i++) {
+      _particles.add(_SparkParticle.random(rand));
+    }
+
+    // 5. Exit transition controller
     _exitController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
@@ -133,7 +148,7 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
     // Start sequence
     _entranceController.forward();
 
-    // Auto advance timer (15s default)
+    // Auto advance timer
     _autoAdvanceTimer = Timer(widget.displayDuration, () {
       _handleAdvance();
     });
@@ -145,6 +160,7 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
     _entranceController.dispose();
     _ambientController.dispose();
     _shimmerController.dispose();
+    _particleController.dispose();
     _exitController.dispose();
     super.dispose();
   }
@@ -202,24 +218,29 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
         : (widget.winner == Turn.player);
 
     String titleText;
+    String subtitleText;
     _ThemePalette palette;
 
     if (isDraw) {
       titleText = "STALEMATE";
+      subtitleText = "CEASEFIRE DECLARED • DRAW";
       palette = _ThemePalette.draw();
     } else if (isSameDevice) {
       final winnerName = widget.winner == Turn.player
           ? settings.player1Name
           : settings.player2Name;
       titleText = "${winnerName.toUpperCase()} WINS";
-      palette = _ThemePalette.victory(); // Always Yellow/Gold for Victory
+      subtitleText = "MATCH CONCLUDED • VICTORY";
+      palette = _ThemePalette.victory();
     } else {
       if (isLocalPlayerWin) {
         titleText = "VICTORY";
-        palette = _ThemePalette.victory(); // Always Yellow/Gold for Victory
+        subtitleText = "TACTICAL OBJECTIVE SECURED";
+        palette = _ThemePalette.victory();
       } else {
         titleText = "DEFEAT";
-        palette = _ThemePalette.defeat(); // Always Red for Defeat
+        subtitleText = "FALLEN IN COMBAT • MISSION FAILED";
+        palette = _ThemePalette.defeat();
       }
     }
 
@@ -232,6 +253,7 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
             _entranceController,
             _ambientController,
             _shimmerController,
+            _particleController,
             _exitController,
           ]),
           builder: (context, child) {
@@ -240,57 +262,104 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
 
             return Opacity(
               opacity: overallOpacity.clamp(0.0, 1.0),
-              child: Stack(
-                fit: StackFit.expand,
-                alignment: Alignment.center,
-                children: [
-                  // 1. Minimal Clean Ambient Glow Background
-                  _buildBackdrop(palette),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Anchor position for the top hero banner (e.g. 24% from top)
+                  final topAnchorY = math.min(180.0, constraints.maxHeight * 0.26);
 
-                  // 2. Light Rays & Starburst Lens Flares
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _MobaLensflarePainter(
-                        palette: palette,
-                        expandProgress: _flareExpandAnimation.value,
-                        pulseValue: _pulseAnimation.value,
-                        time: _shimmerController.value,
-                      ),
-                    ),
-                  ),
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // 1. Ambient Dark Vignette Background with Radial Tone
+                      _buildBackdrop(palette),
 
-                  // 3. Central 3D Chiseled Hero Typography (Slides smoothly from bottom)
-                  Center(
-                    child: SlideTransition(
-                      position: _slideAnimation,
-                      child: Transform.scale(
-                        scale: _scaleAnimation.value,
-                        child: _ChiseledTitle(
-                          text: titleText,
-                          palette: palette,
-                          shimmerProgress: _shimmerController.value,
-                          pulseProgress: _pulseAnimation.value,
+                      // 2. Light Rays & Starburst Lens Flares (Centered on top banner anchor)
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _TopLensflarePainter(
+                            palette: palette,
+                            anchorY: topAnchorY,
+                            expandProgress: _flareExpandAnimation.value,
+                            pulseValue: _pulseAnimation.value,
+                            time: _shimmerController.value,
+                          ),
                         ),
                       ),
-                    ),
-                  ),
 
-                  // 4. "Tap the screen to continue" Hint at the bottom
-                  Positioned(
-                    bottom: 32,
-                    left: 0,
-                    right: 0,
-                    child: SlideTransition(
-                      position: _hintSlideAnimation,
-                      child: Opacity(
-                        opacity: (_hintFadeAnimation.value *
-                                (0.45 + 0.5 * _pulseAnimation.value))
-                            .clamp(0.0, 1.0),
-                        child: _buildContinueHint(palette),
+                      // 3. COD Mobile-style Floating Square HUD Sparks & Embers
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _SparksPainter(
+                            particles: _particles,
+                            palette: palette,
+                            progress: _particleController.value,
+                            pulse: _pulseAnimation.value,
+                            anchorY: topAnchorY,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
+
+                      // 4. TOP HERO SECTION: Apex Insignia + Chiseled Title + Subtitle Badge
+                      Positioned(
+                        top: math.max(16.0, topAnchorY - 100),
+                        left: 16,
+                        right: 16,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: Transform.scale(
+                            scale: _scaleAnimation.value,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Tactical Glowing Apex Chevron / Delta Emblem
+                                _TacticalApexEmblem(
+                                  palette: palette,
+                                  pulse: _pulseAnimation.value,
+                                  shimmer: _shimmerController.value,
+                                ),
+
+                                const SizedBox(height: 2),
+
+                                // 3D Chiseled Hero Title
+                                _ChiseledTitle(
+                                  text: titleText,
+                                  palette: palette,
+                                  shimmerProgress: _shimmerController.value,
+                                  pulseProgress: _pulseAnimation.value,
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                // Sleek Subtitle Banner (Call of Duty weapon upgrade / objective bar style)
+                                _TacticalSubtitleBanner(
+                                  text: subtitleText,
+                                  palette: palette,
+                                  pulse: _pulseAnimation.value,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // 5. "Tap the screen to continue" / View Map Hint at Bottom
+                      Positioned(
+                        bottom: 30,
+                        left: 0,
+                        right: 0,
+                        child: SlideTransition(
+                          position: _hintSlideAnimation,
+                          child: Opacity(
+                            opacity: (_hintFadeAnimation.value *
+                                    (0.50 + 0.5 * _pulseAnimation.value))
+                                .clamp(0.0, 1.0),
+                            child: _buildContinueHint(palette),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             );
           },
@@ -303,14 +372,14 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: RadialGradient(
-          center: Alignment.center,
-          radius: 1.2,
+          center: const Alignment(0, -0.45),
+          radius: 1.1,
           colors: [
-            palette.glowColor.withValues(alpha: 0.12),
-            Colors.black.withValues(alpha: 0.20),
-            Colors.black.withValues(alpha: 0.40),
+            palette.glowColor.withValues(alpha: 0.22),
+            Colors.black.withValues(alpha: 0.45),
+            Colors.black.withValues(alpha: 0.82),
           ],
-          stops: const [0.0, 0.6, 1.0],
+          stops: const [0.0, 0.55, 1.0],
         ),
       ),
     );
@@ -322,33 +391,39 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.4),
+              color: Colors.black.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.14),
-                width: 0.7,
+                color: Colors.white.withValues(alpha: 0.18),
+                width: 0.8,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 12,
+                ),
+              ],
             ),
             child: Text(
-              "Tap the screen to continue",
+              "TAP ANYWHERE TO CONTINUE",
               textAlign: TextAlign.center,
               style: GoogleFonts.sairaStencilOne(
-                fontSize: 11,
-                letterSpacing: 1.6,
-                color: Colors.white.withValues(alpha: 0.85),
+                fontSize: 11.5,
+                letterSpacing: 2.0,
+                color: Colors.white.withValues(alpha: 0.9),
                 shadows: [
                   Shadow(
-                    color: palette.glowColor.withValues(alpha: 0.6),
-                    blurRadius: 8,
+                    color: palette.glowColor.withValues(alpha: 0.7),
+                    blurRadius: 10,
                   ),
                 ],
               ),
             ),
           ),
           if (widget.onViewMap != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () {
@@ -356,31 +431,31 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
                 _handleViewMap();
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF13100C).withValues(alpha: 0.88),
+                  color: const Color(0xFF0F151B).withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: const Color(0xFF4FC3F7).withValues(alpha: 0.65),
-                    width: 1,
+                    color: const Color(0xFF4FC3F7).withValues(alpha: 0.75),
+                    width: 1.1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF4FC3F7).withValues(alpha: 0.25),
-                      blurRadius: 10,
+                      color: const Color(0xFF4FC3F7).withValues(alpha: 0.3),
+                      blurRadius: 12,
                     ),
                   ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.map_outlined, size: 14, color: Color(0xFF4FC3F7)),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.map_outlined, size: 15, color: Color(0xFF4FC3F7)),
+                    const SizedBox(width: 7),
                     Text(
                       "VIEW FINAL MAP",
                       style: GoogleFonts.sairaStencilOne(
-                        fontSize: 10.5,
-                        letterSpacing: 1.2,
+                        fontSize: 11,
+                        letterSpacing: 1.4,
                         color: const Color(0xFF4FC3F7),
                         fontWeight: FontWeight.bold,
                       ),
@@ -391,6 +466,214 @@ class _GameOverOverlayState extends ConsumerState<GameOverOverlay>
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Tactical Apex Chevron / Delta Emblem (Inspired by COD Mobile Victory Insignia)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TacticalApexEmblem extends StatelessWidget {
+  final _ThemePalette palette;
+  final double pulse;
+  final double shimmer;
+
+  const _TacticalApexEmblem({
+    required this.palette,
+    required this.pulse,
+    required this.shimmer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 140,
+      height: 72,
+      child: CustomPaint(
+        painter: _ApexEmblemPainter(
+          palette: palette,
+          pulse: pulse,
+          shimmer: shimmer,
+        ),
+      ),
+    );
+  }
+}
+
+class _ApexEmblemPainter extends CustomPainter {
+  final _ThemePalette palette;
+  final double pulse;
+  final double shimmer;
+
+  _ApexEmblemPainter({
+    required this.palette,
+    required this.pulse,
+    required this.shimmer,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+
+    // 1. Layered Chevron / Delta Triangles
+    final outerPath = Path()
+      ..moveTo(cx, 4)
+      ..lineTo(cx + 46, size.height - 8)
+      ..lineTo(cx + 34, size.height - 8)
+      ..lineTo(cx, 20)
+      ..lineTo(cx - 34, size.height - 8)
+      ..lineTo(cx - 46, size.height - 8)
+      ..close();
+
+    final innerPath = Path()
+      ..moveTo(cx, 16)
+      ..lineTo(cx + 28, size.height - 18)
+      ..lineTo(cx + 18, size.height - 18)
+      ..lineTo(cx, 30)
+      ..lineTo(cx - 18, size.height - 18)
+      ..lineTo(cx - 28, size.height - 18)
+      ..close();
+
+    // Emblem Glow Shadow
+    final glowPaint = Paint()
+      ..color = palette.glowColor.withValues(alpha: 0.55 + 0.25 * pulse)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
+    canvas.drawPath(outerPath, glowPaint);
+
+    // Outer Chevron Stroke & Gradient Fill
+    final strokePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          palette.topHighlight,
+          palette.midTone,
+          palette.deepTone,
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    final fillPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          palette.lightAccent.withValues(alpha: 0.45),
+          palette.midTone.withValues(alpha: 0.25),
+          palette.deepTone.withValues(alpha: 0.05),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    canvas.drawPath(outerPath, fillPaint);
+    canvas.drawPath(outerPath, strokePaint);
+
+    // Inner Chevron
+    final innerStroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..color = palette.lightAccent.withValues(alpha: 0.85);
+    canvas.drawPath(innerPath, innerStroke);
+
+    // Star / Diamond at Apex
+    final starPath = Path()
+      ..moveTo(cx, 10)
+      ..lineTo(cx + 5, 17)
+      ..lineTo(cx, 24)
+      ..lineTo(cx - 5, 17)
+      ..close();
+
+    final starPaint = Paint()
+      ..color = Colors.white
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 2);
+    canvas.drawPath(starPath, starPaint);
+
+    // Horizontal Wing Accents
+    final wingPaint = Paint()
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke
+      ..shader = LinearGradient(
+        colors: [
+          Colors.transparent,
+          palette.lightAccent,
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromLTWH(0, cy, size.width, 2));
+
+    canvas.drawLine(Offset(cx - 65, cy + 10), Offset(cx - 30, cy + 10), wingPaint);
+    canvas.drawLine(Offset(cx + 30, cy + 10), Offset(cx + 65, cy + 10), wingPaint);
+  }
+
+  @override
+  bool shouldRepaint(_ApexEmblemPainter oldDelegate) {
+    return oldDelegate.pulse != pulse ||
+        oldDelegate.shimmer != shimmer ||
+        oldDelegate.palette != palette;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Tactical Subtitle Banner (COD Weapon Upgrade / Mission Bar)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TacticalSubtitleBanner extends StatelessWidget {
+  final String text;
+  final _ThemePalette palette;
+  final double pulse;
+
+  const _TacticalSubtitleBanner({
+    required this.text,
+    required this.palette,
+    required this.pulse,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 5),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Colors.transparent,
+            Colors.black.withValues(alpha: 0.75),
+            palette.glowColor.withValues(alpha: 0.25 + 0.15 * pulse),
+            Colors.black.withValues(alpha: 0.75),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
+        ),
+        border: Border(
+          top: BorderSide(
+            color: palette.lightAccent.withValues(alpha: 0.6),
+            width: 1.2,
+          ),
+          bottom: BorderSide(
+            color: palette.lightAccent.withValues(alpha: 0.6),
+            width: 1.2,
+          ),
+        ),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.sairaStencilOne(
+          fontSize: 12.5,
+          letterSpacing: 3.2,
+          fontWeight: FontWeight.bold,
+          color: palette.lightAccent.withValues(alpha: 0.95),
+          shadows: [
+            Shadow(
+              color: palette.glowColor,
+              blurRadius: 10,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -416,7 +699,7 @@ class _ChiseledTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLongText = text.length > 8;
-    final fontSize = isLongText ? 44.0 : 64.0;
+    final fontSize = isLongText ? 42.0 : 62.0;
     final letterSpacing = isLongText ? 4.0 : 8.0;
 
     final baseStyle = GoogleFonts.sairaStencilOne(
@@ -428,7 +711,7 @@ class _ChiseledTitle extends StatelessWidget {
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -439,16 +722,16 @@ class _ChiseledTitle extends StatelessWidget {
               style: baseStyle.copyWith(
                 foreground: Paint()
                   ..style = PaintingStyle.fill
-                  ..color = palette.glowColor.withValues(alpha: 0.6)
+                  ..color = palette.glowColor.withValues(alpha: 0.65)
                   ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 28),
                 shadows: [
                   Shadow(
-                    color: palette.glowColor.withValues(alpha: 0.9),
+                    color: palette.glowColor.withValues(alpha: 0.95),
                     blurRadius: 35 + (pulseProgress * 15),
                   ),
                   Shadow(
-                    color: palette.lightAccent.withValues(alpha: 0.7),
-                    blurRadius: 15,
+                    color: palette.lightAccent.withValues(alpha: 0.8),
+                    blurRadius: 16,
                   ),
                 ],
               ),
@@ -462,7 +745,7 @@ class _ChiseledTitle extends StatelessWidget {
                   text,
                   textAlign: TextAlign.center,
                   style: baseStyle.copyWith(
-                    color: palette.extrusionColor.withValues(alpha: 0.9),
+                    color: palette.extrusionColor.withValues(alpha: 0.95),
                   ),
                 ),
               ),
@@ -495,7 +778,7 @@ class _ChiseledTitle extends StatelessWidget {
               ),
             ),
 
-            // Layer 4: Metallic Face Gradient (Top highlight -> Rich body -> Base shade)
+            // Layer 4: Metallic Face Gradient
             ShaderMask(
               shaderCallback: (bounds) {
                 return LinearGradient(
@@ -527,7 +810,7 @@ class _ChiseledTitle extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    palette.lightAccent.withValues(alpha: 0.9),
+                    palette.lightAccent.withValues(alpha: 0.95),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.4],
@@ -554,9 +837,9 @@ class _ChiseledTitle extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     Colors.transparent,
-                    palette.lightAccent.withValues(alpha: 0.65),
+                    palette.lightAccent.withValues(alpha: 0.75),
                     Colors.white.withValues(alpha: 0.95),
-                    palette.lightAccent.withValues(alpha: 0.65),
+                    palette.lightAccent.withValues(alpha: 0.75),
                     Colors.transparent,
                   ],
                   stops: [
@@ -585,17 +868,225 @@ class _ChiseledTitle extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  MOBA Lens Flare & Radiant Light Painter
+//  COD Mobile Style Sparks & Glowing HUD Motes Particle System
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _MobaLensflarePainter extends CustomPainter {
+enum _ParticleType { squareHUD, risingEmber, streakFlare }
+
+class _SparkParticle {
+  double x; // 0.0 to 1.0 (relative screen width)
+  double y; // 0.0 to 1.0 (relative screen height)
+  double size;
+  double speedX;
+  double speedY;
+  double alpha;
+  double phase;
+  double rotSpeed;
+  _ParticleType type;
+
+  _SparkParticle({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.speedX,
+    required this.speedY,
+    required this.alpha,
+    required this.phase,
+    required this.rotSpeed,
+    required this.type,
+  });
+
+  factory _SparkParticle.random(math.Random rand) {
+    final typeRoll = rand.nextDouble();
+    _ParticleType type;
+    double size;
+
+    if (typeRoll < 0.45) {
+      // Square glowing HUD bokeh (COD signature)
+      type = _ParticleType.squareHUD;
+      size = rand.nextDouble() * 14 + 6;
+    } else if (typeRoll < 0.85) {
+      // Tiny rising sparks / embers
+      type = _ParticleType.risingEmber;
+      size = rand.nextDouble() * 4 + 2;
+    } else {
+      // Horizontal glint spark
+      type = _ParticleType.streakFlare;
+      size = rand.nextDouble() * 22 + 10;
+    }
+
+    return _SparkParticle(
+      x: rand.nextDouble(),
+      // Concentrate more particles in upper 60% of the screen around the title
+      y: rand.nextDouble() * 0.7 + 0.05,
+      size: size,
+      speedX: (rand.nextDouble() - 0.5) * 0.04,
+      speedY: -(rand.nextDouble() * 0.06 + 0.015), // Drifts upwards
+      alpha: rand.nextDouble() * 0.7 + 0.3,
+      phase: rand.nextDouble() * math.pi * 2,
+      rotSpeed: (rand.nextDouble() - 0.5) * 1.5,
+      type: type,
+    );
+  }
+}
+
+class _SparksPainter extends CustomPainter {
+  final List<_SparkParticle> particles;
   final _ThemePalette palette;
+  final double progress;
+  final double pulse;
+  final double anchorY;
+
+  _SparksPainter({
+    required this.particles,
+    required this.palette,
+    required this.progress,
+    required this.pulse,
+    required this.anchorY,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    for (final p in particles) {
+      // Calculate dynamic position with time progress
+      final curX = (p.x + p.speedX * progress * 5) % 1.0;
+      // Drifts upwards and wraps
+      final curY = ((p.y + p.speedY * progress * 5) % 1.0 + 1.0) % 1.0;
+
+      final px = curX * w;
+      final py = curY * h;
+
+      // Distance factor from anchorY (sparks glow brighter near top banner)
+      final distY = (py - anchorY).abs();
+      final proximityBonus = math.max(0.3, 1.0 - (distY / (h * 0.45)));
+
+      // Sine wave twinkle
+      final twinkle = 0.5 + 0.5 * math.sin(progress * 12 + p.phase);
+      final finalAlpha = (p.alpha * twinkle * proximityBonus * (0.8 + 0.2 * pulse))
+          .clamp(0.0, 1.0);
+
+      if (finalAlpha <= 0.01) continue;
+
+      switch (p.type) {
+        case _ParticleType.squareHUD:
+          _drawSquareBokeh(canvas, px, py, p.size, finalAlpha, palette);
+          break;
+        case _ParticleType.risingEmber:
+          _drawEmberSpark(canvas, px, py, p.size, finalAlpha, palette);
+          break;
+        case _ParticleType.streakFlare:
+          _drawStreakFlare(canvas, px, py, p.size, finalAlpha, palette);
+          break;
+      }
+    }
+  }
+
+  void _drawSquareBokeh(Canvas canvas, double cx, double cy, double size,
+      double alpha, _ThemePalette palette) {
+    // 1. Soft glowing square aura
+    final glowPaint = Paint()
+      ..color = palette.glowColor.withValues(alpha: alpha * 0.45)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 0.75);
+    canvas.drawRect(
+      Rect.fromCenter(center: Offset(cx, cy), width: size * 1.5, height: size * 1.5),
+      glowPaint,
+    );
+
+    // 2. Hollow square HUD border (tactical COD style)
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..color = palette.lightAccent.withValues(alpha: alpha * 0.9);
+    canvas.drawRect(
+      Rect.fromCenter(center: Offset(cx, cy), width: size, height: size),
+      borderPaint,
+    );
+
+    // 3. Inner faint fill
+    final fillPaint = Paint()
+      ..color = palette.topHighlight.withValues(alpha: alpha * 0.3);
+    canvas.drawRect(
+      Rect.fromCenter(center: Offset(cx, cy), width: size * 0.7, height: size * 0.7),
+      fillPaint,
+    );
+
+    // 4. Subtle horizontal anamorphic streak through the square
+    final streakPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          Colors.transparent,
+          palette.lightAccent.withValues(alpha: alpha * 0.75),
+          Colors.white.withValues(alpha: alpha * 0.9),
+          palette.lightAccent.withValues(alpha: 0.75),
+          Colors.transparent,
+        ],
+      ).createShader(
+        Rect.fromCenter(center: Offset(cx, cy), width: size * 4.5, height: 1.5),
+      );
+    canvas.drawRect(
+      Rect.fromCenter(center: Offset(cx, cy), width: size * 4.5, height: 1.2),
+      streakPaint,
+    );
+  }
+
+  void _drawEmberSpark(Canvas canvas, double cx, double cy, double size,
+      double alpha, _ThemePalette palette) {
+    final sparkPaint = Paint()
+      ..color = Colors.white.withValues(alpha: alpha)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 2);
+
+    final auraPaint = Paint()
+      ..color = palette.glowColor.withValues(alpha: alpha * 0.6)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 2.5);
+
+    canvas.drawCircle(Offset(cx, cy), size * 2.0, auraPaint);
+    canvas.drawCircle(Offset(cx, cy), size * 0.7, sparkPaint);
+  }
+
+  void _drawStreakFlare(Canvas canvas, double cx, double cy, double length,
+      double alpha, _ThemePalette palette) {
+    final flarePaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          Colors.transparent,
+          palette.lightAccent.withValues(alpha: alpha * 0.6),
+          Colors.white.withValues(alpha: alpha * 0.9),
+          palette.lightAccent.withValues(alpha: alpha * 0.6),
+          Colors.transparent,
+        ],
+      ).createShader(
+        Rect.fromCenter(center: Offset(cx, cy), width: length, height: 2),
+      );
+
+    canvas.drawRect(
+      Rect.fromCenter(center: Offset(cx, cy), width: length, height: 1.8),
+      flarePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SparksPainter oldDelegate) {
+    return true; // Continuously animates with particleController
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Top-Anchored Lens Flare & Radiant Light Painter
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TopLensflarePainter extends CustomPainter {
+  final _ThemePalette palette;
+  final double anchorY;
   final double expandProgress;
   final double pulseValue;
   final double time;
 
-  _MobaLensflarePainter({
+  _TopLensflarePainter({
     required this.palette,
+    required this.anchorY,
     required this.expandProgress,
     required this.pulseValue,
     required this.time,
@@ -605,10 +1096,10 @@ class _MobaLensflarePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (expandProgress <= 0.01) return;
 
-    final center = Offset(size.width / 2, size.height / 2);
+    final center = Offset(size.width / 2, anchorY);
     final width = size.width;
 
-    // 1. Horizontal razor beam flare (Intense bright streak across screen)
+    // 1. Horizontal razor beam flare (Intense bright streak across screen at top)
     final beamPaint = Paint()
       ..shader = LinearGradient(
         colors: [
@@ -625,7 +1116,7 @@ class _MobaLensflarePainter extends CustomPainter {
 
     final beamRect = Rect.fromCenter(
       center: center,
-      width: width * (0.4 + 0.6 * expandProgress),
+      width: width * (0.5 + 0.5 * expandProgress),
       height: 3.5 + 2.0 * pulseValue,
     );
     canvas.drawRect(beamRect, beamPaint);
@@ -685,13 +1176,13 @@ class _MobaLensflarePainter extends CustomPainter {
       alpha: 0.55 * expandProgress,
     );
 
-    // 4. Subtle Radial God-Rays
+    // 4. Radial God-Rays around top center
     final rayPaint = Paint()
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
     final rayCount = 14;
-    final maxRayLen = (size.height * 0.45) * expandProgress;
+    final maxRayLen = (size.height * 0.5) * expandProgress;
 
     for (int i = 0; i < rayCount; i++) {
       final angle = (i * (2 * math.pi / rayCount)) + (time * 0.15);
@@ -709,7 +1200,7 @@ class _MobaLensflarePainter extends CustomPainter {
 
       final end = Offset(
         center.dx + math.cos(angle) * rayLen * 1.8,
-        center.dy + math.sin(angle) * rayLen * 0.5, // Squashed vertically for cinematic flare
+        center.dy + math.sin(angle) * rayLen * 0.6,
       );
 
       canvas.drawLine(center, end, rayPaint);
@@ -751,15 +1242,16 @@ class _MobaLensflarePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_MobaLensflarePainter oldDelegate) {
+  bool shouldRepaint(_TopLensflarePainter oldDelegate) {
     return oldDelegate.expandProgress != expandProgress ||
         oldDelegate.pulseValue != pulseValue ||
-        oldDelegate.time != time;
+        oldDelegate.time != time ||
+        oldDelegate.anchorY != anchorY;
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Theme Palettes (Victory Gold, Defeat Crimson, Draw Azure, Custom)
+//  Theme Palettes (Victory Gold, Defeat Crimson, Draw Azure)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ThemePalette {
@@ -779,7 +1271,7 @@ class _ThemePalette {
     required this.glowColor,
   });
 
-  // Authentic MOBA Radiant Gold / Yellow (League of Legends / Wild Rift)
+  // Authentic AAA Radiant Gold / Amber (Call of Duty / MOBA Victory)
   factory _ThemePalette.victory() {
     return const _ThemePalette(
       topHighlight: Color(0xFFFFFBE6),
@@ -791,7 +1283,7 @@ class _ThemePalette {
     );
   }
 
-  // Authentic MOBA Crimson & Molten Obsidian Defeat (Red)
+  // Molten Crimson & Dark Obsidian Defeat (Red / Orange)
   factory _ThemePalette.defeat() {
     return const _ThemePalette(
       topHighlight: Color(0xFFFFCDD2),
@@ -803,7 +1295,7 @@ class _ThemePalette {
     );
   }
 
-  // Draw / Stalemate (Silver & Sapphire)
+  // Draw / Stalemate (Silver & Sapphire Azure)
   factory _ThemePalette.draw() {
     return const _ThemePalette(
       topHighlight: Color(0xFFE3F2FD),
