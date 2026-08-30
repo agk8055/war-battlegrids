@@ -34,6 +34,7 @@ class AppAssets {
   static const String captureToast = 'assets/images/capture_toast.png';
   static const String pauseBg = 'assets/images/pause_bg.png';
   static const String welcomeBg = 'assets/images/welcome_bg.png';
+  static const String settingsBg = 'assets/images/settings_bg.png';
   static const String tutorialPoster = 'assets/images/tutorial_poster.png';
 
   // --- ICONS (UI Elements) ---

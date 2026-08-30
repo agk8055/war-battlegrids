@@ -1,79 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../core/constants/app_assets.dart';
+import '../../core/services/audio_service.dart';
 import '../../providers/game_settings_provider.dart';
 import 'tutorial_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Minimal Panel Container
-// ─────────────────────────────────────────────────────────────────────────────
-class _Panel extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  const _Panel({
-    required this.child,
-    this.padding = const EdgeInsets.all(20),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF141416),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 1,
-        ),
-      ),
-      padding: padding,
-      child: child,
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  final Color color;
-
-  const _SectionLabel(this.text, {required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 3,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 2,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Settings Screen
+//  Settings Navigation Tabs
 // ─────────────────────────────────────────────────────────────────────────────
 enum SettingsSection {
   audio,
   tutorial,
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Settings Screen (Medieval Tome / Codex Theme)
+// ─────────────────────────────────────────────────────────────────────────────
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -93,19 +37,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
-    _slideController = AnimationController(vsync: this, duration: const Duration(milliseconds: 350));
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
 
     _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.03),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
 
-    Future.delayed(const Duration(milliseconds: 50), () {
-      if (mounted) {
-        _fadeController.forward();
-        _slideController.forward();
-      }
-    });
+    _fadeController.forward();
+    _slideController.forward();
   }
 
   @override
@@ -115,145 +63,267 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     super.dispose();
   }
 
+  void _playClickSfx() {
+    ref.read(audioServiceProvider).playSfx(AppAssets.sfxClick);
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(gameSettingsProvider);
     final settingsNotifier = ref.read(gameSettingsProvider.notifier);
-    final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0C0C0E),
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnim,
-          child: SlideTransition(
-            position: _slideAnim,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-              child: Column(
-                children: [
-                  _buildTopBar(primary),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ── Left Minimal Sidebar ─────────────────────────────
-                        SizedBox(
-                          width: 220,
-                          child: _Panel(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                                  child: _SectionLabel('SECTIONS', color: primary),
-                                ),
-                                const SizedBox(height: 12),
-                                _buildSidebarItem(
-                                  section: SettingsSection.audio,
-                                  title: 'AUDIO',
-                                  subtitle: 'Volume & sounds',
-                                  icon: Icons.volume_up_outlined,
-                                  primary: primary,
-                                ),
-                                const SizedBox(height: 6),
-                                _buildSidebarItem(
-                                  section: SettingsSection.tutorial,
-                                  title: 'TUTORIAL',
-                                  subtitle: 'Drills & mechanics',
-                                  icon: Icons.school_outlined,
-                                  primary: primary,
-                                ),
-                              
-                                
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
+      backgroundColor: const Color(0xFF0C0908),
+      body: Stack(
+        children: [
+          // ── 1. Parchment Book Background Image ───────────────────────────
+          Positioned.fill(
+            child: AppAssetImage(
+              AppAssets.settingsBg,
+              fit: BoxFit.fill,
+            ),
+          ),
 
-                        // ── Right Content Area ───────────────────────────────
-                        Expanded(
-                          child: _Panel(
-                            padding: const EdgeInsets.all(20),
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 200),
-                              child: _selectedSection == SettingsSection.audio
-                                  ? _buildAudioSection(
-                                      key: const ValueKey('audio_section'),
-                                      settings: settings,
-                                      settingsNotifier: settingsNotifier,
-                                      primary: primary,
-                                    )
-                                  : _buildTutorialSection(
-                                      key: const ValueKey('tutorial_section'),
-                                      primary: primary,
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+          // ── 2. Subtle Vignette Depth Overlay ─────────────────────────────
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.3,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.22),
+                  ],
+                ),
               ),
             ),
+          ),
+
+          // ── 3. Top-Left Back Button (Moved further left) ────────────────
+          Positioned(
+            top: 10,
+            left: 8,
+            child: SafeArea(
+              child: _buildBackButton(),
+            ),
+          ),
+
+          // ── 4. Main Grimoire Book Content (Proportional to settings_bg) ───
+          Positioned.fill(
+            child: SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final w = constraints.maxWidth;
+                      final h = constraints.maxHeight;
+
+                      return Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          w * 0.05, // Aligns with left parchment edge
+                          h * 0.09, // Clears top frame and back button
+                          w * 0.05, // Aligns with right parchment edge
+                          h * 0.07, // Clears bottom wood frame
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // ── Left Page: Exactly 29% (Left Parchment) ────
+                            Expanded(
+                              flex: 29,
+                              child: _buildLeftPage(),
+                            ),
+
+                            // ── Center Tome Spine (Ring Bindings): 6% ──────
+                            const Expanded(
+                              flex: 6,
+                              child: SizedBox.shrink(),
+                            ),
+
+                            // ── Right Page: Exactly 65% (Right Parchment) ───
+                            Expanded(
+                              flex: 65,
+                              child: _buildRightPage(
+                                settings: settings,
+                                settingsNotifier: settingsNotifier,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  //  Back Button (Matching Profile Screen size 40x40)
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildBackButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          _playClickSfx();
+          Navigator.pop(context);
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: const Color(0xFF26140B).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: const Color(0xFFE5B869),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.chevron_left,
+            color: Color(0xFFE5B869),
+            size: 22,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTopBar(Color primary) {
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFF18181B),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+  // ───────────────────────────────────────────────────────────────────────────
+  //  Left Page: Navigation Tabs & Tome Stamp (Scrollable)
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildLeftPage() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(top: 18, right: 4, bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Left Page Header
+          Padding(
+            padding: const EdgeInsets.only(top: 2, bottom: 8, left: 2),
+            child: Row(
+              children: [
+                Container(
+                  width: 3,
+                  height: 13,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B2500),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'CHAPTERS',
+                  style: GoogleFonts.sairaStencilOne(
+                    color: const Color(0xFF422817),
+                    fontSize: 11,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ],
             ),
-            child: const Icon(Icons.chevron_left, color: Colors.white70, size: 20),
           ),
-        ),
-        const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'SETTINGS',
-              style: GoogleFonts.sairaStencilOne(
-                color: Colors.white,
-                fontSize: 16,
-                letterSpacing: 2,
+
+          // Navigation Items
+          _buildChapterItem(
+            section: SettingsSection.audio,
+            title: 'AUDIO & SOUNDS',
+            subtitle: 'War anthems & SFX',
+            icon: Icons.volume_up_rounded,
+          ),
+          const SizedBox(height: 7),
+          _buildChapterItem(
+            section: SettingsSection.tutorial,
+            title: 'COMBAT DRILLS',
+            subtitle: 'Tactics & drills',
+            icon: Icons.shield_rounded,
+          ),
+
+          const SizedBox(height: 18),
+
+          // Codex Footer Seal
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF381F10).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: const Color(0xFF5A3416).withValues(alpha: 0.15),
+                width: 1,
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              'Audio preferences and combat tutorial',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.35),
-                fontSize: 11,
-              ),
+            child: Row(
+              children: [
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B2500).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF8B2500).withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.military_tech_rounded,
+                    size: 13,
+                    color: Color(0xFF8B2500),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'REALM ARCHIVES',
+                        style: GoogleFonts.sairaStencilOne(
+                          color: const Color(0xFF422817),
+                          fontSize: 9.5,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      Text(
+                        'Codex v1.0',
+                        style: TextStyle(
+                          color: const Color(0xFF6B482E).withValues(alpha: 0.85),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildSidebarItem({
+  Widget _buildChapterItem({
     required SettingsSection section,
     required String title,
     required String subtitle,
     required IconData icon,
-    required Color primary,
   }) {
     final isSelected = _selectedSection == section;
 
@@ -261,6 +331,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
+          _playClickSfx();
           if (_selectedSection != section) {
             setState(() {
               _selectedSection = section;
@@ -269,47 +340,70 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         },
         borderRadius: BorderRadius.circular(8),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             color: isSelected
-                ? primary.withValues(alpha: 0.12)
-                : Colors.transparent,
+                ? const Color(0xFF2C160B)
+                : const Color(0xFF4A2A14).withValues(alpha: 0.06),
             border: Border.all(
               color: isSelected
-                  ? primary.withValues(alpha: 0.4)
-                  : Colors.transparent,
-              width: 1,
+                  ? const Color(0xFFC48825)
+                  : const Color(0xFF5A3416).withValues(alpha: 0.15),
+              width: isSelected ? 1.5 : 1,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF2C160B).withValues(alpha: 0.35),
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? primary : Colors.white54,
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF3E2010)
+                      : const Color(0xFF381F10).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Icon(
+                  icon,
+                  size: 15,
+                  color: isSelected
+                      ? const Color(0xFFE5B869)
+                      : const Color(0xFF5A3416),
+                ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white70,
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        letterSpacing: 1.2,
+                      style: GoogleFonts.sairaStencilOne(
+                        color: isSelected
+                            ? const Color(0xFFFFF6E5)
+                            : const Color(0xFF3B2012),
+                        fontSize: 11,
+                        letterSpacing: 0.8,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        fontSize: 10,
+                        color: isSelected
+                            ? const Color(0xFFE5B869).withValues(alpha: 0.85)
+                            : const Color(0xFF7A5538),
+                        fontSize: 9.5,
                       ),
                     ),
                   ],
@@ -317,10 +411,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ),
               if (isSelected)
                 Container(
-                  width: 4,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: primary,
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE5B869),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -331,120 +425,207 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  
+  // ───────────────────────────────────────────────────────────────────────────
+  //  Right Page: Content (Audio / Tutorial)
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildRightPage({
+    required dynamic settings,
+    required dynamic settingsNotifier,
+  }) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: _selectedSection == SettingsSection.audio
+          ? _buildAudioPage(
+              key: const ValueKey('audio_page'),
+              settings: settings,
+              settingsNotifier: settingsNotifier,
+            )
+          : _buildTutorialPage(
+              key: const ValueKey('tutorial_page'),
+            ),
+    );
+  }
 
-  Widget _buildAudioSection({
+  // ── Audio Settings Page ───────────────────────────────────────────────────
+  Widget _buildAudioPage({
     required Key key,
     required dynamic settings,
     required dynamic settingsNotifier,
-    required Color primary,
   }) {
     return SingleChildScrollView(
       key: key,
+      primary: false,
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.only(top: 2, right: 8, bottom: 24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SectionLabel('AUDIO SETTINGS', color: primary),
-          const SizedBox(height: 20),
-          _buildSettingTile(
-            title: 'Music',
-            subtitle: 'Soundtrack and background themes',
-            trailing: Switch(
-              value: settings.musicEnabled,
-              onChanged: (value) => settingsNotifier.setMusicEnabled(value),
-              activeTrackColor: primary.withValues(alpha: 0.4),
-              activeThumbColor: primary,
-            ),
+          // Section Title
+          _buildParchmentSectionHeader(
+            title: 'ACOUSTIC ORDINANCES',
+            subtitle: 'Soundtrack, heraldic melodies, and battlefield feedback',
           ),
           const SizedBox(height: 10),
-          _buildVolumeSlider(
-            title: 'Music Volume',
-            value: settings.musicVolume,
-            enabled: settings.musicEnabled,
-            onChanged: (v) => settingsNotifier.setMusicVolume(v),
-            primary: primary,
-          ),
-          const SizedBox(height: 20),
-          Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
-          const SizedBox(height: 20),
-          _buildSettingTile(
-            title: 'Sound Effects',
-            subtitle: 'Combat actions and UI feedback sounds',
-            trailing: Switch(
-              value: settings.sfxEnabled,
-              onChanged: (value) => settingsNotifier.setSfxEnabled(value),
-              activeTrackColor: primary.withValues(alpha: 0.4),
-              activeThumbColor: primary,
+
+          // Music Controls Card
+          _buildParchmentCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildToggleRow(
+                  icon: Icons.music_note_rounded,
+                  title: 'Battle Anthems & BGM',
+                  subtitle: 'Grand royal soundtrack and atmospheric themes',
+                  value: settings.musicEnabled,
+                  onChanged: (val) {
+                    _playClickSfx();
+                    settingsNotifier.setMusicEnabled(val);
+                  },
+                ),
+                const SizedBox(height: 8),
+                _buildParchmentVolumeSlider(
+                  title: 'ANTHEM VOLUME',
+                  value: settings.musicVolume,
+                  enabled: settings.musicEnabled,
+                  onChanged: (v) => settingsNotifier.setMusicVolume(v),
+                ),
+              ],
             ),
           ),
+
           const SizedBox(height: 10),
-          _buildVolumeSlider(
-            title: 'SFX Volume',
-            value: settings.sfxVolume,
-            enabled: settings.sfxEnabled,
-            onChanged: (v) => settingsNotifier.setSfxVolume(v),
-            primary: primary,
+
+          // SFX Controls Card
+          _buildParchmentCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildToggleRow(
+                  icon: Icons.campaign_rounded,
+                  title: 'Combat Sound Effects',
+                  subtitle: 'Sword clashes, troop orders, and capture fanfares',
+                  value: settings.sfxEnabled,
+                  onChanged: (val) {
+                    _playClickSfx();
+                    settingsNotifier.setSfxEnabled(val);
+                  },
+                ),
+                const SizedBox(height: 8),
+                _buildParchmentVolumeSlider(
+                  title: 'COMBAT SFX VOLUME',
+                  value: settings.sfxVolume,
+                  enabled: settings.sfxEnabled,
+                  onChanged: (v) => settingsNotifier.setSfxVolume(v),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTutorialSection({
+  // ── Tutorial Section Page ─────────────────────────────────────────────────
+  Widget _buildTutorialPage({
     required Key key,
-    required Color primary,
   }) {
     return SingleChildScrollView(
       key: key,
+      primary: false,
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.only(top: 28, right: 8, bottom: 24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SectionLabel('COMBAT DRILL', color: primary),
-          const SizedBox(height: 18),
+          _buildParchmentSectionHeader(
+            title: 'ROYAL COMBAT DOCTRINE',
+            subtitle: 'Master territorial tactics, flanking maneuvers, and sieges',
+          ),
+          const SizedBox(height: 10),
+
+          // Interactive Battle Drill Decree Card
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF19191C),
+              color: const Color(0xFF381F10).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              border: Border.all(
+                color: const Color(0xFFC48825).withValues(alpha: 0.45),
+                width: 1.2,
+              ),
             ),
             child: Row(
               children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B2500),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFFE5B869),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.sports_kabaddi_rounded,
+                    color: Color(0xFFFFF6E5),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Interactive Battle Drill',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                        style: GoogleFonts.sairaStencilOne(
+                          color: const Color(0xFF2E190E),
+                          fontSize: 12.5,
+                          letterSpacing: 1,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
-                        'Replay the step-by-step combat drill on the Northern Forest front to review mechanics.',
+                        'Replay the step-by-step battlefield drill on the Northern Forest front to sharpen your command instincts.',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
-                          fontSize: 12,
+                          color: const Color(0xFF5A3822).withValues(alpha: 0.9),
+                          fontSize: 10.5,
                           height: 1.3,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    backgroundColor: const Color(0xFF8B2500),
+                    foregroundColor: const Color(0xFFFFF6E5),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    elevation: 3,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),
+                      side: const BorderSide(
+                        color: Color(0xFFE5B869),
+                        width: 1.2,
+                      ),
                     ),
                   ),
                   onPressed: () {
+                    _playClickSfx();
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -452,129 +633,197 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       ),
                     );
                   },
-                  icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                  label: const Text(
+                  icon: const Icon(Icons.play_arrow_rounded, size: 17, color: Color(0xFFE5B869)),
+                  label: Text(
                     'PLAY DRILL',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
-                      letterSpacing: 1,
+                    style: GoogleFonts.sairaStencilOne(
+                      fontSize: 10.5,
+                      letterSpacing: 1.2,
+                      color: const Color(0xFFFFF6E5),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          _SectionLabel('TOPICS COVERED', color: Colors.white70),
+
           const SizedBox(height: 12),
-          _buildDrillTopic(
+
+          // Topics Overview
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 11,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B2500),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 7),
+              Text(
+                'TACTICAL MANUAL TOPICS',
+                style: GoogleFonts.sairaStencilOne(
+                  color: const Color(0xFF422817),
+                  fontSize: 10.5,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          _buildParchmentTopic(
+            number: 'I',
+            title: 'Deployment & Grid Superiority',
+            description: 'Place champions strategically to lock down choke points and vital tiles.',
             icon: Icons.grid_4x4_rounded,
-            title: '1. Deployment & Tile Control',
-            description: 'Learn how to strategically deploy troops and claim vital strategic tiles.',
           ),
-          const SizedBox(height: 8),
-          _buildDrillTopic(
+          const SizedBox(height: 5),
+          _buildParchmentTopic(
+            number: 'II',
+            title: 'Flanking & Hostile Capture',
+            description: 'Encircle hostile soldiers between friendly lines to capture their banners.',
             icon: Icons.shield_outlined,
-            title: '2. Flanking & Capture Mechanics',
-            description: 'Trap opposing hostile units by surrounding their ranks with coordinated strikes.',
           ),
-          const SizedBox(height: 8),
-          _buildDrillTopic(
+          const SizedBox(height: 5),
+          _buildParchmentTopic(
+            number: 'III',
+            title: 'Siege & Crown Dominion',
+            description: 'Shatter opponent strongholds to assert absolute control over the realm.',
             icon: Icons.military_tech_outlined,
-            title: '3. Siege & Victory Conditions',
-            description: 'Breach the stronghold core and declare dominion over the territory.',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDrillTopic({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF19191C),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.white54),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  description,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.35),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingTile({
+  // ───────────────────────────────────────────────────────────────────────────
+  //  Parchment UI Helpers & Components
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildParchmentSectionHeader({
     required String title,
     required String subtitle,
-    required Widget trailing,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 3,
+              height: 13,
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B2500),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Text(
+              title,
+              style: GoogleFonts.sairaStencilOne(
+                color: const Color(0xFF381F10),
+                fontSize: 12.5,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 1),
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: Text(
+            subtitle,
+            style: TextStyle(
+              color: const Color(0xFF6B482E).withValues(alpha: 0.85),
+              fontSize: 10,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildParchmentCard({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF381F10).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFF5A3416).withValues(alpha: 0.22),
+          width: 1,
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildToggleRow({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
   }) {
     return Row(
       children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF381F10).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: const Color(0xFF5A3416).withValues(alpha: 0.2),
+            ),
+          ),
+          child: Icon(
+            icon,
+            size: 16,
+            color: const Color(0xFF381F10),
+          ),
+        ),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                style: GoogleFonts.sairaStencilOne(
+                  color: const Color(0xFF2E190E),
+                  fontSize: 11.5,
+                  letterSpacing: 0.8,
                 ),
               ),
-              const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  fontSize: 11,
+                  color: const Color(0xFF6B482E).withValues(alpha: 0.9),
+                  fontSize: 9.5,
                 ),
               ),
             ],
           ),
         ),
-        trailing,
+        const SizedBox(width: 8),
+        // ── Custom Antique High-Contrast Switch ──
+        _AntiqueToggleSwitch(
+          value: value,
+          onChanged: onChanged,
+        ),
       ],
     );
   }
 
-  Widget _buildVolumeSlider({
+  Widget _buildParchmentVolumeSlider({
     required String title,
     required double value,
     required bool enabled,
     required ValueChanged<double> onChanged,
-    required Color primary,
   }) {
+    final int percent = (value * 100).toInt();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -583,32 +832,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           children: [
             Text(
               title,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.35),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+              style: GoogleFonts.sairaStencilOne(
+                color: enabled
+                    ? const Color(0xFF5A3416)
+                    : const Color(0xFF5A3416).withValues(alpha: 0.4),
+                fontSize: 9.5,
                 letterSpacing: 1,
               ),
             ),
-            Text(
-              '${(value * 100).toInt()}%',
-              style: TextStyle(
-                color: enabled ? primary : Colors.white.withValues(alpha: 0.2),
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: enabled
+                    ? const Color(0xFF2C160B)
+                    : const Color(0xFF4A2A14).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: enabled
+                      ? const Color(0xFFC48825)
+                      : Colors.transparent,
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                '$percent%',
+                style: GoogleFonts.sairaStencilOne(
+                  color: enabled
+                      ? const Color(0xFFE5B869)
+                      : const Color(0xFF7A5538),
+                  fontSize: 9.5,
+                  letterSpacing: 1,
+                ),
               ),
             ),
           ],
         ),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            trackHeight: 2,
+            trackHeight: 3,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-            activeTrackColor: primary,
-            inactiveTrackColor: Colors.white.withValues(alpha: 0.08),
-            thumbColor: primary,
-            overlayColor: primary.withValues(alpha: 0.1),
+            activeTrackColor: const Color(0xFF8B2500),
+            inactiveTrackColor: const Color(0xFF4A2A14).withValues(alpha: 0.25),
+            thumbColor: const Color(0xFFC48825),
+            overlayColor: const Color(0xFFC48825).withValues(alpha: 0.15),
           ),
           child: Slider(
             value: value,
@@ -616,6 +883,204 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildParchmentTopic({
+    required String number,
+    required String title,
+    required String description,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF381F10).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: const Color(0xFF5A3416).withValues(alpha: 0.12),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF8B2500).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: const Color(0xFF8B2500).withValues(alpha: 0.3),
+              ),
+            ),
+            child: Text(
+              number,
+              style: GoogleFonts.sairaStencilOne(
+                color: const Color(0xFF8B2500),
+                fontSize: 9.5,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(icon, size: 14, color: const Color(0xFF5A3416)),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.sairaStencilOne(
+                    color: const Color(0xFF2E190E),
+                    fontSize: 10.5,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: const Color(0xFF6B482E).withValues(alpha: 0.85),
+                    fontSize: 9,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Custom Antique High-Contrast Toggle Switch
+// ─────────────────────────────────────────────────────────────────────────────
+class _AntiqueToggleSwitch extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _AntiqueToggleSwitch({
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        width: 52,
+        height: 26,
+        padding: const EdgeInsets.all(2.5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: value
+              ? const Color(0xFF2C160B)
+              : const Color(0xFF1E1A17),
+          border: Border.all(
+            color: value
+                ? const Color(0xFFE5B869)
+                : const Color(0xFF6B5342),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: value
+                  ? const Color(0xFFE5B869).withValues(alpha: 0.3)
+                  : Colors.black.withValues(alpha: 0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Background State Text / Indicator
+            Row(
+              mainAxisAlignment:
+                  value ? MainAxisAlignment.start : MainAxisAlignment.end,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: value ? 6 : 0,
+                    right: value ? 0 : 6,
+                  ),
+                  child: Text(
+                    value ? 'ON' : 'OFF',
+                    style: GoogleFonts.sairaStencilOne(
+                      color: value
+                          ? const Color(0xFFE5B869)
+                          : const Color(0xFF7A685B),
+                      fontSize: 8.5,
+                      letterSpacing: 0.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Moving Thumb Knob
+            AnimatedAlign(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              alignment:
+                  value ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                width: 19,
+                height: 19,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: value
+                        ? [
+                            const Color(0xFFF7D58B),
+                            const Color(0xFFC48825),
+                            const Color(0xFF8B2500),
+                          ]
+                        : [
+                            const Color(0xFF8A776A),
+                            const Color(0xFF554438),
+                            const Color(0xFF2E241E),
+                          ],
+                  ),
+                  border: Border.all(
+                    color: value
+                        ? const Color(0xFFFFF6E5)
+                        : const Color(0xFF9E8B7D),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1.5),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: value
+                          ? const Color(0xFFFFF6E5)
+                          : const Color(0xFF1E1A17),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
