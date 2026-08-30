@@ -85,7 +85,7 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
     final bool isConquered = campaignState.isConquered(widget.kingdom.id);
 
     final screenSize = MediaQuery.of(context).size;
-    final sidebarWidth = math.min(math.max(screenSize.width * 0.36, 320.0), 400.0);
+    final sidebarWidth = math.min(math.max(screenSize.width * 0.38, 320.0), 410.0);
 
     return SlideTransition(
       position: _slideAnim,
@@ -120,10 +120,10 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
               Positioned.fill(
                 child: Padding(
                   padding: const EdgeInsets.only(
-                    top: 40.0,
-                    bottom: 54.0,
-                    left: 50.0,
-                    right: 50.0,
+                    top: 38.0,
+                    bottom: 52.0,
+                    left: 45.0,
+                    right: 45.0,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -270,13 +270,17 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
                       size: 9.5,
                     ),
                     const SizedBox(width: 3),
-                    Text(
-                      isConquered ? "CONQUERED" : "HOSTILE STRONGHOLD",
-                      style: GoogleFonts.sairaStencilOne(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                        color: isConquered ? const Color(0xFF1E1005) : Colors.white,
+                    Flexible(
+                      child: Text(
+                        isConquered ? "CONQUERED" : "HOSTILE STRONGHOLD",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.sairaStencilOne(
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
+                          color: isConquered ? const Color(0xFF1E1005) : Colors.white,
+                        ),
                       ),
                     ),
                   ],
@@ -285,6 +289,8 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
             ],
           ),
         ),
+
+        const SizedBox(width: 4),
 
         // Close / Dismiss Wax Seal Button
         GestureDetector(
@@ -393,13 +399,15 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
                 color: headerInk,
               ),
               const SizedBox(width: 5),
-              Text(
-                "WAR DISPATCH",
-                style: GoogleFonts.sairaStencilOne(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  color: headerInk,
+              Expanded(
+                child: Text(
+                  "WAR DISPATCH",
+                  style: GoogleFonts.sairaStencilOne(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: headerInk,
+                  ),
                 ),
               ),
             ],
@@ -493,13 +501,15 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
                 color: headerInk,
               ),
               const SizedBox(width: 5),
-              Text(
-                "TACTICAL INTEL",
-                style: GoogleFonts.sairaStencilOne(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  color: headerInk,
+              Expanded(
+                child: Text(
+                  "TACTICAL INTEL",
+                  style: GoogleFonts.sairaStencilOne(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: headerInk,
+                  ),
                 ),
               ),
             ],
@@ -508,16 +518,19 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
           _buildIntelItem(
             icon: Icons.star_rounded,
             label: "Threat Level",
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(
-                5,
-                (index) => Icon(
-                  Icons.star_rounded,
-                  size: 13,
-                  color: index < widget.kingdom.difficulty
-                      ? const Color(0xFFD48806)
-                      : const Color(0xFFB59A7A),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
+                  5,
+                  (index) => Icon(
+                    Icons.star_rounded,
+                    size: 13,
+                    color: index < widget.kingdom.difficulty
+                        ? const Color(0xFFD48806)
+                        : const Color(0xFFB59A7A),
+                  ),
                 ),
               ),
             ),
@@ -530,6 +543,7 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
               mapDisplayName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
               style: GoogleFonts.outfit(
                 color: const Color(0xFF2C1607),
                 fontSize: 11.5,
@@ -543,6 +557,9 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
             label: "Enemy Intellect",
             child: Text(
               aiIntellect,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
               style: GoogleFonts.outfit(
                 color: const Color(0xFF2C1607),
                 fontSize: 11.5,
@@ -557,6 +574,9 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
               label: "Grid Territory",
               child: Text(
                 "${battleConfig!.levelConfig.boardWidth} × ${battleConfig.levelConfig.boardHeight} Tiles",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
                 style: GoogleFonts.outfit(
                   color: const Color(0xFF2C1607),
                   fontSize: 11.5,
@@ -593,7 +613,13 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
             ),
           ],
         ),
-        child,
+        const SizedBox(width: 8),
+        Flexible(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: child,
+          ),
+        ),
       ],
     );
   }
@@ -642,12 +668,13 @@ class _PreBattleSidebarState extends ConsumerState<PreBattleSidebar> with Single
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    isConquered ? Icons.replay_rounded : Icons.sports_kabaddi_rounded,
+                  AppAssetImage(
+                    AppAssets.storyModeIcon,
+                    width: 18,
+                    height: 18,
                     color: isConquered ? const Color(0xFF1E1005) : Colors.white,
-                    size: 16,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 7),
                   Text(
                     isConquered ? "REPLAY BATTLE" : "MARCH TO WAR",
                     style: GoogleFonts.sairaStencilOne(
