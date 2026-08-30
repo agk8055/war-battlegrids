@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:vector_math/vector_math_64.dart' hide Colors;
 import '../../core/constants/app_assets.dart';
 import '../../campaign/campaign_manager.dart';
 import '../../campaign/data/battle_configs.dart';
@@ -172,6 +171,8 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
                             campaignState, 
                             _mapWidth, 
                             _mapHeight,
+                            constraints,
+                            minScale,
                             isSelected: kingdom.id == selectedKingdomId,
                           );
                         }),
@@ -198,21 +199,22 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
 
               // Sidebar Overlay
               if (selectedKingdom != null) ...[
-                // Darken the area NOT covered by the sidebar slightly? 
-                // Or just the whole map is already visible. 
-                // Let's add a subtle gradient to push focus to the center.
+                // Darken backdrop and allow tapping outside to dismiss
                 Positioned.fill(
-                  child: IgnorePointer(
+                  child: GestureDetector(
+                    onTap: () {
+                      ref.read(campaignProvider.notifier).selectKingdom(null);
+                    },
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                           colors: [
-                            Colors.black.withValues(alpha: 0.0),
-                            const Color(0xFF0A0804).withValues(alpha: 0.8),
+                            Colors.black.withValues(alpha: 0.35),
+                            const Color(0xFF0A0804).withValues(alpha: 0.75),
                           ],
-                          stops: const [0.5, 1.0],
+                          stops: const [0.3, 1.0],
                         ),
                       ),
                     ),
@@ -315,6 +317,8 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
     CampaignState state, 
     double mapWidth, 
     double mapHeight,
+    BoxConstraints constraints,
+    double minScale,
     {bool isSelected = false}
   ) {
     final bool isConquered = state.isConquered(kingdom.id);
@@ -328,6 +332,7 @@ class _OverworldMapScreenState extends ConsumerState<OverworldMapScreen> with Ti
       top: top - (isSelected ? 45 : 30),
       child: GestureDetector(
         onTap: isUnlocked ? () {
+          _zoomToKingdom(kingdom, constraints, minScale);
           ref.read(campaignProvider.notifier).selectKingdom(kingdom.id);
         } : null,
         child: Column(

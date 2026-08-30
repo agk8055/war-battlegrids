@@ -37,6 +37,7 @@ class AppAssets {
   static const String settingsBg = 'assets/images/settings_bg.png';
   static const String tutorialPoster = 'assets/images/tutorial_poster.png';
   static const String parchmentTexture = 'assets/images/parchment_texture.png';
+  static const String battleBanner = 'assets/images/battle_banner.png';
 
   // --- ICONS (UI Elements) ---
   static const String borderEdge = 'assets/icons/border-edge.png';
