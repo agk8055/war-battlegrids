@@ -98,7 +98,7 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#000000"
-  image: assets/images/plain_black.png
+  image: "assets/images/plain_black.png"
   android_gravity: center
   android_12:
     color: "#000000"
