@@ -620,21 +620,18 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> with TickerProv
             ),
           ),
 
-          // 3. Step Guidance Card (Bottom Overlay)
+          // 3. Step Guidance Card (Bottom-Left Overlay)
           Positioned(
-            left: 20,
-            right: 20,
-            bottom: 12,
-            child: SafeArea(
-              top: false,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 620),
-                  child: FadeTransition(
-                    opacity: _fadeAnim,
-                    child: _buildGuidanceCard(primary),
-                  ),
-                ),
+            left: 8,
+            bottom: 8,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: math.min(MediaQuery.of(context).size.width * 0.42, 350.0),
+                minWidth: 260.0,
+              ),
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: _buildGuidanceCard(primary),
               ),
             ),
           ),
@@ -646,31 +643,48 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> with TickerProv
   Widget _buildGuidanceCard(Color primary) {
     switch (_currentStep) {
       case TutorialStep.overview:
-        return _StonePanel(
-          accentColor: primary,
+        return _ParchmentNotification(
+          stepBadge: 'STAGE 1 OF 5',
+          title: 'THE WAR FRONTIER',
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StepBadge(stepText: 'STAGE 1 OF 5', title: 'THE WAR FRONTIER', primary: primary),
-              const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Welcome, Commander! You are commanding the Southern Citadel (Blue). The Enemy Stronghold lies in the North (Red).\n'
-                'Your objective is to deploy battalions across the contested grid, flank and capture enemy troops, and siege their kingdom.',
-                style: TextStyle(color: Colors.white, fontSize: 13, height: 1.45),
+                'Deploy battalions across the contested grid, flank and capture enemy troops, and siege their kingdom.',
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF2C1A0D),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    backgroundColor: const Color(0xFF8A2109),
+                    foregroundColor: const Color(0xFFFFF8E7),
+                    elevation: 3,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      side: const BorderSide(color: Color(0xFFFFD700), width: 1.0),
+                    ),
                   ),
                   onPressed: () => _advanceToStep(TutorialStep.deployment),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                  label: const Text('START DEPLOYMENT', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFFFFD700)),
+                  label: Text(
+                    'START DEPLOYMENT',
+                    style: GoogleFonts.sairaStencilOne(
+                      fontSize: 10.0,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                      color: const Color(0xFFFFF8E7),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -678,95 +692,148 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> with TickerProv
         );
 
       case TutorialStep.deployment:
-        return _StonePanel(
-          accentColor: primary,
+        return _ParchmentNotification(
+          stepBadge: 'STAGE 2 OF 5',
+          title: 'TROOP DEPLOYMENT',
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StepBadge(stepText: 'STAGE 2 OF 5', title: 'TROOP DEPLOYMENT', primary: primary),
-              const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Battles proceed in alternating turns. Tap the highlighted golden beacon at the frontline to position your vanguard unit.',
-                style: TextStyle(color: Colors.white, fontSize: 13, height: 1.45),
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF2C1A0D),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFFD700),
-                      shape: BoxShape.circle,
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7A4A21).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF8B4513).withValues(alpha: 0.35), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFD97706),
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Tap the glowing tile on the board to deploy',
-                    style: TextStyle(color: Color(0xFFFFD700), fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Tap the glowing tile on the board to deploy',
+                        style: GoogleFonts.outfit(
+                          color: const Color(0xFF6B2208),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         );
 
       case TutorialStep.flanking:
-        return _StonePanel(
-          accentColor: primary,
+        return _ParchmentNotification(
+          stepBadge: 'STAGE 3 OF 5',
+          title: 'FLANKING & CAPTURE',
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StepBadge(stepText: 'STAGE 3 OF 5', title: 'FLANKING & CAPTURE', primary: primary),
-              const SizedBox(height: 8),
-              const Text(
+              Text(
                 'When you surround enemy units on orthogonal flanks, they are CAPTURED! Captures grant +100 Glory and forge unbreakable linkages.\n'
                 'Strike the highlighted flank to capture the enemy unit!',
-                style: TextStyle(color: Colors.white, fontSize: 13, height: 1.45),
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF2C1A0D),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Icon(Icons.military_tech_rounded, color: Color(0xFFFFD700), size: 16),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'Deploy at the golden target to trigger a Capture (+100 Glory)',
-                    style: TextStyle(color: Color(0xFFFFD700), fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                ],
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7A4A21).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF8B4513).withValues(alpha: 0.35), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.military_tech_rounded, color: Color(0xFFB45309), size: 14),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Deploy at golden target to Capture (+100 Glory)',
+                        style: GoogleFonts.outfit(
+                          color: const Color(0xFF6B2208),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         );
 
       case TutorialStep.siegeRules:
-        return _StonePanel(
-          accentColor: primary,
+        return _ParchmentNotification(
+          stepBadge: 'STAGE 4 OF 5',
+          title: 'SIEGE RESTRAINTS',
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StepBadge(stepText: 'STAGE 4 OF 5', title: 'SIEGE RESTRAINT & BREACH', primary: primary),
-              const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Strongholds are protected by Siege Restraints (indicated by red circular warnings). '
                 'You cannot place units that complete premature winning blockages around the citadel until you earn enough Glory to unlock Kingdom Attack.',
-                style: TextStyle(color: Colors.white, fontSize: 13, height: 1.45),
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF2C1A0D),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    backgroundColor: const Color(0xFF8A2109),
+                    foregroundColor: const Color(0xFFFFF8E7),
+                    elevation: 3,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      side: const BorderSide(color: Color(0xFFFFD700), width: 1.0),
+                    ),
                   ),
                   onPressed: () => _advanceToStep(TutorialStep.victoryStrike),
-                  icon: const Icon(Icons.bolt_rounded, size: 18),
-                  label: const Text('ASSAULT THE CITADEL', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  icon: const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFFFFD700)),
+                  label: Text(
+                    'ASSAULT THE CITADEL',
+                    style: GoogleFonts.sairaStencilOne(
+                      fontSize: 10.0,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                      color: const Color(0xFFFFF8E7),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -774,76 +841,92 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> with TickerProv
         );
 
       case TutorialStep.victoryStrike:
-        return _StonePanel(
-          accentColor: primary,
+        return _ParchmentNotification(
+          stepBadge: 'STAGE 5 OF 5',
+          title: 'DELIVERING VICTORY',
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StepBadge(stepText: 'STAGE 5 OF 5', title: 'DELIVERING TOTAL VICTORY', primary: primary),
-              const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Kingdom Attack is unlocked! Completing a connected blockade or encircling the opponent Citadel results in total victory.\n'
                 'Deploy your battalion at the highlighted gate to complete the winning blockade!',
-                style: TextStyle(color: Colors.white, fontSize: 13, height: 1.45),
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF2C1A0D),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Icon(Icons.stars_rounded, color: Color(0xFFFFD700), size: 16),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'Deploy at the golden target to achieve Victory!',
-                    style: TextStyle(color: Color(0xFFFFD700), fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                ],
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7A4A21).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF8B4513).withValues(alpha: 0.35), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.stars_rounded, color: Color(0xFFB45309), size: 14),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Deploy at the golden target to achieve Victory!',
+                        style: GoogleFonts.outfit(
+                          color: const Color(0xFF6B2208),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         );
 
       case TutorialStep.completed:
-        return _StonePanel(
-          accentColor: primary,
+        return _ParchmentNotification(
+          stepBadge: 'VICTORY',
+          title: 'DRILL COMPLETED',
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.emoji_events_rounded, color: primary, size: 28),
-                  const SizedBox(width: 10),
-                  Text(
-                    'VICTORY! DRILL COMPLETED',
-                    style: GoogleFonts.sairaStencilOne(
-                      color: primary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Magnificent tactics, Commander! You have mastered Deployment, Encirclement, Siege Restraints, and Kingdom Conquest.\n'
                 'The realm awaits your command in Campaign and Multiplayer warfare!',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF2C1A0D),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primary,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  backgroundColor: const Color(0xFF8A2109),
+                  foregroundColor: const Color(0xFFFFF8E7),
+                  elevation: 4,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: const BorderSide(color: Color(0xFFFFD700), width: 1.2),
+                  ),
                 ),
                 onPressed: _finishTutorialAndGoHome,
-                icon: const Icon(Icons.military_tech_rounded, size: 20),
-                label: const Text(
+                icon: const Icon(Icons.military_tech_rounded, size: 16, color: Color(0xFFFFD700)),
+                label: Text(
                   'ENTER THE WAR ROOM',
-                  style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2.0),
+                  style: GoogleFonts.sairaStencilOne(
+                    fontSize: 11.0,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: const Color(0xFFFFF8E7),
+                  ),
                 ),
               ),
             ],
@@ -853,152 +936,116 @@ class _TutorialScreenState extends ConsumerState<TutorialScreen> with TickerProv
   }
 }
 
-class _StepBadge extends StatelessWidget {
-  final String stepText;
+// ─────────────────────────────────────────────────────────────────────────────
+//  _ParchmentNotification (Parchment Poster Theme)
+// ─────────────────────────────────────────────────────────────────────────────
+class _ParchmentNotification extends StatelessWidget {
   final String title;
-  final Color primary;
-
-  const _StepBadge({
-    required this.stepText,
-    required this.title,
-    required this.primary,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: primary.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: primary.withValues(alpha: 0.6), width: 1),
-          ),
-          child: Text(
-            stepText,
-            style: TextStyle(
-              color: primary,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.5,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: GoogleFonts.sairaStencilOne(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.8,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  _StonePanel & _HatchPainter (Theme elements)
-// ─────────────────────────────────────────────────────────────────────────────
-class _HatchPainter extends CustomPainter {
-  final Color color;
-  const _HatchPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 0.6;
-    const spacing = 22.0;
-    for (double i = -size.height; i < size.width + size.height; i += spacing) {
-      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_HatchPainter old) => old.color != color;
-}
-
-class _StonePanel extends StatelessWidget {
+  final String? stepBadge;
   final Widget child;
-  final Color accentColor;
-  final EdgeInsetsGeometry padding;
 
-  const _StonePanel({
+  const _ParchmentNotification({
+    required this.title,
+    this.stepBadge,
     required this.child,
-    required this.accentColor,
-    this.padding = const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
   });
 
   @override
   Widget build(BuildContext context) {
-    final ornamentColor = accentColor.withValues(alpha: 0.5);
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF18140F), Color(0xFF0C0A08)],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accentColor.withValues(alpha: 0.35), width: 1.2),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.65), blurRadius: 18, offset: const Offset(0, 6)),
-          BoxShadow(color: accentColor.withValues(alpha: 0.08), blurRadius: 20, spreadRadius: 1),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.65),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Stack(
         children: [
+          // 1. Background Poster
           Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CustomPaint(painter: _HatchPainter(color: Colors.white.withValues(alpha: 0.018))),
+            child: Image.asset(
+              AppAssets.tutorialPoster,
+              fit: BoxFit.fill,
+              errorBuilder: (context, error, stackTrace) => Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDFBE89),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF6E431F), width: 2),
+                ),
+              ),
             ),
           ),
-          ..._corners(ornamentColor),
-          Padding(padding: padding, child: child),
+
+          // 2. Poster Inner Safe Content
+          Padding(
+            padding: const EdgeInsets.only(
+              left: 32,
+              right: 32,
+              top: 23,
+              bottom: 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Top Header Plaque aligned with poster banner
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (stepBadge != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B4513).withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.8), width: 0.8),
+                          ),
+                          child: Text(
+                            stepBadge!,
+                            style: const TextStyle(
+                              color: Color(0xFFFFE082),
+                              fontSize: 8.0,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Flexible(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.sairaStencilOne(
+                            color: const Color(0xFFFFF6E0),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                            shadows: const [
+                              Shadow(color: Colors.black87, offset: Offset(1, 1), blurRadius: 3),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Parchment Content
+                child,
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
-
-  List<Widget> _corners(Color color) {
-    const sz = 20.0;
-    return [
-      Positioned(
-        top: 0,
-        left: 0,
-        child: Transform.rotate(
-          angle: math.pi / 2,
-          child: SizedBox(width: sz, height: sz, child: AppAssetImage(AppAssets.borderEdge, color: color)),
-        ),
-      ),
-      Positioned(
-        top: 0,
-        right: 0,
-        child: Transform.rotate(
-          angle: math.pi,
-          child: SizedBox(width: sz, height: sz, child: AppAssetImage(AppAssets.borderEdge, color: color)),
-        ),
-      ),
-      Positioned(
-        bottom: 0,
-        left: 0,
-        child: SizedBox(width: sz, height: sz, child: AppAssetImage(AppAssets.borderEdge, color: color)),
-      ),
-      Positioned(
-        bottom: 0,
-        right: 0,
-        child: Transform.rotate(
-          angle: -math.pi / 2,
-          child: SizedBox(width: sz, height: sz, child: AppAssetImage(AppAssets.borderEdge, color: color)),
-        ),
-      ),
-    ];
-  }
 }
+
