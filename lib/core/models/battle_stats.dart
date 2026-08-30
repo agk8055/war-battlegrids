@@ -94,8 +94,10 @@ class BattleStats {
   String get winConditionDescription {
     if (isDraw) return 'Battle ended in stalemate';
     switch (winConditionType) {
-      case WinConditionType.uShape:
-        return 'U-Shape Palace Encirclement';
+      case WinConditionType.fullUShape:
+        return 'Full U-Shape Palace Encirclement';
+      case WinConditionType.halfUShape:
+        return 'Half U-Shape Flank Encirclement';
       case WinConditionType.parallel:
         return 'Parallel Flank Blockade';
       case WinConditionType.kingdomAssisted:

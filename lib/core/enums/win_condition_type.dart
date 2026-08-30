@@ -1,11 +1,15 @@
-/// Represents the types of win conditions in order of priority.
+/// Represents the types of win conditions in strict order of priority.
 enum WinConditionType {
-  /// Primary win condition: Top-Left to Top-Right blockade around the palace.
-  uShape,
+  /// Tier 1: Full U-shape encirclement connecting both flanks (top-left to top-right) around the palace.
+  fullUShape,
 
-  /// Secondary win condition: Left-Edge to Right-Edge parallel blockade.
+  /// Tier 2: Half U-shape encirclement connecting an edge to the opposite flank (active only when full U is blocked).
+  halfUShape,
+
+  /// Tier 3: Left-Edge to Right-Edge parallel blockade (active only when half U is also blocked).
   parallel,
 
-  /// Final win condition: Blockade connecting any two anchors via the attacker's own kingdom.
+  /// Tier 4: Final win condition connecting anchors via the attacker's own kingdom.
   kingdomAssisted,
 }
+

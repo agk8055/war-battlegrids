@@ -10,7 +10,7 @@ class WinResult {
   WinResult(this.isWin, [this.blockage]);
 }
 
-enum _WinCategory { uShape, parallel, kingdomAssisted }
+enum _WinCategory { fullUShape, halfUShape, parallel, kingdomAssisted }
 
 class GameRules {
   /// Checks if an attempted placement is structurally valid on the board.
@@ -19,8 +19,9 @@ class GameRules {
     int x,
     int y,
     Turn turn,
-    bool kingdomAttackUnlocked,
-  ) {
+    bool kingdomAttackUnlocked, {
+    WinConditionType? activeCondition,
+  }) {
     // Must be within the designated playable area
     if (!board.isWithinPlayableArea(x, y)) {
       return false;
@@ -54,6 +55,8 @@ class GameRules {
       }
 
       // We also cannot place a piece that would COMPLETE an offensive winning blockage around the opponent's kingdom!
+      final resolvedActiveCondition = activeCondition ?? getActiveWinCondition(board, turn);
+
       final originalState = board.getCell(x, y);
       board.setCell(
         x,
@@ -64,6 +67,7 @@ class GameRules {
         board,
         turn,
         kingdomAttackUnlocked: true,
+        activeCondition: resolvedActiveCondition,
       );
       board.setCell(x, y, originalState);
 
@@ -84,14 +88,17 @@ class GameRules {
     int x,
     int y,
     Turn turn,
-    bool kingdomAttackUnlocked,
-  ) {
+    bool kingdomAttackUnlocked, {
+    WinConditionType? activeCondition,
+  }) {
     if (kingdomAttackUnlocked) return false;
     if (!board.isWithinPlayableArea(x, y)) return false;
 
     final cell = board.getCell(x, y);
     // Only regular empty tiles are subject to the siege-blocked overlay
     if (cell != CellState.empty) return false;
+
+    final resolvedActiveCondition = activeCondition ?? getActiveWinCondition(board, turn);
 
     // Check if placing a piece here would complete a winning blockade against the opponent
     board.setCell(
@@ -103,6 +110,7 @@ class GameRules {
       board,
       turn,
       kingdomAttackUnlocked: true,
+      activeCondition: resolvedActiveCondition,
     );
     board.setCell(x, y, cell);
 
@@ -115,7 +123,25 @@ class GameRules {
     return numberOfUnitsCaptured * kCapturePointsValue;
   }
 
-  /// Checks if the win condition has been met by entirely blockading / encircling the opponent's palace.
+  /// Returns the current active win condition for a player in strict order of priority:
+  /// 1. Full U-shape (Primary)
+  /// 2. Half U-shape (Activated ONLY IF Full U is structurally impossible)
+  /// 3. Parallel (Activated ONLY IF Half U is also structurally impossible)
+  /// 4. Kingdom-assisted (Activated ONLY IF Parallel is also structurally impossible)
+  static WinConditionType getActiveWinCondition(Board board, Turn turn) {
+    if (isWinConditionPossible(board, turn, WinConditionType.fullUShape)) {
+      return WinConditionType.fullUShape;
+    }
+    if (isWinConditionPossible(board, turn, WinConditionType.halfUShape)) {
+      return WinConditionType.halfUShape;
+    }
+    if (isWinConditionPossible(board, turn, WinConditionType.parallel)) {
+      return WinConditionType.parallel;
+    }
+    return WinConditionType.kingdomAssisted;
+  }
+
+  /// Checks if the win condition has been met for the currently active condition tier.
   static WinResult checkWinCondition(
     Board board,
     Turn currentTurn, {
@@ -124,34 +150,34 @@ class GameRules {
   }) {
     if (!kingdomAttackUnlocked) return WinResult(false);
 
-    // 1. Check for actual U-shaped / Half U-shaped Encirclement win
-    final uWon = _findBlockade(
-      board,
-      currentTurn,
-      _WinCategory.uShape,
-      includeKingdom: false,
-      includeEmpty: false,
-    );
-    if (uWon.isWin) return uWon;
+    final resolvedCondition = activeCondition ?? getActiveWinCondition(board, currentTurn);
 
-    // Parallel win condition is ONLY enabled when U-shape (including half U-shape to open ends) is blocked / no longer possible
-    // (e.g. opponent completely covered their kingdom / blocked access to the palace flanks)
-    final isUShapePossible = isWinConditionPossible(board, currentTurn, WinConditionType.uShape);
-    if (!isUShapePossible) {
-      // 2. Check for actual Parallel win
-      final pWon = _findBlockade(
-        board,
-        currentTurn,
-        _WinCategory.parallel,
-        includeKingdom: false,
-        includeEmpty: false,
-      );
-      if (pWon.isWin) return pWon;
-
-      // Kingdom-assisted win is ONLY enabled when Parallel is also not possible
-      final isParallelPossible = isWinConditionPossible(board, currentTurn, WinConditionType.parallel);
-      if (!isParallelPossible) {
-        // 3. Check for actual Kingdom-assisted win
+    switch (resolvedCondition) {
+      case WinConditionType.fullUShape:
+        return _findBlockade(
+          board,
+          currentTurn,
+          _WinCategory.fullUShape,
+          includeKingdom: false,
+          includeEmpty: false,
+        );
+      case WinConditionType.halfUShape:
+        return _findBlockade(
+          board,
+          currentTurn,
+          _WinCategory.halfUShape,
+          includeKingdom: false,
+          includeEmpty: false,
+        );
+      case WinConditionType.parallel:
+        return _findBlockade(
+          board,
+          currentTurn,
+          _WinCategory.parallel,
+          includeKingdom: false,
+          includeEmpty: false,
+        );
+      case WinConditionType.kingdomAssisted:
         return _findBlockade(
           board,
           currentTurn,
@@ -160,10 +186,7 @@ class GameRules {
           includeEmpty: false,
           requireKingdom: true,
         );
-      }
     }
-
-    return WinResult(false);
   }
 
   static WinResult _findBlockade(
@@ -265,7 +288,7 @@ class GameRules {
 
           // Evaluate win by category
           switch (category) {
-            case _WinCategory.uShape:
+            case _WinCategory.fullUShape:
               // Must extend into the battlefield from the attacker's side
               final reachesAttackerSide = isAttackingAI
                   ? groupVisited.any((c) => c.$2 > board.aiPalaceEndY)
@@ -275,16 +298,28 @@ class GameRules {
               // 1. Full U-shape: connects both flanks of the opponent palace (topLeft to topRight)
               final isFullUShape = foundAnchors.contains(AnchorType.topLeft) && foundAnchors.contains(AnchorType.topRight);
 
-              // 2. Half U-shape: connects one board edge to the OPPOSITE flank of the opponent palace
+              // 2. Palace Breach Enclosure (via endGap inside/at the palace):
+              // Reaches endGap while connecting both left and right sides
+              final isEndGapBreach = hasEndGap && hasLeftAnchor && hasRightAnchor;
+
+              if (isFullUShape || isEndGapBreach) {
+                return WinResult(true, groupVisited);
+              }
+              break;
+
+            case _WinCategory.halfUShape:
+              // Must extend into the battlefield from the attacker's side
+              final reachesAttackerSide = isAttackingAI
+                  ? groupVisited.any((c) => c.$2 > board.aiPalaceEndY)
+                  : groupVisited.any((c) => c.$2 < board.playerPalaceStartY);
+              if (!reachesAttackerSide) break;
+
+              // Half U-shape: connects one board edge to the OPPOSITE flank of the opponent palace
               // (leftEdge to topRight) OR (rightEdge to topLeft)
               final isHalfUShape = (foundAnchors.contains(AnchorType.leftEdge) && foundAnchors.contains(AnchorType.topRight)) ||
                   (foundAnchors.contains(AnchorType.rightEdge) && foundAnchors.contains(AnchorType.topLeft));
 
-              // 3. Palace Breach Enclosure (via endGap inside/at the palace):
-              // Reaches endGap while connecting both left and right sides
-              final isEndGapBreach = hasEndGap && hasLeftAnchor && hasRightAnchor;
-
-              if (isFullUShape || isHalfUShape || isEndGapBreach) {
+              if (isHalfUShape) {
                 return WinResult(true, groupVisited);
               }
               break;
@@ -326,10 +361,23 @@ class GameRules {
   }
 
   /// Checks if a player has any valid placement moves available on the board.
-  static bool hasValidMoves(Board board, Turn turn, bool kingdomAttackUnlocked) {
+  static bool hasValidMoves(
+    Board board,
+    Turn turn,
+    bool kingdomAttackUnlocked, {
+    WinConditionType? activeCondition,
+  }) {
+    final resolvedActiveCondition = activeCondition ?? getActiveWinCondition(board, turn);
     for (int y = board.playableMinY; y <= board.playableMaxY; y++) {
       for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
-        if (isValidPlacement(board, x, y, turn, kingdomAttackUnlocked)) {
+        if (isValidPlacement(
+          board,
+          x,
+          y,
+          turn,
+          kingdomAttackUnlocked,
+          activeCondition: resolvedActiveCondition,
+        )) {
           return true;
         }
       }
@@ -339,17 +387,35 @@ class GameRules {
 
   /// Checks if neither player has any valid moves remaining (e.g. board is full,
   /// or remaining tiles cannot be deployed to because neither player has enough siege points).
-  static bool checkDraw(Board board, bool playerAttackUnlocked, bool aiAttackUnlocked) {
-    final playerHasMoves = hasValidMoves(board, Turn.player, playerAttackUnlocked);
-    final aiHasMoves = hasValidMoves(board, Turn.ai, aiAttackUnlocked);
+  static bool checkDraw(
+    Board board,
+    bool playerAttackUnlocked,
+    bool aiAttackUnlocked, {
+    WinConditionType? playerActiveCondition,
+    WinConditionType? aiActiveCondition,
+  }) {
+    final playerHasMoves = hasValidMoves(
+      board,
+      Turn.player,
+      playerAttackUnlocked,
+      activeCondition: playerActiveCondition,
+    );
+    final aiHasMoves = hasValidMoves(
+      board,
+      Turn.ai,
+      aiAttackUnlocked,
+      activeCondition: aiActiveCondition,
+    );
     return !playerHasMoves && !aiHasMoves;
   }
 
   /// Checks if a specific win condition is still structurally possible for a player.
   static bool isWinConditionPossible(Board board, Turn turn, WinConditionType type) {
     switch (type) {
-      case WinConditionType.uShape:
-        return _findBlockade(board, turn, _WinCategory.uShape, includeKingdom: false, includeEmpty: true).isWin;
+      case WinConditionType.fullUShape:
+        return _findBlockade(board, turn, _WinCategory.fullUShape, includeKingdom: false, includeEmpty: true).isWin;
+      case WinConditionType.halfUShape:
+        return _findBlockade(board, turn, _WinCategory.halfUShape, includeKingdom: false, includeEmpty: true).isWin;
       case WinConditionType.parallel:
         return _findBlockade(board, turn, _WinCategory.parallel, includeKingdom: false, includeEmpty: true).isWin;
       case WinConditionType.kingdomAssisted:

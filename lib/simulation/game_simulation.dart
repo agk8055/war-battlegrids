@@ -20,8 +20,8 @@ class GameSimulation {
   bool playerKingdomAttackUnlocked = false;
   bool aiKingdomAttackUnlocked = false;
 
-  WinConditionType playerActiveWinCondition = WinConditionType.uShape;
-  WinConditionType aiActiveWinCondition = WinConditionType.uShape;
+  WinConditionType playerActiveWinCondition = WinConditionType.fullUShape;
+  WinConditionType aiActiveWinCondition = WinConditionType.fullUShape;
 
   Turn? winner;
   WinConditionType? winningConditionType;
@@ -64,8 +64,18 @@ class GameSimulation {
     final attackUnlocked = isPlayer
         ? playerKingdomAttackUnlocked
         : aiKingdomAttackUnlocked;
+    final activeCondition = isPlayer
+        ? playerActiveWinCondition
+        : aiActiveWinCondition;
 
-    if (!GameRules.isValidPlacement(board, x, y, currentTurn, attackUnlocked)) {
+    if (!GameRules.isValidPlacement(
+      board,
+      x,
+      y,
+      currentTurn,
+      attackUnlocked,
+      activeCondition: activeCondition,
+    )) {
       return (false, false); // Invalid move
     }
 
@@ -107,6 +117,7 @@ class GameSimulation {
       board,
       currentTurn,
       kingdomAttackUnlocked: isKingdomAttackUnlocked,
+      activeCondition: activeCondition,
     );
     
     if (winResult.isWin) {
@@ -124,7 +135,13 @@ class GameSimulation {
     }
 
     // Evaluate Draw Condition
-    if (GameRules.checkDraw(board, playerKingdomAttackUnlocked, aiKingdomAttackUnlocked)) {
+    if (GameRules.checkDraw(
+      board,
+      playerKingdomAttackUnlocked,
+      aiKingdomAttackUnlocked,
+      playerActiveCondition: playerActiveWinCondition,
+      aiActiveCondition: aiActiveWinCondition,
+    )) {
       currentPhase = GamePhase.draw;
       winner = null; // No winner
       endTime = DateTime.now();
@@ -148,7 +165,13 @@ class GameSimulation {
 
     // After skipping, check if the NEW current player also has no moves.
     // If neither can move, it's a draw.
-    if (GameRules.checkDraw(board, playerKingdomAttackUnlocked, aiKingdomAttackUnlocked)) {
+    if (GameRules.checkDraw(
+      board,
+      playerKingdomAttackUnlocked,
+      aiKingdomAttackUnlocked,
+      playerActiveCondition: playerActiveWinCondition,
+      aiActiveCondition: aiActiveWinCondition,
+    )) {
       currentPhase = GamePhase.draw;
       winner = null;
       endTime = DateTime.now();
@@ -166,29 +189,8 @@ class GameSimulation {
   }
 
   void _updateActiveWinConditions() {
-    // Player
-    if (playerActiveWinCondition == WinConditionType.uShape) {
-      if (!GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.uShape)) {
-        playerActiveWinCondition = WinConditionType.parallel;
-      }
-    }
-    if (playerActiveWinCondition == WinConditionType.parallel) {
-      if (!GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.parallel)) {
-        playerActiveWinCondition = WinConditionType.kingdomAssisted;
-      }
-    }
-
-    // AI
-    if (aiActiveWinCondition == WinConditionType.uShape) {
-      if (!GameRules.isWinConditionPossible(board, Turn.ai, WinConditionType.uShape)) {
-        aiActiveWinCondition = WinConditionType.parallel;
-      }
-    }
-    if (aiActiveWinCondition == WinConditionType.parallel) {
-      if (!GameRules.isWinConditionPossible(board, Turn.ai, WinConditionType.parallel)) {
-        aiActiveWinCondition = WinConditionType.kingdomAssisted;
-      }
-    }
+    playerActiveWinCondition = GameRules.getActiveWinCondition(board, Turn.player);
+    aiActiveWinCondition = GameRules.getActiveWinCondition(board, Turn.ai);
   }
 
   void _handleCaptures(List<(int, int)> capturedCoords) {

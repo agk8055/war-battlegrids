@@ -177,10 +177,15 @@ class KingdomGame extends FlameGame with ScaleDetector {
         ? boardComponent.opponentColor
         : boardComponent.playerColor;
 
+    final effectiveActiveCondition = (effectiveTurn == Turn.player)
+        ? sim.playerActiveWinCondition
+        : sim.aiActiveWinCondition;
+
     boardComponent.syncWithSimulation(
       sim.board,
       effectiveTurn: effectiveTurn,
       kingdomAttackUnlocked: attackUnlocked,
+      activeCondition: effectiveActiveCondition,
       newLinkages: sim.lastNewLinkages,
       lastPlacedCoord: sim.lastPlacedCoord,
       capturedCells: sim.lastCapturedCells,
@@ -289,12 +294,17 @@ class KingdomGame extends FlameGame with ScaleDetector {
         }
       }
 
+      final effectiveActiveCondition = (effectiveTurn == Turn.player)
+          ? simulationState.playerActiveWinCondition
+          : simulationState.aiActiveWinCondition;
+
       final isSiegeBlocked = GameRules.isPlacementBlockedBySiege(
         simulationState.board,
         x,
         y,
         effectiveTurn,
         attackUnlocked,
+        activeCondition: effectiveActiveCondition,
       );
 
       if (isSiegeBlocked) {

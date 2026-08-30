@@ -8,6 +8,7 @@ import '../../simulation/board.dart';
 import '../../simulation/rules.dart';
 import '../../core/enums/cell_state.dart';
 import '../../core/enums/turn.dart';
+import '../../core/enums/win_condition_type.dart';
 import '../../core/constants/board_constants.dart';
 import 'cell_component.dart';
 import 'linkages_layer_component.dart';
@@ -312,6 +313,7 @@ class BoardComponent extends PositionComponent {
     Board currentBoard, {
     Turn effectiveTurn = Turn.player,
     bool kingdomAttackUnlocked = false,
+    WinConditionType? activeCondition,
     Set<((int, int), (int, int))>? newLinkages,
     (int, int)? lastPlacedCoord,
     List<(int, int)>? capturedCells,
@@ -336,6 +338,7 @@ class BoardComponent extends PositionComponent {
             y,
             effectiveTurn,
             kingdomAttackUnlocked,
+            activeCondition: activeCondition,
           );
           _cellGrid[y][x].updateState(
             currentBoard.getCell(x, y),

@@ -194,33 +194,128 @@ void main() {
       expect(playerWin.isWin, isFalse);
     });
 
-    test('Parallel win condition is NOT enabled when U-shape is still possible', () {
-      // Board is open, U-shape is still possible around AI palace
-      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.uShape), isTrue);
+    test('Parallel and Half-U moves do NOT trigger siege block when Full U-shape is still possible', () {
+      // Board is open, Full U-shape is still possible around AI palace
+      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.fullUShape), isTrue);
+      expect(GameRules.getActiveWinCondition(board, Turn.player), equals(WinConditionType.fullUShape));
 
-      // Player builds a parallel line across row 7
-      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
+      // Player builds a parallel line across row 7 (from x=3 to 10)
+      for (int x = board.playableMinX; x < board.playableMaxX; x++) {
         board.setCell(x, 7, CellState.player);
       }
 
-      // Even with siege unlocked, parallel line alone does NOT win while U-shape is possible
+      // The final tile of the parallel wall (11, 7) MUST NOT be blocked by siege because Full U is the active condition!
+      expect(
+        GameRules.isPlacementBlockedBySiege(board, board.playableMaxX, 7, Turn.player, false),
+        isFalse,
+      );
+      expect(
+        GameRules.isValidPlacement(board, board.playableMaxX, 7, Turn.player, false),
+        isTrue,
+      );
+
+      // Even placing at (11, 7) with siege unlocked does NOT win while Full U-shape is possible
+      board.setCell(board.playableMaxX, 7, CellState.player);
       final winAttempt = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
       expect(winAttempt.isWin, isFalse);
     });
 
-    test('Parallel win condition IS enabled when opponent blocks U-shape', () {
-      // AI covers row 5 completely (blocking access to AI palace and U-shape)
+    test('Full U-shape move DOES trigger siege block when siege points are locked', () {
+      // Player sets up a Full U-shape encirclement missing only (9, 3) (topRight flank)
+      board.setCell(5, 3, CellState.player); // topLeft flank (x < 6)
+      board.setCell(5, 4, CellState.player);
+      board.setCell(5, 5, CellState.player);
+      board.setCell(6, 5, CellState.player);
+      board.setCell(7, 5, CellState.player);
+      board.setCell(8, 5, CellState.player);
+      board.setCell(9, 5, CellState.player);
+      board.setCell(9, 4, CellState.player);
+
+      // (9, 3) would complete the Full U-shape (topRight flank, x > 8, y = 3)
+      expect(
+        GameRules.isPlacementBlockedBySiege(board, 9, 3, Turn.player, false),
+        isTrue,
+      );
+      expect(
+        GameRules.isValidPlacement(board, 9, 3, Turn.player, false),
+        isFalse,
+      );
+
+      // Once siege is unlocked, placing at (9, 3) wins the game!
+      board.setCell(9, 3, CellState.player);
+      final winResult = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
+      expect(winResult.isWin, isTrue);
+    });
+
+    test('Half U-shape win condition activates ONLY when Full U-shape is not possible', () {
+      // Opponent blocks top-left flank at (5, 3) and (5, 4), making Full U-shape impossible
+      board.setCell(5, 3, CellState.ai);
+      board.setCell(5, 4, CellState.ai);
+      board.setCell(4, 3, CellState.ai);
+      board.setCell(3, 3, CellState.ai);
+
+      // Full U is impossible, but Half U (leftEdge to topRight) is possible
+      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.fullUShape), isFalse);
+      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.halfUShape), isTrue);
+      expect(GameRules.getActiveWinCondition(board, Turn.player), equals(WinConditionType.halfUShape));
+
+      // Player builds Half U path from leftEdge (3, 7) around to (9, 4)
+      board.setCell(3, 7, CellState.player);
+      board.setCell(4, 7, CellState.player);
+      board.setCell(5, 7, CellState.player);
+      board.setCell(6, 7, CellState.player);
+      board.setCell(7, 7, CellState.player);
+      board.setCell(8, 7, CellState.player);
+      board.setCell(9, 7, CellState.player);
+      board.setCell(9, 6, CellState.player);
+      board.setCell(9, 5, CellState.player);
+      board.setCell(9, 4, CellState.player);
+
+      // With Half U active, (9, 3) would complete Half U-shape to topRight: blocked by siege!
+      expect(
+        GameRules.isPlacementBlockedBySiege(board, 9, 3, Turn.player, false),
+        isTrue,
+      );
+
+      // Meanwhile, parallel moves do NOT trigger siege block because Half U is active!
+      expect(
+        GameRules.isPlacementBlockedBySiege(board, 11, 7, Turn.player, false),
+        isFalse,
+      );
+
+      // Completing Half U with siege unlocked wins!
+      board.setCell(9, 3, CellState.player);
+      final halfUWin = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
+      expect(halfUWin.isWin, isTrue);
+    });
+
+    test('Parallel win condition activates ONLY when Half U-shape is ALSO not possible', () {
+      // AI covers row 5 completely (blocking access to both flanks of AI palace)
       for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
         board.setCell(x, 5, CellState.ai);
       }
-      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.uShape), isFalse);
+      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.fullUShape), isFalse);
+      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.halfUShape), isFalse);
+      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.parallel), isTrue);
+      expect(GameRules.getActiveWinCondition(board, Turn.player), equals(WinConditionType.parallel));
 
-      // Player builds a parallel line across row 7
-      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
+      // Player builds a parallel line across row 7 from x=3 to 10
+      for (int x = board.playableMinX; x < board.playableMaxX; x++) {
         board.setCell(x, 7, CellState.player);
       }
 
-      // Now with U-shape blocked and siege unlocked, Player achieves parallel win!
+      // Now with Parallel active, final tile (11, 7) IS blocked by siege!
+      expect(
+        GameRules.isPlacementBlockedBySiege(board, board.playableMaxX, 7, Turn.player, false),
+        isTrue,
+      );
+      expect(
+        GameRules.isValidPlacement(board, board.playableMaxX, 7, Turn.player, false),
+        isFalse,
+      );
+
+      // Now with siege unlocked, Player achieves parallel win!
+      board.setCell(board.playableMaxX, 7, CellState.player);
       final winUnlocked = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
       expect(winUnlocked.isWin, isTrue);
 
@@ -229,56 +324,7 @@ void main() {
       expect(winLocked.isWin, isFalse);
     });
 
-    test('Connecting only left edge to top-left flank (left side only) does NOT win without right side blockage', () {
-      // Opponent (AI) covered row 5, but there is a gap on the top edge at (x=5, y=3)
-      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
-        if (x != 5) board.setCell(x, 5, CellState.ai);
-      }
-      // Player builds a line from left edge (3, 6) up through the gap to (5, 3)
-      board.setCell(3, 6, CellState.player);
-      board.setCell(4, 5, CellState.player);
-      board.setCell(5, 4, CellState.player);
-      board.setCell(5, 3, CellState.player); // Only reaches left flank at x=5 (left of AI palace at 6..8)
-
-      // Touches leftEdge at (3,6) and topLeft at (5,3) - both on LEFT side of kingdom! Right side is unblocked.
-      final winResult = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
-      expect(winResult.isWin, isFalse);
-
-      // Now if player connects across the top to the right flank at (9, 3) (> aiPalaceEndX=8)
-      board.setCell(6, 3, CellState.player);
-      board.setCell(7, 3, CellState.player);
-      board.setCell(8, 3, CellState.player);
-      board.setCell(9, 3, CellState.player);
-
-      // Now both left and right sides of opponent kingdom are blocked!
-      final fullBlockWin = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
-      expect(fullBlockWin.isWin, isTrue);
-    });
-
-    test('Incomplete parallel chain not reaching the right edge does NOT activate parallel win', () {
-      // AI covered row 5 completely (blocking U-shape access to AI palace)
-      for (int x = board.playableMinX; x <= board.playableMaxX; x++) {
-        board.setCell(x, 5, CellState.ai);
-      }
-      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.uShape), isFalse);
-
-      // Player builds a line starting at left edge (3, 7) across to (8, 7), but stops before right edge (11, 7)
-      for (int x = 3; x <= 8; x++) {
-        board.setCell(x, 7, CellState.player);
-      }
-
-      // Player chain does not reach rightEdge (11) and does not reach topRight flank
-      final winResult = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
-      expect(winResult.isWin, isFalse);
-
-      // Placing at non-connecting cells does not falsely trigger siege lock
-      expect(
-        GameRules.isPlacementBlockedBySiege(board, 6, 8, Turn.player, false),
-        isFalse,
-      );
-    });
-
-    test('Full GameSimulation: Opponent covers kingdom, player parallel block wins with siege ready', () {
+    test('Full GameSimulation: Progression through win condition tiers', () {
       final sim = GameSimulation(
         config: const LevelConfig(
           boardWidth: 15,
@@ -299,59 +345,55 @@ void main() {
         playerEndY: 11,
       );
 
-      // AI covers its kingdom defensively across row 5
+      // Initially active condition is fullUShape
+      expect(sim.playerActiveWinCondition, equals(WinConditionType.fullUShape));
+
+      // AI blocks top-left flank
+      for (int y = 3; y <= 5; y++) {
+        sim.board.setCell(3, y, CellState.ai);
+        sim.board.setCell(4, y, CellState.ai);
+        sim.board.setCell(5, y, CellState.ai);
+      }
+
+      // AI places a move to trigger updateActiveWinConditions
+      sim.currentTurn = Turn.ai;
+      sim.placeUnit(11, 11);
+
+      // Now player condition automatically transitioned to halfUShape
+      expect(sim.playerActiveWinCondition, equals(WinConditionType.halfUShape));
+
+      // AI now also blocks right flank (covering row 5 completely)
       for (int x = 3; x <= 11; x++) {
         sim.board.setCell(x, 5, CellState.ai);
       }
 
-      // Player has siege ready (playerKingdomAttackUnlocked = true)
+      // AI places a move
+      sim.currentTurn = Turn.ai;
+      sim.placeUnit(10, 11);
+
+      // Now player condition automatically transitioned to parallel!
+      expect(sim.playerActiveWinCondition, equals(WinConditionType.parallel));
+
+      // Player unlocks siege
       sim.playerScore = 30;
       sim.playerKingdomAttackUnlocked = true;
       sim.currentPhase = GamePhase.kingdomAttack;
       sim.currentTurn = Turn.player;
 
-      // Player builds parallel line at row 7 from x=3 to 10
+      // Player builds parallel line at row 7
       for (int x = 3; x < 11; x++) {
         sim.board.setCell(x, 7, CellState.player);
       }
 
-      // Player places final tile at (11, 7)
+      // Player places final tile at (11, 7) and wins via parallel!
       final (success, _) = sim.placeUnit(11, 7);
       expect(success, isTrue);
       expect(sim.currentPhase, equals(GamePhase.gameOver));
       expect(sim.winner, equals(Turn.player));
-    });
-
-    test('Half U-Shape: When opponent covers only one side (e.g. left side), parallel line does NOT win prematurely', () {
-      // Opponent (AI) covers left side and middle of kingdom: row 5 from x=3 to x=9
-      // Leaving x=10 and x=11 open on the right flank!
-      for (int x = 3; x <= 9; x++) {
-        board.setCell(x, 5, CellState.ai);
-      }
-
-      // U-shape / half U-shape is STILL possible because the right flank (x=10, 11) is open!
-      expect(GameRules.isWinConditionPossible(board, Turn.player, WinConditionType.uShape), isTrue);
-
-      // Player builds a horizontal line across row 7 from x=3 to 11
-      for (int x = 3; x <= 11; x++) {
-        board.setCell(x, 7, CellState.player);
-      }
-
-      // Parallel block win condition CANNOT be activated yet because hitting the right end (half U-shape) is possible!
-      final winAttempt = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
-      expect(winAttempt.isWin, isFalse);
-
-      // Player now extends upward from (11, 7) through (11, 5), (11, 4), and hits the right top end at (11, 3)
-      board.setCell(11, 6, CellState.player);
-      board.setCell(11, 5, CellState.player);
-      board.setCell(11, 4, CellState.player);
-      board.setCell(11, 3, CellState.player); // Reaches topRight anchor at y=3, x=11 (> aiPalaceEndX=8)
-
-      // Now Player has completed the half U-shape (leftEdge to topRight) and wins!
-      final halfUWin = GameRules.checkWinCondition(board, Turn.player, kingdomAttackUnlocked: true);
-      expect(halfUWin.isWin, isTrue);
+      expect(sim.winningConditionType, equals(WinConditionType.parallel));
     });
   });
 }
+
 
 
