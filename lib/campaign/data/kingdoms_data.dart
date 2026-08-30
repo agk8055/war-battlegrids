@@ -46,7 +46,7 @@ const List<KingdomModel> kKingdoms = [
     difficulty: 2,
     bannerAsset: AppAssets.pyramid,
     symbolAsset: AppAssets.pharaoh,
-    primaryColor: Colors.amber,
+    primaryColor: Colors.deepOrange,
     x: 0.7279,
     y: 0.4906,
     unlockedBy: ['coastal_castle'],
