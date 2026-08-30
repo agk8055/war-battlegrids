@@ -65,7 +65,7 @@ Players take turns placing **1 unit per turn** on any valid empty grid cell.
 - **Empty Cells Only**: Units can only be placed on unoccupied, non-obstacle tiles (`Empty`).
 - **Kingdom Protection**: You **cannot** place units directly inside the opponent's Kingdom Zone until you unlock the **Kingdom Attack** phase.
 - **Own Zone Restriction**: You cannot deploy units into your own Kingdom Zone (it already counts intrinsically as your territory).
-- **Early Win Prevention**: Prior to unlocking Kingdom Attack, players are prohibited from placing a piece that would prematurely complete a winning blockade around the opponent.
+- **Siege-Blocked Tile Rule (Early Win Prevention)**: Prior to unlocking Kingdom Attack (`!kingdomAttackUnlocked`), any move that would complete the **currently active win condition tier** is marked as siege-blocked and prohibited from placement.
 
 ### 3. Skipping Turns
 If a player wishes to pass or has no tactical placements, they can elect to **Skip Turn**. If both players skip consecutively or no valid moves exist for either side, the match ends in a **Draw**.
@@ -103,43 +103,65 @@ Every map features a **Kingdom Attack Threshold** (e.g., 10, 20, 30, 80, or 100 
 2. **Unlocking Attack**: Once your score reaches the required threshold, **Kingdom Attack is Unlocked** for your faction.
 3. **Barrier Drop**: Unlocking Kingdom Attack drops the magical barrier guarding the enemy's Kingdom Zone. You are now permitted to:
    - Deploy units directly inside the opponent's Kingdom Zone.
-   - Complete final victory blockade lines around or connecting through the enemy palace.
+   - Complete victory blockade lines without siege blockage restrictions.
 
 ---
 
 ## 🏆 Win Conditions & Blockades
 
-Victory is achieved by establishing an unbroken connected chain of units and captured grids surrounding the opponent's kingdom base.
+Victory is achieved by establishing an unbroken connected chain of units and captured grids surrounding or isolating the opponent's kingdom base.
 
-The game evaluates victory through a **Dynamic Win Condition Hierarchy**:
+The game strictly enforces a **Dynamic 4-Tier Win Condition Hierarchy**:
 
 ```
-               ┌────────────────────────┐
-               │    1. U-SHAPE WIN      │  (Primary Target)
-               └───────────┬────────────┘
-                           │ If blocked/impossible
-               ┌───────────▼────────────┐
-               │   2. PARALLEL WIN      │  (Secondary Target)
-               └───────────┬────────────┘
-                           │ If blocked/impossible
-               ┌───────────▼────────────┘
-               │ 3. KINGDOM-ASSISTED    │  (Final Target)
-               └────────────────────────┘
+               ┌──────────────────────────────────────────────┐
+               │    Tier 1: Full U-Shape Palace Encirclement  │  (Primary Target)
+               └──────────────────────┬───────────────────────┘
+                                      │ If structurally impossible
+               ┌──────────────────────▼───────────────────────┐
+               │    Tier 2: Half U-Shape Flank Encirclement   │  (Fallback 1)
+               └──────────────────────┬───────────────────────┘
+                                      │ If structurally impossible
+               ┌──────────────────────▼───────────────────────┐
+               │    Tier 3: Parallel Flank Blockade           │  (Fallback 2)
+               └──────────────────────┬───────────────────────┘
+                                      │ If structurally impossible
+               ┌──────────────────────▼───────────────────────┐
+               │    Tier 4: Royal Siege-Assisted Blockade     │  (Final Fallback)
+               └──────────────────────────────────────────────┘
 ```
 
-### 1. U-Shape Blockade (Primary)
-- **Goal**: Connect the **Top-Left Anchor** of the palace to the **Top-Right Anchor** around the enemy kingdom.
-- **Rule**: Forms an unbroken U-shaped wall enclosing the opponent's palace.
+### 1. Tier 1 — Full U-Shape Palace Encirclement (`fullUShape`) *(Primary)*
+- **Goal**: Connect both flanks of the opponent palace (`Top-Left Anchor` to `Top-Right Anchor`) or complete a Palace Breach Enclosure.
+- **Rule**: While a Full U-Shape is structurally possible on the board, **only** the Full U-Shape tier is active.
 
-### 2. Parallel Blockade (Secondary)
-- **Goal**: Connect the **Left Edge** of the playable board to the **Right Edge** of the playable board.
-- **Rule**: Activated if a U-shape is structurally blocked by opponent pieces or obstacles.
+### 2. Tier 2 — Half U-Shape Flank Encirclement (`halfUShape`) *(Fallback 1)*
+- **Goal**: Connect one board edge to the opposite palace flank (`Left Edge` to `Top-Right Anchor` or `Right Edge` to `Top-Left Anchor`).
+- **Rule**: **Activated ONLY IF** the Full U-Shape is structurally **not possible** (e.g. opponent completely blocked access to one palace corner).
 
-### 3. Kingdom-Assisted Blockade (Final)
-- **Goal**: Connect any **2 distinct edge/palace anchors** using your own Kingdom Zone as a structural wall in the chain.
-- **Rule**: Activated when both U-Shape and Parallel blockades are no longer possible.
+### 3. Tier 3 — Parallel Flank Blockade (`parallel`) *(Fallback 2)*
+- **Goal**: Connect the `Left Edge` to the `Right Edge` across the battlefield, fully cutting off the opponent's kingdom.
+- **Rule**: **Activated ONLY IF** Half U-Shape is **also structurally not possible** (e.g. opponent secured both palace flanks or fully covered their kingdom line).
 
-### 4. Draw Condition
+### 4. Tier 4 — Royal Siege-Assisted Blockade (`kingdomAssisted`) *(Final Fallback)*
+- **Goal**: Connect anchors using the attacker's own Kingdom Zone as a structural wall in the chain.
+- **Rule**: **Activated ONLY IF** Parallel Blockade is **also structurally not possible**.
+
+---
+
+### 🛡️ Siege-Blocked Tile Logic
+When a player does not have sufficient siege points (`!kingdomAttackUnlocked`):
+- **Only** tiles that would complete the **currently activated win condition tier** are marked with a siege lock icon and blocked from placement.
+- **Dynamic Tier-Locking**:
+  - *While Tier 1 (Full U) is active*: Only moves completing a Full U-Shape are blocked. Moves forming parallel chains or half U lines are not blocked unless they complete the active Tier 1 condition.
+  - *While Tier 2 (Half U) is active*: Only moves completing a Half U-Shape are blocked.
+  - *While Tier 3 (Parallel) is active*: Only moves completing a Parallel blockade are blocked.
+  - *While Tier 4 (Kingdom-Assisted) is active*: Only moves completing a Kingdom-Assisted blockade are blocked.
+- Once Kingdom Attack is unlocked, all siege blockages on winning moves are immediately lifted!
+
+---
+
+### 5. Draw Condition
 If the grid becomes completely filled with no valid moves available for either player and no blockade is formed, the match concludes in a **Draw**.
 
 ---

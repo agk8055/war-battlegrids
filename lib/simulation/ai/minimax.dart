@@ -187,16 +187,21 @@ class MinimaxAI {
       try {
         final captureResult = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
         if (captureResult.capturedCells.isNotEmpty) {
-          int enemyCount = 0;
-          for (final c in captureResult.capturedCells) {
-            if (sim.board.getCell(c.$1, c.$2) == defenderState) enemyCount++;
-          }
+          if (captureResult.capturerTurn == currentTurn) {
+            int enemyCount = 0;
+            for (final c in captureResult.capturedCells) {
+              if (sim.board.getCell(c.$1, c.$2) == defenderState) enemyCount++;
+            }
 
-          severity += 100 + (enemyCount * 10);
-          
-          // Double Threat Logic (Immediate)
-          if (strategy.prioritizeDoubleThreats && enemyCount >= 2) {
-            severity += 150;
+            severity += 100 + (enemyCount * 10);
+            
+            // Double Threat Logic (Immediate)
+            if (strategy.prioritizeDoubleThreats && enemyCount >= 2) {
+              severity += 150;
+            }
+          } else {
+            // Suicidal move into an existing opponent enclosure
+            severity -= 200;
           }
         }
 
@@ -225,7 +230,7 @@ class MinimaxAI {
       sim.board.setCell(move.$1, move.$2, defenderState);
       try {
         final enemyCaptureResult = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn);
-        if (enemyCaptureResult.capturedCells.isNotEmpty) {
+        if (enemyCaptureResult.capturedCells.isNotEmpty && enemyCaptureResult.capturerTurn == opponentTurn) {
           int oppEnemyCount = 0;
           final myState = currentTurn == Turn.player ? CellState.player : CellState.ai;
           for (final c in enemyCaptureResult.capturedCells) {

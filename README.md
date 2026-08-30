@@ -59,6 +59,38 @@ Download the latest build directly on [itch.io](https://agk8055.itch.io/war):
 
 ---
 
+## ⚔️ Core Rules & Win Conditions
+
+WAR: BATTLEGRIDS combines territory encirclement with a **Strict 4-Tier Win Hierarchy** and dynamic siege-blockade mechanics:
+
+### 🎯 Surround Captures & Siege Points
+- Enclosing enemy units strips their liberties, capturing them for **+10 points** per unit and transforming tiles into permanent **Captured Grids**.
+- Accumulating capture points unlocks the **Kingdom Attack Phase**, dropping the opponent's palace barrier.
+
+### 🏆 4-Tier Dynamic Win Condition Hierarchy
+The game dynamically evaluates the board and activates the highest viable win condition:
+
+1. **Tier 1 — Full U-Shape Palace Encirclement (`fullUShape`)** *(Primary)*:
+   - Connects both flanks (`Top-Left Anchor` to `Top-Right Anchor`) around the opponent's palace base.
+   - Active whenever structurally possible on the board.
+2. **Tier 2 — Half U-Shape Flank Encirclement (`halfUShape`)**:
+   - Connects one board edge to the opposite palace flank (`Left Edge` to `Top-Right` or `Right Edge` to `Top-Left`).
+   - Activates **only if** Full U-Shape is structurally impossible.
+3. **Tier 3 — Parallel Flank Blockade (`parallel`)**:
+   - Connects `Left Edge` to `Right Edge` across the battlefield, cleanly separating the opponent's kingdom.
+   - Activates **only if** Half U-Shape is also structurally impossible.
+4. **Tier 4 — Royal Siege-Assisted Blockade (`kingdomAssisted`)**:
+   - Completes an anchor blockade by utilizing the attacker's own Kingdom Zone.
+   - Activates **only if** Parallel blockade is also structurally impossible.
+
+### 🛡️ Dynamic Siege-Blocked Tile Logic
+- Prior to unlocking Kingdom Attack, **only moves that complete the currently active tier** are marked with a siege lock and prevented from placement.
+- When higher-tier routes are blocked by the defender, the active tier automatically shifts down the hierarchy and dynamically updates siege restrictions.
+
+*For complete tactical details and lore, see [gameplay.md](gameplay.md).*
+
+---
+
 ## 🛠️ Technical Stack
 
 | Category | Technology / Package | Purpose |

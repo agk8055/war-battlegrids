@@ -102,10 +102,11 @@ class GameSimulation {
     
     bool captureOccurred = false;
     if (captureResult.capturedCells.isNotEmpty) {
-      _handleCaptures(captureResult.capturedCells);
+      _handleCaptures(captureResult.capturedCells, capturerTurn: captureResult.capturerTurn);
       board.linkages.addAll(captureResult.linkages);
       lastCapturedCells = List.from(captureResult.capturedCells);
       lastNewLinkages = Set.from(captureResult.linkages);
+      lastMovedTurn = captureResult.capturerTurn;
       captureOccurred = true;
     }
 
@@ -193,19 +194,19 @@ class GameSimulation {
     aiActiveWinCondition = GameRules.getActiveWinCondition(board, Turn.ai);
   }
 
-  void _handleCaptures(List<(int, int)> capturedCoords) {
+  void _handleCaptures(List<(int, int)> capturedCoords, {required Turn capturerTurn}) {
     int enemyUnitsCount = 0;
-    final enemyState = currentTurn == Turn.player ? CellState.ai : CellState.player;
+    final victimState = capturerTurn == Turn.player ? CellState.ai : CellState.player;
 
-    // Mark cells as captured and count only enemy units for points
+    // Mark cells as captured and count only victim units for points
     for (final coord in capturedCoords) {
-      if (board.getCell(coord.$1, coord.$2) == enemyState) {
+      if (board.getCell(coord.$1, coord.$2) == victimState) {
         enemyUnitsCount++;
       }
       board.setCell(coord.$1, coord.$2, CellState.capturedGrid);
     }
 
-    if (currentTurn == Turn.player) {
+    if (capturerTurn == Turn.player) {
       playerCaptureEvents++;
       playerCapturedUnits += enemyUnitsCount;
       if (enemyUnitsCount > playerMaxCombo) {
@@ -221,7 +222,7 @@ class GameSimulation {
 
     final pointsGained = GameRules.calculateCaptureScore(enemyUnitsCount);
 
-    if (currentTurn == Turn.player) {
+    if (capturerTurn == Turn.player) {
       playerScore += pointsGained;
       if (playerScore >= config.playerKingdomAttackThreshold &&
           !playerKingdomAttackUnlocked) {

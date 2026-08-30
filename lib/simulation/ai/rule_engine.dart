@@ -88,7 +88,7 @@ class RuleEngine {
       sim.board.setCell(move.$1, move.$2, attackerState);
       try {
         final result = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
-        if (result.capturedCells.isNotEmpty) {
+        if (result.capturedCells.isNotEmpty && result.capturerTurn == currentTurn) {
            int enemyCount = 0;
            final defState = currentTurn == Turn.player ? CellState.ai : CellState.player;
            for (final c in result.capturedCells) {
@@ -132,9 +132,11 @@ class RuleEngine {
       int potentialCaptures = 0;
       try {
         final result = CaptureUtils.getCapturedUnits(sim.board, move, opponentTurn);
-        for (final c in result.capturedCells) {
-          if (sim.board.getCell(c.$1, c.$2) == myState) {
-            potentialCaptures++;
+        if (result.capturerTurn == opponentTurn) {
+          for (final c in result.capturedCells) {
+            if (sim.board.getCell(c.$1, c.$2) == myState) {
+              potentialCaptures++;
+            }
           }
         }
       } finally {
@@ -148,21 +150,29 @@ class RuleEngine {
           bool getsCaptured = false;
           sim.board.setCell(move.$1, move.$2, myState);
           try {
-            final orthogonalDirs = [
-              (move.$1, move.$2 - 1), (move.$1, move.$2 + 1),
-              (move.$1 - 1, move.$2), (move.$1 + 1, move.$2),
-            ];
-            for (final oppMove in orthogonalDirs) {
-              if (oppMove.$1 < 0 || oppMove.$1 >= sim.board.width || oppMove.$2 < 0 || oppMove.$2 >= sim.board.height) continue;
-              if (sim.board.getCell(oppMove.$1, oppMove.$2) != CellState.empty) continue;
-              if (!GameRules.isValidPlacement(sim.board, oppMove.$1, oppMove.$2, opponentTurn, opponentAttackUnlocked)) continue;
-              
-              sim.board.setCell(oppMove.$1, oppMove.$2, oppState);
-              final oppResult = CaptureUtils.getCapturedUnits(sim.board, oppMove, opponentTurn);
-              sim.board.setCell(oppMove.$1, oppMove.$2, CellState.empty);
-              if (oppResult.capturedCells.contains(move)) {
-                getsCaptured = true;
-                break;
+            // Check if placing our piece here immediately gets entrapped/captured
+            final selfResult = CaptureUtils.getCapturedUnits(sim.board, move, currentTurn);
+            if (selfResult.capturedCells.isNotEmpty && selfResult.capturerTurn == opponentTurn) {
+              getsCaptured = true;
+            }
+
+            if (!getsCaptured) {
+              final orthogonalDirs = [
+                (move.$1, move.$2 - 1), (move.$1, move.$2 + 1),
+                (move.$1 - 1, move.$2), (move.$1 + 1, move.$2),
+              ];
+              for (final oppMove in orthogonalDirs) {
+                if (oppMove.$1 < 0 || oppMove.$1 >= sim.board.width || oppMove.$2 < 0 || oppMove.$2 >= sim.board.height) continue;
+                if (sim.board.getCell(oppMove.$1, oppMove.$2) != CellState.empty) continue;
+                if (!GameRules.isValidPlacement(sim.board, oppMove.$1, oppMove.$2, opponentTurn, opponentAttackUnlocked)) continue;
+                
+                sim.board.setCell(oppMove.$1, oppMove.$2, oppState);
+                final oppResult = CaptureUtils.getCapturedUnits(sim.board, oppMove, opponentTurn);
+                sim.board.setCell(oppMove.$1, oppMove.$2, CellState.empty);
+                if (oppResult.capturerTurn == opponentTurn && oppResult.capturedCells.contains(move)) {
+                  getsCaptured = true;
+                  break;
+                }
               }
             }
           } finally {
@@ -207,7 +217,7 @@ class RuleEngine {
            final nextResult = CaptureUtils.getCapturedUnits(sim.board, nextMove, currentTurn);
            sim.board.setCell(nextMove.$1, nextMove.$2, CellState.empty);
            
-           if (nextResult.capturedCells.isNotEmpty) {
+           if (nextResult.capturedCells.isNotEmpty && nextResult.capturerTurn == currentTurn) {
              capturingNextMovesCount++;
            }
         }

@@ -6,20 +6,30 @@ import 'board_utils.dart';
 class CaptureResult {
   final List<(int, int)> capturedCells;
   final Set<((int, int), (int, int))> linkages;
-  CaptureResult(this.capturedCells, this.linkages);
+  final Turn capturerTurn;
+
+  CaptureResult(
+    this.capturedCells,
+    this.linkages, {
+    Turn? capturerTurn,
+  }) : capturerTurn = capturerTurn ?? Turn.player;
 }
 
 class CaptureUtils {
   /// Evaluates if placing a piece at [placedCoord] by [turn] results in any enemy
   /// unit or territory captures. Returns a CaptureResult containing 
-  /// captured cells and blockage linkages.
+  /// captured cells, blockage linkages, and the capturer's Turn.
   static CaptureResult getCapturedUnits(Board board, (int, int) placedCoord, Turn turn) {
     final CellState attackerState = turn == Turn.player ? CellState.player : CellState.ai;
     final CellState attackerZone = turn == Turn.player ? CellState.playerZone : CellState.aiZone;
-    final List<(int, int)> captured = [];
-    final Set<((int, int), (int, int))> linkages = {};
+    final Turn defenderTurn = turn == Turn.player ? Turn.ai : Turn.player;
+    final CellState defenderState = turn == Turn.player ? CellState.ai : CellState.player;
+    final CellState defenderZone = turn == Turn.player ? CellState.aiZone : CellState.playerZone;
 
-    // Check adjacent cells
+    final List<(int, int)> offensiveCaptured = [];
+    final Set<((int, int), (int, int))> offensiveLinkages = {};
+
+    // 1. Check offensive captures (does this placement enclose any adjacent enemy groups?)
     final allNeighbors = [
       (placedCoord.$1, placedCoord.$2 - 1),
       (placedCoord.$1, placedCoord.$2 + 1),
@@ -33,20 +43,34 @@ class CaptureUtils {
       final cell = board.getCell(neighbor.$1, neighbor.$2);
       
       // If the neighbor is NOT the attacker's color and NOT the attacker's zone, 
-      // and NOT already captured, check if it's enclosed.
+      // and NOT already captured or obstacle, check if it's enclosed.
       if (cell != attackerState && cell != attackerZone && cell != CellState.obstacle) {
-        if (!captured.any((c) => c.$1 == neighbor.$1 && c.$2 == neighbor.$2)) {
+        if (!offensiveCaptured.any((c) => c.$1 == neighbor.$1 && c.$2 == neighbor.$2)) {
           final group = _checkGroupCapture(board, neighbor, attackerState, attackerZone);
           if (group != null) {
-            captured.addAll(group);
+            offensiveCaptured.addAll(group);
             // Identify blockage for this group
-            _addBlockageLinkages(board, group, attackerState, attackerZone, linkages);
+            _addBlockageLinkages(board, group, attackerState, attackerZone, offensiveLinkages);
           }
         }
       }
     }
 
-    return CaptureResult(captured, linkages);
+    if (offensiveCaptured.isNotEmpty) {
+      return CaptureResult(offensiveCaptured, offensiveLinkages, capturerTurn: turn);
+    }
+
+    // 2. Check entrapment / pocket capture (was this unit placed into an already enclosed enemy pocket?)
+    // If the placed unit's contiguous group has no path to its own kingdom or boundary,
+    // the opponent who enclosed the pocket captures the placed group.
+    final entrapmentGroup = _checkGroupCapture(board, placedCoord, defenderState, defenderZone);
+    if (entrapmentGroup != null) {
+      final Set<((int, int), (int, int))> entrapmentLinkages = {};
+      _addBlockageLinkages(board, entrapmentGroup, defenderState, defenderZone, entrapmentLinkages);
+      return CaptureResult(entrapmentGroup, entrapmentLinkages, capturerTurn: defenderTurn);
+    }
+
+    return CaptureResult([], {}, capturerTurn: turn);
   }
 
   /// Finds the contiguous group of non-attacker units starting at [startCoord].
