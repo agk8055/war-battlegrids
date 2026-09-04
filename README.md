@@ -152,7 +152,7 @@ Using **Supabase Realtime Broadcast**, player actions bypass database tables com
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/agk8055/war.git
+   git clone https://github.com/agk8055/war-battlegrids
    cd war
    ```
 
